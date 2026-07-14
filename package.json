@@ -1,0 +1,17 @@
+{
+  "name": "agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Terminal REPL para LLMs NVIDIA com troca de modelo via /model",
+  "bin": {
+    "agents": "./bin/agents"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file=.env bin/agents.mjs",
+    "health": "node --env-file=.env bin/agents.mjs --health-only"
+  }
+}
