@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"zeuz-fixture-codex-thread-0001"}
+{"type":"item.started","item":{"type":"command_execution","command":"pnpm test --filter zeuz-fixture"}}
+{"type":"item.completed","item":{"type":"command_execution","command":"pnpm test --filter zeuz-fixture","status":"completed","aggregated_output":"Synthetic command output only."}}
+{"type":"item.completed","item":{"type":"agent_message","text":"Synthetic Codex fixture response: deterministic orchestration check complete."}}
+{"type":"turn.completed","usage":{"input_tokens":42,"output_tokens":17,"total_tokens":59}}

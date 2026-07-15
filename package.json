@@ -51,6 +51,7 @@
     "health": "tsx src/cli.tsx health --deep",
     "prepublishOnly": "pnpm check && pnpm build",
     "secrets:check": "node scripts/check-secrets.mjs",
+    "smoke:adapters": "tsx scripts/smoke-adapters.ts",
     "start": "node bin/zeuz",
     "test": "tsx --test test/**/*.test.ts",
     "test:installer": "bash scripts/tests/installer.test.sh",

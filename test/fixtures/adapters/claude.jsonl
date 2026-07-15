@@ -1,0 +1,4 @@
+{"type":"stream_event","session_id":"zeuz-fixture-claude-session-0001","event":{"delta":{"text":"Synthetic "}}}
+{"type":"assistant","session_id":"zeuz-fixture-claude-session-0001","message":{"content":[{"type":"tool_use","name":"zeuz-fixture-bash"}]}}
+{"type":"stream_event","session_id":"zeuz-fixture-claude-session-0001","event":{"delta":{"text":"Claude fixture"}}}
+{"type":"result","session_id":"zeuz-fixture-claude-session-0001","result":"Synthetic Claude fixture response: deterministic orchestration check complete.","usage":{"input_tokens":40,"output_tokens":15,"total_tokens":55}}

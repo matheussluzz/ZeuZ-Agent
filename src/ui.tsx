@@ -6,6 +6,7 @@ import { Box, Static, Text, useApp, useInput } from 'ink';
 import chalk from 'chalk';
 
 import { MODEL_CATALOG, isConfigured } from './catalog.js';
+import { dispatchCommand } from './command-dispatch.js';
 import { ROUTING_GUIDE } from './orchestration.js';
 import { TaskStore } from './task-store.js';
 import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ReviewResult, ZeuzSession, ZeuzUseCase } from './types.js';
@@ -248,11 +249,9 @@ export function App({ controller }: AppProps): React.JSX.Element {
   }, [addItem]);
 
   const runCommand = useCallback(async (line: string): Promise<void> => {
-    const [command = '', ...parts] = line.slice(1).trim().split(/\s+/);
-    const argument = parts.join(' ').trim();
-    const lower = command.toLowerCase();
+    return await dispatchCommand(line, async ({ name: lower, argument, requestedName: command }) => {
 
-    if (lower === 'exit' || lower === 'quit') {
+    if (lower === 'exit') {
       exit();
       return;
     }
@@ -357,7 +356,8 @@ export function App({ controller }: AppProps): React.JSX.Element {
       if (outcome.review) addItem('review', 'Adversarial review', reviewText(outcome.review));
       return;
     }
-    throw new Error(`Unknown command: /${command}. Use /help.`);
+      throw new Error(`Unknown command: /${command}. Use /help.`);
+    });
   }, [addItem, controller, eventSink, exit]);
 
   const submit = useCallback(async (line: string) => {

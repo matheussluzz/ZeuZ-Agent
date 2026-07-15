@@ -1,0 +1,4 @@
+{"type":"stream_event","session_id":"zeuz-fixture-cursor-session-0001","event":{"delta":{"text":"Synthetic "}}}
+{"type":"assistant","session_id":"zeuz-fixture-cursor-session-0001","message":{"content":[{"type":"tool_use","name":"zeuz-fixture-read"}]}}
+{"type":"stream_event","session_id":"zeuz-fixture-cursor-session-0001","event":{"delta":{"text":"Cursor fixture"}}}
+{"type":"result","session_id":"zeuz-fixture-cursor-session-0001","result":"Synthetic Cursor fixture response: deterministic orchestration check complete.","usage":{"input_tokens":38,"output_tokens":14,"total_tokens":52}}
