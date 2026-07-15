@@ -1,6 +1,6 @@
 # ZeuZ-Agent Roadmap Candidate
 
-Status: discussion draft; D02 is frozen, while D01 and D03–D12 remain open
+Status: discussion draft; D02, D03, D05–D09, and D12 are frozen; D01, D04, D10, and D11 remain partially open
 
 Research cutoff: 2026-07-15
 
@@ -36,22 +36,22 @@ This document is not yet a delivery commitment. The open decisions below intenti
 
 ## Architecture decision checkpoint
 
-Matheus can approve the remaining recommended defaults together and list only exceptions. D02 was frozen on 2026-07-15: complete licensed BMAD and NVIDIA catalog imports are allowed under the provenance, attribution, trademark, validation, and review controls below.
+Matheus froze the accepted decisions on 2026-07-15. Only persona nesting in D01 and the explicitly marked parts of D04, D10, and D11 remain open.
 
-| ID | Decision | Recommended default | Why it is material |
-| --- | --- | --- | --- |
-| D01 | Relationship between skills and subagents | Keep skills as portable packages; create specialist agent profiles that load one or more skills and spawn only when useful | One process per catalog skill wastes context and conflates reusable knowledge with isolated execution |
-| D02 | Third-party skill acquisition | Import and adapt the complete BMAD and NVIDIA skill catalogs from pinned upstream revisions; preserve applicable licenses, copyright, attribution, modification history, provenance, and trademark boundaries; update only through reviewed sync diffs | Wholesale local availability serves ZeuZ's broad capability goal, but hundreds of changing files require automated provenance, validation, package-size, and update controls |
-| D03 | Slash command promise | `/skill search|info|install|enable|run <id>` covers the full catalog; installed and enabled skills may receive collision-safe direct aliases | Hundreds of global top-level commands would make autocomplete noisy and collision-prone |
-| D04 | Paid-model fallback | Prefer healthy Agy/NVIDIA routes for bounded work; automatically use paid frontier routes only when capability, health, or reviewer-family separation requires them, with a visible reason and a user-configured per-session budget | A blanket cost rule can weaken completion or the independent review gate, while an uncapped fallback can create surprise cost |
-| D05 | Discovery default | Use an autonomous fast path with explicit assumptions, a coaching path on request, and mandatory questions only for material ambiguity or consequential actions | Exhaustive questions conflict with high autonomy and can hold simple work hostage |
-| D06 | Five-stage workflow trigger | Require the full pipeline for substantial work; use abbreviated stages for trivial, localized, reversible tasks | Applying a full PRD to every typo or tiny fix adds ceremony without reducing risk |
-| D07 | Human checkpoints | Require approval for architecture-changing choices, paid/external consequences, secrets, destructive actions, publication, or unresolved ambiguity; otherwise continue autonomously | Approval must protect consequence without becoming routine friction |
-| D08 | Visible thinking and messaging | Show safe reasoning summaries and structured events; support universal queued follow-ups plus native live input only where a provider safely supports it | Raw chain-of-thought is not an acceptable UI contract, and providers differ in live-input support |
-| D09 | Vault memory | Auto-store only durable preferences, definitions, decisions, and approved facts with provenance, sensitivity, confidence, freshness, deduplication, and inspect/edit/delete commands | “Store everything” creates privacy, staleness, prompt-injection, and context-quality risks |
-| D10 | MCP defaults | Official registry/vendor repositories first, community catalogs for discovery only, and no third-party MCP enabled by default | MCP servers can run with client authority; popularity is not a safety review |
-| D11 | Telegram MVP | Single-user pairing, allowlisted user/chat, portable TypeScript long polling while the terminal is open, durable offsets/idempotency, and confirmation gates for consequential commands | The remote channel expands the local trust boundary and can trigger real actions |
-| D12 | Delivery cadence | One draft PR per implementation wave; npm publication waits for all release gates and explicit owner approval | Small PRs preserve review quality, rollback, and frontier context boundaries |
+| ID | Status | Decision | Frozen policy or remaining question | Why it is material |
+| --- | --- | --- | --- | --- |
+| D01 | PARTIAL | Relationship between skills and subagents | Pantheon entries become specialist personas. A persona may load and compose BMAD, NVIDIA, and ZeuZ capability skills; ZeuZ does not create one process per catalog skill. Open: whether a persona may spawn another persona. | Personas provide isolated behavior and identity while reusable skills keep the capability catalog composable and context-bounded |
+| D02 | FROZEN | Third-party skill acquisition | Import and adapt the complete BMAD and NVIDIA catalogs from pinned revisions with licenses, notices, attribution, modification history, provenance, trademark boundaries, validation, reviewed sync diffs, and free split bundles when core package budgets require them | Wholesale local availability serves ZeuZ's broad capability goal, but hundreds of changing files require automated trust and update controls |
+| D03 | FROZEN | Slash command promise | Only Pantheon personas receive top-level commands such as `/argos`. Typing `/skill` opens the searchable full catalog; selecting or entering `/skill <id>` invokes a non-Pantheon skill. Non-Pantheon skills never receive top-level aliases. | This preserves fast persona access without flooding autocomplete with hundreds of commands |
+| D04 | PARTIAL | Per-user model and cost policy | Initial discovery records each user's provider availability, cost limits, and route preferences. Matheus prefers GLM first, then the three Cursor routes, then Agy for bounded work. Open: whether this order also replaces Sol/Fable as primary orchestrator or applies only to delegates. | Pricing and provider access differ per user, while capability, health, permissions, and reviewer-family separation must still constrain routing |
+| D05 | FROZEN | Discovery default | Use an autonomous fast path with explicit assumptions, a coaching path on request, and mandatory questions only for material ambiguity or consequential actions | This resolves material doubt without holding reversible work hostage |
+| D06 | FROZEN | Five-stage workflow trigger | Require Brainstorming > Architecture > Engineering > Reviewer > Optimizer for substantial work; use abbreviated stages for trivial, localized, reversible tasks | Applying a full PRD to every tiny fix adds ceremony without reducing risk |
+| D07 | FROZEN | Human checkpoints | Require approval for architecture-changing choices, paid/external consequences, secrets, destructive actions, publication, or unresolved material ambiguity; otherwise continue autonomously | Approval protects consequence without becoming routine friction |
+| D08 | FROZEN | Visible thinking and messaging | Show safe summaries and structured events; make running subagents observable, expandable, and selectable in the terminal; support universal queued follow-ups plus native live input where safely supported | Raw chain-of-thought is not an acceptable contract, but users still need control and evidence of ongoing work |
+| D09 | FROZEN | Vault memory | Auto-store durable preferences, definitions, decisions, and approved facts with provenance, sensitivity, confidence, freshness, deduplication, and inspect/edit/delete commands; encryption may follow local permission hardening rather than block the MVP | “Store everything” creates privacy, staleness, prompt-injection, and context-quality risks |
+| D10 | PARTIAL | Integration and MCP catalog | Prioritize Gmail, Google Drive, Chrome/browser, Telegram, and GitHub; retain the user-provided community directories as additional installable discovery sources; enable nothing silently. Open: whether to prefer a native connector/transport when it is safer than an MCP. | External integrations have different authentication and trust models; a common catalog must not erase those differences |
+| D11 | PARTIAL | Telegram MVP | Single-user allowlisted TypeScript long polling while the terminal is open, with durable offsets/idempotency. Every Telegram-originated request requires confirmation. Open: whether confirmation occurs locally in the terminal or through an inline Telegram approval. | The confirmation location determines whether remote use is genuinely useful and whether approval is independent of the originating channel |
+| D12 | FROZEN | Delivery cadence | One draft PR per wave; npm publication waits for all release gates and explicit owner approval | Small PRs preserve review quality, rollback, and frontier context boundaries |
 
 ## Verified baseline gaps
 
@@ -99,7 +99,7 @@ Use the Agent Skills directory model: `SKILL.md` metadata plus optional `scripts
 
 ### Specialist agent profile
 
-A specialist is a provider-neutral runtime profile, not a renamed skill. It declares a purpose, one or more skills, model capability requirements, context budget, permissions, lifecycle, task ownership, and reviewer separation. Pantheon profiles such as Argos, Hefesto, Metis, Medusa, Clio, Prometeu, Atena, and Hermes become the first built-in specialists.
+A Pantheon persona is a provider-neutral specialist-agent profile, not a renamed capability skill. It declares a purpose, one or more composable BMAD/NVIDIA/ZeuZ skills, model capability requirements, context budget, permissions, lifecycle, task ownership, and reviewer separation. Argos, Hefesto, Metis, Medusa, Clio, Prometeu, Atena, and Hermes become the first built-in personas.
 
 Examples:
 
@@ -109,7 +109,7 @@ Examples:
 - Athena work activates Atena with Prometeu and Clio dependencies;
 - plain/commercial translation activates Hermes.
 
-The router must report why a skill was activated, why a specialist was spawned, which model was selected, and any degraded fallback.
+The router must report why a skill was activated, why a persona was spawned, which model was selected, and any degraded fallback. The orchestrator owns composition; whether personas may recursively spawn personas is intentionally unresolved in Wave 00.
 
 ### Terminal event contract
 
@@ -238,7 +238,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** second half of candidate 18, task-engine integration from 12, and N01/N02 specialist behavior.
 
-**Exit criteria:** in-process versus spawn policy; built-in specialist profiles; automatic intent routing and explicit `/skill run` or `/agent spawn`; `/skill search|info|install|enable|disable|run`; collision-safe aliases for enabled skills; dependency activation; cross-family reviewer separation; queued follow-up messaging and provider-native live input only when supported; cancellation and result retrieval.
+**Exit criteria:** in-process versus spawn policy; built-in Pantheon personas; automatic intent routing; top-level slash commands only for Pantheon personas; `/skill` opens a searchable list of the complete non-Pantheon catalog and `/skill <id>` invokes the selection; no non-Pantheon top-level aliases; dependency activation; cross-family reviewer separation; queued follow-up messaging and provider-native live input only when supported; cancellation and result retrieval.
 
 **Rollback:** disable specialist spawning while preserving in-process skill activation.
 
@@ -248,7 +248,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** candidates 8 and 22 delivery slices, plus N02 UI.
 
-**Exit criteria:** slash dropdown on `/`; fuzzy search and keyboard navigation; persistent task checklist for substantial requests; collapsible workflow/subagent rows with status, model, elapsed time, tools, artifacts, result, and message composer; safe reasoning/activity timeline; cancellation; narrow terminal, no-color, screen-reader-friendly text fallback; Ink and spawned CLI E2E tests.
+**Exit criteria:** slash dropdown on `/`; fuzzy search and keyboard navigation; persistent task checklist for substantial requests; collapsible, observable, and selectable workflow/subagent rows with status, model, elapsed time, tools, artifacts, result, and message composer; safe reasoning/activity timeline; cancellation; narrow terminal, no-color, screen-reader-friendly text fallback; Ink and spawned CLI E2E tests.
 
 **Rollback:** preserve non-interactive commands and a compact legacy renderer.
 
@@ -278,7 +278,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** candidates 14–16 and D04.
 
-**Exit criteria:** installation/authentication/model/tool/permission/latency health layers with timestamps; opt-in quota probes; pinned catalog refresh with provenance and reviewed fallback; unavailable routes disabled without changing defaults silently; redacted local token/latency/failure/fallback/review/outcome metrics; user-configured paid-model budget per session with a hard stop or confirmation before exceeding it; retention and reset controls; no prompt content; route explanation names cost/health/capability/reviewer constraints.
+**Exit criteria:** installation/authentication/model/tool/permission/latency health layers with timestamps; onboarding/discovery captures each user's provider access, unlimited/paid status, route preferences, and per-session paid budget; Matheus's profile can prefer GLM, the three Cursor routes, then Agy according to the resolved D04 scope; opt-in quota probes; pinned catalog refresh with provenance and reviewed fallback; unavailable routes disabled without changing defaults silently; redacted local token/latency/failure/fallback/review/outcome metrics; hard stop or confirmation before exceeding budget; retention and reset controls; no prompt content; route explanation names cost/health/capability/reviewer constraints.
 
 **Rollback:** reviewed static catalog remains available when discovery is offline.
 
@@ -288,7 +288,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** N05 and MCP-specific portion of 20.
 
-**Exit criteria:** official registry/vendor ingestion; community catalogs labeled discovery-only; capability and provenance cards; install/enable confirmation; permission scopes, environment allowlists, network/filesystem policy, sandbox mode, and audit events; health and version checks; disabled-by-default third-party servers; curated profiles chosen after D10; malicious/compromised fixture tests.
+**Exit criteria:** official registry/vendor ingestion; initial integration profiles for Gmail, Google Drive, Chrome/browser, Telegram, and GitHub; the user-provided MCP directories remain searchable additional install sources and are labeled discovery-only; capability and provenance cards; explicit install/enable confirmation; permission scopes, environment allowlists, network/filesystem policy, sandbox mode, and audit events; health and version checks; disabled-by-default third-party servers; transport type is visible instead of pretending every integration is necessarily MCP; malicious/compromised fixture tests.
 
 **Rollback:** one command disables a server/profile and removes its runtime authorization without deleting user data.
 
@@ -298,7 +298,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** N06 and the Telegram-specific portion of candidate 20, reusing only behavioral lessons from Matheus's private Lumen prototype rather than copying its implementation or local paths into public artifacts.
 
-**Exit criteria:** provider-neutral remote transport interface; single-user pairing and user/chat allowlists; portable TypeScript `getUpdates` long polling with positive timeout, exponential backoff, durable offset, idempotency, rate limits, atomic state, and safe shutdown; redacted audit; status, prompt submission, approve/reject, cancel, and task/agent follow-up commands according to D11; consequential actions require the selected confirmation gate; the bot token loads from the OS keychain when supported, with a Git-ignored mode-`0600` local configuration or sanitized environment fallback; no raw messages or tokens in logs, vault, prompts, or task records.
+**Exit criteria:** provider-neutral remote transport interface; single-user pairing and user/chat allowlists; portable TypeScript `getUpdates` long polling with positive timeout, exponential backoff, durable offset, idempotency, rate limits, atomic state, and safe shutdown; redacted audit; status, prompt submission, approve/reject, cancel, and task/agent follow-up commands according to D11; every Telegram-originated operation enters a confirmation state through the resolved confirmation channel; the bot token loads from the OS keychain when supported, with a Git-ignored mode-`0600` local configuration or sanitized environment fallback; no raw messages or tokens in logs, vault, prompts, or task records.
 
 **Rollback:** remote transport can be disabled and revoked locally without affecting terminal sessions.
 
@@ -366,9 +366,8 @@ ZeuZ may copy and adapt the complete public BMAD and NVIDIA skill catalogs under
 
 ## Remaining answers required to freeze Wave 00
 
-1. Approve or override decisions D01 and D03–D12; D02 is frozen unless Matheus revises it.
-2. Select the first MCP profiles or approve “none enabled; GitHub, browser/web documentation, local Git/filesystem, and optional collaboration SaaS evaluated first.”
-3. Define Telegram remote commands and confirmation rules, including whether it remains terminal-lifetime-only in the MVP.
-4. Decide whether vault encryption is required before the memory MVP or may follow after local permission hardening.
-5. Identify the npm owner account/organization and confirm that the first publication requires an explicit final approval.
-6. Authorize installation/authentication of GitHub CLI before the draft PR workflow can run.
+1. D04: does Matheus's GLM > three Cursor routes > Agy preference apply only to delegated work, while Sol/Fable remain primary orchestrators, or to the primary orchestrator as well?
+2. D01: may a Pantheon persona spawn another persona, or must the root orchestrator spawn all personas as siblings while each persona composes only capability skills?
+3. D11: must every Telegram request be confirmed locally in the terminal, or may the same allowlisted Telegram user confirm through an inline approval button?
+4. D10: may ZeuZ prefer a native connector or dedicated transport when it offers safer OAuth/lifecycle semantics than an MCP, while presenting all options through one integration catalog?
+5. Identify the npm owner account/organization; explicit manual approval before the first publication is already frozen.
