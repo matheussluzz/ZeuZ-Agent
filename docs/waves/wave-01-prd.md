@@ -1,7 +1,7 @@
 # Wave 01 PRD — Deterministic orchestration and adapter test foundation
 
-Status: in progress  
-Contract: `AGENTS.md` and `docs/roadmap_candidate.md` at Wave 01 branch creation  
+Status: implementation complete; formal Medusa review blocked by existing sensitive-template classification
+Contract: `AGENTS.md` and `docs/roadmap_candidate.md` at Wave 01 branch creation
 Branch: `agent/wave-01-orchestration-foundation`
 
 ## Outcome

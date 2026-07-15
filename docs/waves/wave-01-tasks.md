@@ -36,14 +36,14 @@ This checklist is the persistent execution record for Wave 01. Check an item onl
 - [x] Run `pnpm secrets:check` before every commit and push, recording policy blockers.
 - [x] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` without bypassing supply-chain policy.
 - [x] Run proportional opt-in real smokes only after a fresh health check and report them separately.
-- [ ] Attempt the official Medusa flow and preserve formal `REVIEW_BLOCKED` if sensitive-template classification blocks it.
-- [ ] Obtain a fresh read-only adversarial review from a different model family.
-- [ ] Remediate every valid finding and obtain a second review when required.
+- [x] Attempt the official Medusa flow and preserve formal `REVIEW_BLOCKED` if sensitive-template classification blocks it.
+- [x] Obtain a fresh read-only adversarial review from a different model family.
+- [x] Remediate every valid finding and obtain a second review when required.
 
 ## Optimizer
 
-- [ ] Remove duplicated test harness code and unnecessary abstractions.
-- [ ] Confirm unit/CI paths do not start Ink, providers, network, credential reads, or quota-consuming calls.
-- [ ] Inspect staged, unstaged, and untracked files for scope and private data.
-- [ ] Update the draft PR description/checks and compact `handoff.md` before delivery.
-- [ ] Deliver branch, commits, PR link, executed evidence, review verdict, degradations, and blockers.
+- [x] Remove duplicated test harness code and unnecessary abstractions.
+- [x] Confirm unit/CI paths do not start Ink, providers, network, credential reads, or quota-consuming calls.
+- [x] Inspect staged, unstaged, and untracked files for scope and private data.
+- [x] Update the draft PR description/checks and compact `handoff.md` before delivery.
+- [x] Deliver branch, commits, PR link, executed evidence, review verdict, degradations, and blockers.
