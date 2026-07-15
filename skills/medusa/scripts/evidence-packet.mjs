@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { chmod, lstat, mkdir, open, readFile, readlink, realpath } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, readlink, realpath } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { dirname, relative, resolve, sep } from 'node:path';
+import { containsSecretShape, isPublicTrackedTemplate, isSensitivePath } from './trust-policy.mjs';
 
 const REVIEW_DIRECTORY = '.agents/reviews';
 const REVIEW_EXCLUDE = `:(exclude)${REVIEW_DIRECTORY}/**`;
-const SENSITIVE_PATH = /(^|\/)(\.env(?:\..*)?|lamine(?:\.[^/]*)?\.ya?ml|\.npmrc|auth\.json|[^/]*(?:credentials?|secrets?)[^/]*\.json|[^/]+\.(?:pem|key|p12|pfx|jks))$/i;
 
-const usage = `Usage: node evidence-packet.mjs --workspace <git-dir> --request <file> --criteria <json> --delivery <file> --verification <file> --artifact <path> [--artifact <path> ...] --producer-family <name> --out .agents/reviews/<file>.json\n`;
+const usage = `Usage: node evidence-packet.mjs --workspace <git-dir> --request <file> --criteria <json> --delivery <file> --verification <file> --artifact <path> [--artifact <path> ...] --producer-provider <name> --producer-model <id> --producer-family <name> --out .agents/reviews/<file>.json\n`;
 
 function parseArgs(argv) {
   const options = { artifacts: [] };
@@ -29,7 +29,10 @@ function sha256(value) {
 }
 
 const portableRelative = (from, to) => relative(from, to).split(sep).join('/');
-const isSensitivePath = (path) => SENSITIVE_PATH.test(path.split(sep).join('/'));
+
+function assertOwnedByActiveUser(state, label) {
+  if (process.platform !== 'win32' && typeof process.getuid === 'function' && state.uid !== process.getuid()) throw new Error(`${label} must be owned by the active OS user`);
+}
 
 function git(cwd, args, { required = false } = {}) {
   const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', timeout: 30_000, maxBuffer: 100_000_000 });
@@ -59,7 +62,11 @@ async function hashUntracked(cwd) {
 
 async function workspaceState(cwd) {
   const trackedSensitive = (git(cwd, ['ls-files'], { required: true }) ?? '').split('\n').filter(Boolean).filter(isSensitivePath);
-  if (trackedSensitive.length) throw new Error(`Refusing to packetize tracked sensitive paths: ${trackedSensitive.join(', ')}`);
+  const denied = trackedSensitive.filter((path) => !isPublicTrackedTemplate(path));
+  if (denied.length) throw new Error(`Refusing to packetize tracked credential paths: ${denied.join(', ')}`);
+  for (const template of trackedSensitive.filter(isPublicTrackedTemplate)) {
+    if (containsSecretShape(await readFile(resolve(cwd, template), 'utf8'))) throw new Error(`Tracked public template contains secret-shaped content: ${template}`);
+  }
   const head = git(cwd, ['rev-parse', 'HEAD'], { required: true });
   const branch = git(cwd, ['branch', '--show-current']) ?? '';
   const status = git(cwd, ['status', '--short', '--untracked-files=all', '--', '.', REVIEW_EXCLUDE], { required: true }) ?? '';
@@ -99,8 +106,7 @@ async function capturedInput(cwd, path, label, blockers) {
       return { path: absolute, error: 'resolves outside workspace' };
     }
     const content = await readFile(inputReal, 'utf8');
-    const secretShape = /(?:nvapi-[A-Za-z0-9_-]{16,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/;
-    if (secretShape.test(content)) {
+    if (containsSecretShape(content)) {
       blockers.push(`${label} input contains a secret-shaped value; sanitize it before review.`);
       return { path: absolute, error: 'secret-shaped value detected' };
     }
@@ -145,6 +151,8 @@ try {
       criteria = [];
     }
   }
+  if (!options.producerProvider) blockers.push('Missing producer provider; producer identity cannot be established.');
+  if (!options.producerModel) blockers.push('Missing producer model; producer identity cannot be established.');
   if (!options.producerFamily) blockers.push('Missing producer family; independent review cannot be established.');
 
   const artifacts = [];
@@ -167,30 +175,18 @@ try {
   if (artifacts.length === 0) blockers.push('No artifact path supplied.');
 
   const workspace = await workspaceState(cwd);
-  const packet = {
+  const unsignedPacket = {
     schemaVersion: '1.0',
     generatedAt: new Date().toISOString(),
-    producer: { family: options.producerFamily ?? null },
+    producer: { provider: options.producerProvider ?? null, model: options.producerModel ?? null, family: options.producerFamily ?? null },
     workspace,
-    packetFingerprint: sha256(JSON.stringify({
-      workspaceFingerprint: workspace.fingerprint,
-      request: request?.sha256,
-      criteria: criteriaInput?.sha256,
-      delivery: delivery?.sha256,
-      verification: verification?.sha256,
-      artifacts,
-      producerFamily: options.producerFamily ?? null,
-      criteriaSha256: sha256(JSON.stringify(criteria)),
-      blockers,
-      workspaceCwd: workspace.cwd,
-      inputPaths: { request: request?.path, criteria: criteriaInput?.path, delivery: delivery?.path, verification: verification?.path },
-    })),
     inputs: { request, criteria: criteriaInput, delivery, verification },
     criteria,
     artifacts,
     blockers,
     warning: `This local packet includes supplied request/delivery text. Keep ${REVIEW_DIRECTORY}/ private and ignored by Git.`,
   };
+  const packet = { ...unsignedPacket, packetFingerprint: sha256(JSON.stringify(unsignedPacket)) };
   const output = `${JSON.stringify(packet, null, 2)}\n`;
   if (options.out) {
     const out = resolve(cwd, options.out);
@@ -200,20 +196,22 @@ try {
     try {
       const state = await lstat(localState);
       if (state.isSymbolicLink() || !state.isDirectory()) throw new Error('.agents must be a real directory');
+      if (process.platform !== 'win32' && (state.mode & 0o077) !== 0) throw new Error('.agents must use mode 0700');
+      assertOwnedByActiveUser(state, '.agents');
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
       await mkdir(localState, { mode: 0o700 });
     }
-    await chmod(localState, 0o700);
     const reviewRoot = resolve(cwd, REVIEW_DIRECTORY);
     try {
       const state = await lstat(reviewRoot);
       if (state.isSymbolicLink() || !state.isDirectory()) throw new Error(`${REVIEW_DIRECTORY} must be a real directory`);
+      if (process.platform !== 'win32' && (state.mode & 0o077) !== 0) throw new Error(`${REVIEW_DIRECTORY} must use mode 0700`);
+      assertOwnedByActiveUser(state, REVIEW_DIRECTORY);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
       await mkdir(reviewRoot, { mode: 0o700 });
     }
-    await chmod(reviewRoot, 0o700);
     const realReviewRoot = await realpath(reviewRoot);
     const realOutputParent = await realpath(dirname(out));
     if (realOutputParent !== realReviewRoot && portableRelative(realReviewRoot, realOutputParent).startsWith('..')) throw new Error('Output parent resolves outside reserved review directory.');
@@ -222,7 +220,7 @@ try {
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
-    const handle = await open(out, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600);
+    const handle = await open(out, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     try {
       await handle.chmod(0o600);
       await handle.writeFile(output, 'utf8');

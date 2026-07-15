@@ -6,12 +6,13 @@ import { AdapterRegistry } from './adapters/index.js';
 import { DEFAULT_MODEL_ID, MODEL_CATALOG, isConfigured, requireModel } from './catalog.js';
 import { currentBranch, gitDiff, gitStatus, listBranches, switchBranch } from './git.js';
 import { buildTurnPrompt, reviewPrompt, reviewerFor } from './orchestration.js';
+import { assertReviewPass, blockedReview, createRuntimeEvidencePacket, parseRuntimeReview } from './review-policy.js';
 import { defaultUserSlug, WorkspaceContextManager } from './context.js';
 import { redactSecrets } from './redact.js';
 import { makeMessage, SessionStore } from './session-store.js';
 import { SkillRegistry } from './skills.js';
 import { measurablyUnchanged, systemRuntime, type RuntimeSeams } from './runtime.js';
-import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ProviderId, ReviewFinding, ReviewResult, RunRequest, RunResult, TurnOutcome, WorkspaceBootstrap, ZeuzSession } from './types.js';
+import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ProviderId, ReviewResult, RunRequest, RunResult, TurnOutcome, WorkspaceBootstrap, ZeuzSession } from './types.js';
 
 type EventSink = (event: AgentEvent) => void;
 type SessionRepository = Pick<SessionStore, 'initialize' | 'create' | 'save' | 'load' | 'list' | 'fork'>;
@@ -33,51 +34,6 @@ function emit(sink: EventSink | undefined, event: AgentEvent): void {
 function fallbackSummary(session: ZeuzSession): string {
   const transcript = session.messages.slice(-10).map((message) => `${message.role.toUpperCase()}${message.modelId ? ` [${message.modelId}]` : ''}: ${message.content}`).join('\n\n');
   return transcript.length > 16_000 ? transcript.slice(-16_000) : transcript;
-}
-
-function parseReview(raw: string, reviewerModelId: string): ReviewResult {
-  try {
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start < 0 || end <= start) throw new Error('No JSON object found');
-    const parsed = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
-    const verdict = parsed.verdict === 'PASS' ? 'PASS' : parsed.verdict === 'REVIEW_BLOCKED' ? 'REVIEW_BLOCKED' : 'CHANGES_REQUIRED';
-    const findings: ReviewFinding[] = Array.isArray(parsed.findings)
-      ? parsed.findings.flatMap((value) => {
-        if (!value || typeof value !== 'object') return [];
-        const finding = value as Record<string, unknown>;
-        const severity = ['critical', 'high', 'medium', 'low'].includes(String(finding.severity))
-          ? String(finding.severity) as ReviewFinding['severity']
-          : 'medium';
-        return [{
-          severity,
-          title: String(finding.title ?? 'Untitled finding'),
-          detail: String(finding.detail ?? ''),
-          ...(typeof finding.file === 'string' ? { file: finding.file } : {}),
-          ...(typeof finding.line === 'number' ? { line: finding.line } : {}),
-        }];
-      })
-      : [];
-    return {
-      verdict,
-      summary: String(parsed.summary ?? 'Adversarial review completed.'),
-      findings,
-      raw,
-      reviewerModelId,
-    };
-  } catch (error) {
-    return {
-      verdict: 'CHANGES_REQUIRED',
-      summary: 'The reviewer did not return valid structured evidence; completion cannot be certified.',
-      findings: [{
-        severity: 'high',
-        title: 'Unparseable adversarial review',
-        detail: error instanceof Error ? error.message : String(error),
-      }],
-      raw,
-      reviewerModelId,
-    };
-  }
 }
 
 export class ZeuzController {
@@ -198,7 +154,12 @@ export class ZeuzController {
       }
     }
 
-    await this.recordHandoff(userText, producer.id, this.session.permissionMode, review && review.verdict !== 'PASS' ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
+    let reviewGateError: unknown;
+    if (changedWorkspace && this.session.permissionMode !== 'plan' && review) {
+      try { assertReviewPass(review, this.runtime.fingerprint(this.session.cwd)); } catch (error) { reviewGateError = error; }
+    }
+    await this.recordHandoff(userText, producer.id, this.session.permissionMode, reviewGateError || (review && review.verdict !== 'PASS') ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
+    if (reviewGateError) throw reviewGateError;
     return { response, modelId: producer.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
@@ -241,7 +202,12 @@ export class ZeuzController {
         review = await this.runReview(model, onEvent);
       }
     }
-    await this.recordHandoff(task, model.id, mode, review && review.verdict !== 'PASS' ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
+    let reviewGateError: unknown;
+    if (changedWorkspace && mode !== 'plan' && review) {
+      try { assertReviewPass(review, this.runtime.fingerprint(this.session.cwd)); } catch (error) { reviewGateError = error; }
+    }
+    await this.recordHandoff(task, model.id, mode, reviewGateError || (review && review.verdict !== 'PASS') ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
+    if (reviewGateError) throw reviewGateError;
     return { response, modelId: model.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
@@ -441,26 +407,61 @@ export class ZeuzController {
 
   private async runReview(primary: ModelProfile, onEvent?: EventSink): Promise<ReviewResult> {
     const reviewer = requireModel(reviewerFor(primary));
+    let packet: ReturnType<typeof createRuntimeEvidencePacket> | undefined;
     emit(onEvent, { type: 'status', text: `Adversarial reviewer: ${reviewer.label}` });
     try {
       const originalRequest = [...this.session.messages].reverse().find((message) => message.role === 'user' || message.role === 'system');
       const producerDelivery = [...this.session.messages].reverse().find((message) => message.role === 'assistant');
-      const evidence = `\n\nMEDUSA EVIDENCE PACKET\nOriginal request:\n${originalRequest?.content ?? 'Unavailable'}\n\nProducer delivery:\n${producerDelivery?.content ?? 'Unavailable'}\n\nWorkspace fingerprint:\n${this.runtime.fingerprint(this.session.cwd) ?? 'Unavailable'}`;
+      const fingerprint = this.runtime.fingerprint(this.session.cwd);
+      if (!fingerprint) {
+        const review = blockedReview({ reviewer, raw: '', reason: 'Workspace fingerprint is unavailable; review freshness cannot be established.' });
+        this.session.messages.push(this.message('reviewer', JSON.stringify(review), reviewer.id));
+        await this.sessions.save(this.session);
+        return review;
+      }
+      let status = 'Git status unavailable to the runtime review driver.';
+      let diff = 'Git diff unavailable to the runtime review driver.';
+      try {
+        status = gitStatus(this.session.cwd);
+        diff = gitDiff(this.session.cwd);
+      } catch {
+        // Fingerprint availability remains the review freshness authority in this Wave 02 seam.
+      }
+      const artifacts = status.startsWith('Git status unavailable') || status === 'Not a Git repository.'
+        ? []
+        : status.split('\n').filter((line) => !line.startsWith('##') && /^[ MADRCU?!]{2} /.test(line)).map((line) => line.slice(3).trim()).filter(Boolean);
+      packet = createRuntimeEvidencePacket({
+        producer: primary,
+        reviewer,
+        cwd: this.session.cwd,
+        workspaceFingerprint: fingerprint,
+        status,
+        diff,
+        artifacts,
+        request: originalRequest?.content ?? 'Unavailable',
+        delivery: producerDelivery?.content ?? 'Unavailable',
+        verification: 'The independent reviewer must re-run proportional deterministic checks; producer claims are not accepted as proof.',
+        bootstrapContract: this.bootstrap.context,
+      });
       const result = await this.run(reviewer.provider, {
         model: reviewer,
-        prompt: `${reviewPrompt(primary, this.session.cwd)}\n\n${await this.skills.contextFor('$medusa adversarial review') ?? ''}\n\nOriginal requirements and bootstrapped contract:\n${this.bootstrap.context}${evidence}`,
+        prompt: `${reviewPrompt(primary, this.session.cwd)}\n\n${await this.skills.contextFor('$medusa adversarial review') ?? ''}\n\nMEDUSA_RUNTIME_PACKET_JSON\n${JSON.stringify(packet)}\nEND_MEDUSA_RUNTIME_PACKET_JSON`,
         cwd: this.session.cwd,
         mode: 'plan',
         ephemeral: true,
         ...(onEvent ? { onEvent } : {}),
       });
-      const review = parseReview(result.text, reviewer.id);
+      let review = parseRuntimeReview(result.text, packet, reviewer);
+      const currentFingerprint = this.runtime.fingerprint(this.session.cwd);
+      if (!currentFingerprint || currentFingerprint !== packet.workspace.fingerprint) {
+        review = blockedReview({ packet, reviewer, raw: result.text, reason: 'Workspace changed during review; the packet is stale.' });
+      }
       this.session.messages.push(this.message('reviewer', review.raw, reviewer.id));
       await this.sessions.save(this.session);
       return review;
     } catch (error) {
       const raw = `Reviewer execution failed: ${error instanceof Error ? error.message : String(error)}`;
-      const review = parseReview(raw, reviewer.id);
+      const review = blockedReview({ ...(packet ? { packet } : {}), reviewer, raw, reason: raw });
       this.session.messages.push(this.message('reviewer', raw, reviewer.id));
       await this.sessions.save(this.session);
       return review;

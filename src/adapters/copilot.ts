@@ -1,4 +1,5 @@
 import { configuredSecretNames } from '../env.js';
+import { permissionArguments } from '../permissions.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, ProviderId, RunRequest, RunResult } from '../types.js';
 
@@ -46,10 +47,7 @@ export class CopilotAdapter implements AgentAdapter {
       '--no-ask-user',
     ];
 
-    if (request.mode !== 'yolo') args.push('--disable-builtin-mcps', '--disallow-temp-dir');
-    if (request.mode === 'plan') args.push('--plan', '--allow-all-tools');
-    if (request.mode === 'agent') args.push('--allow-all-tools');
-    if (request.mode === 'yolo') args.push('--yolo');
+    args.push(...permissionArguments(this.provider, request.mode, request.resumeId));
 
     const secretNames = this.nvidia ? ['COPILOT_PROVIDER_API_KEY'] : configuredSecretNames();
     if (secretNames.length > 0) args.push(`--secret-env-vars=${secretNames.join(',')}`);

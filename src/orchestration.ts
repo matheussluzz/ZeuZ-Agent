@@ -85,8 +85,7 @@ Work in strict read-only mode inside ${cwd}. Inspect the actual working tree, in
 
 Use brutal honesty. Search for incorrect behavior, incomplete requirements, regressions, security issues, secret exposure, unsafe permissions, broken portability, missing tests, misleading documentation, and claims unsupported by execution evidence. Do not nitpick style unless it creates real risk. Do not edit files.
 
-Return only a JSON object, without Markdown fences, using this schema:
-{"verdict":"PASS|CHANGES_REQUIRED|REVIEW_BLOCKED","summary":"short evidence-based summary","findings":[{"severity":"critical|high|medium|low","title":"short title","detail":"actionable explanation","file":"optional path","line":123}]}
+Return only one JSON object, without Markdown fences or surrounding prose, using the Medusa 1.0 report schema supplied after this instruction. Copy the exact packetFingerprint and assigned reviewer identity. Every required criterion needs status, evidence, and findingIds. Record deterministicChecks and verificationGaps even when explicitly NOT_APPLICABLE. Findings require id, uppercase severity, title, location, evidence, reproduction, expectedCorrection, and criterionIds.
 
 PASS is allowed only when no actionable correctness, security, or requirement-completeness finding remains. Use REVIEW_BLOCKED when required evidence, current verification, or an independent review surface is unavailable.
 `.trim();

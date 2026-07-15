@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { afterEach } from 'node:test';
 
-import { NvidiaAdapter, runSandboxedCommand } from '../src/adapters/nvidia.js';
+import { NvidiaAdapter, runSandboxedCommand, safeWorkspacePath } from '../src/adapters/nvidia.js';
 import { requireModel } from '../src/catalog.js';
 import { findExecutable } from '../src/process.js';
 
@@ -52,9 +52,47 @@ test('direct NVIDIA plan commands cannot read workspace secret files', { skip: p
   await writeFile(join(root, '.env'), secretFixture, { mode: 0o600 });
 
   assert.match(runSandboxedCommand(root, 'cat safe.txt', 'plan'), /public fixture/);
-  assert.throws(() => runSandboxedCommand(root, 'cat .env', 'plan'), /Command exited/);
+  assert.throws(() => runSandboxedCommand(root, 'cat .env', 'plan'), /credential-bearing filenames/);
   assert.match(runSandboxedCommand(root, "printf 'generated' > output.txt", 'agent'), /no output/);
   assert.equal(await readFile(join(root, 'output.txt'), 'utf8'), 'generated');
-  assert.throws(() => runSandboxedCommand(root, "printf 'overwritten' > .env", 'agent'), /Command exited/);
+  assert.throws(() => runSandboxedCommand(root, "printf 'overwritten' > .env", 'agent'), /credential-bearing filenames/);
   assert.equal(await readFile(join(root, '.env'), 'utf8'), secretFixture);
+});
+
+for (const command of [
+  'git status; cat safe.txt',
+  'git status && cat safe.txt',
+  'cat $(pwd)/safe.txt',
+  'git status > status.txt',
+  'cat safe.txt | wc -l',
+]) {
+  test(`direct NVIDIA plan mode rejects shell composition: ${command}`, () => {
+    assert.throws(() => runSandboxedCommand(process.cwd(), command, 'plan'), /Shell chaining, substitution, pipes, and redirects/);
+  });
+}
+
+test('direct NVIDIA paths reject external roots and escaping symlinks', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-nvidia-path-'));
+  const outside = await mkdtemp(join(tmpdir(), 'zeuz-nvidia-outside-'));
+  roots.push(root, outside);
+  await writeFile(join(outside, 'outside.txt'), 'outside fixture\n');
+  await symlink(join(outside, 'outside.txt'), join(root, 'escape-link'));
+
+  assert.throws(() => safeWorkspacePath(root, '../outside.txt'), /Path escapes the active workspace/);
+  assert.throws(() => safeWorkspacePath(root, join(outside, 'outside.txt')), /Absolute paths are not allowed/);
+  assert.throws(() => safeWorkspacePath(root, 'escape-link'), /Symlink escapes the active workspace/);
+});
+
+test('direct NVIDIA yolo shell is portable and receives a sanitized synthetic environment', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-nvidia-env-'));
+  roots.push(root);
+  const previous = process.env.ZEUZ_TEST_API_KEY;
+  process.env.ZEUZ_TEST_API_KEY = ['synthetic', 'fixture', 'value'].join('-');
+  try {
+    const output = runSandboxedCommand(root, 'env', 'yolo');
+    assert.doesNotMatch(output, /ZEUZ_TEST_API_KEY|synthetic-fixture-value/);
+  } finally {
+    if (previous === undefined) delete process.env.ZEUZ_TEST_API_KEY;
+    else process.env.ZEUZ_TEST_API_KEY = previous;
+  }
 });

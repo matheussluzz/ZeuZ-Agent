@@ -1,9 +1,10 @@
-import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { lstat, open, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 import { redactSecrets } from './redact.js';
 import { systemRuntime, type RuntimeSeams } from './runtime.js';
 import { stateDirectory } from './session-store.js';
+import { assertPrivateStateFile, assertStateRecordId, ensurePrivateStateDirectory, ensureStateContainerDirectory, UnsafeStateRootError, writePrivateStateFileAtomic } from './state-policy.js';
 import type { PermissionMode, TaskRecord } from './types.js';
 
 const MAX_DELEGATES = 3;
@@ -15,20 +16,23 @@ export interface TaskStoreOptions {
 }
 
 export class TaskStore {
+  private readonly root: string;
   private readonly tasksDir: string;
   private readonly runtimeDir: string;
   private readonly runtime: RuntimeSeams;
 
   constructor(options: TaskStoreOptions = {}) {
-    const root = options.root ?? stateDirectory();
+    const root = resolve(options.root ?? stateDirectory());
+    this.root = root;
     this.runtime = options.runtime ?? systemRuntime;
     this.tasksDir = join(root, 'tasks');
     this.runtimeDir = join(root, 'runtime');
   }
 
   async initialize(): Promise<void> {
-    await mkdir(this.tasksDir, { recursive: true, mode: 0o700 });
-    await mkdir(this.runtimeDir, { recursive: true, mode: 0o700 });
+    await ensureStateContainerDirectory(this.root);
+    await ensurePrivateStateDirectory(this.tasksDir, this.root);
+    await ensurePrivateStateDirectory(this.runtimeDir, this.root);
   }
 
   async create(input: { parentSessionId?: string; modelId: string; prompt: string; cwd: string; mode: PermissionMode }): Promise<TaskRecord> {
@@ -51,11 +55,10 @@ export class TaskStore {
 
   async save(task: TaskRecord): Promise<void> {
     await this.initialize();
+    assertStateRecordId(task.id);
     task.updatedAt = this.runtime.now();
     const target = join(this.tasksDir, `${task.id}.json`);
-    const temporary = `${target}.${process.pid}.tmp`;
-    await writeFile(temporary, `${redactSecrets(JSON.stringify(task, null, 2))}\n`, { mode: 0o600 });
-    await rename(temporary, target);
+    await writePrivateStateFileAtomic(target, `${redactSecrets(JSON.stringify(task, null, 2))}\n`);
   }
 
   async list(limit = 30): Promise<TaskRecord[]> {
@@ -64,8 +67,11 @@ export class TaskStore {
     const tasks: TaskRecord[] = [];
     for (const file of files) {
       try {
-        tasks.push(JSON.parse(await readFile(join(this.tasksDir, file), 'utf8')) as TaskRecord);
-      } catch {
+        const path = join(this.tasksDir, file);
+        await assertPrivateStateFile(path, this.tasksDir);
+        tasks.push(JSON.parse(await readFile(path, 'utf8')) as TaskRecord);
+      } catch (error) {
+        if (error instanceof UnsafeStateRootError) throw error;
         // Ignore incomplete task records.
       }
     }
@@ -86,6 +92,9 @@ export class TaskStore {
           const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
           if (code !== 'EEXIST') throw error;
           try {
+            const metadata = await lstat(lockPath);
+            if (metadata.isSymbolicLink() || !metadata.isFile()) throw new UnsafeStateRootError(`Delegate lock must be a regular non-symlink file: ${lockPath}`);
+            if (process.platform !== 'win32' && (metadata.mode & 0o077) !== 0) throw new UnsafeStateRootError(`Delegate lock must be owner-only (0600): ${lockPath}`);
             const info = await stat(lockPath);
             if (this.runtime.nowMs() - info.mtimeMs > STALE_LOCK_MS) await rm(lockPath, { force: true });
           } catch {

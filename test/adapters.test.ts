@@ -107,6 +107,31 @@ async function runFixture(
   return { result, events };
 }
 
+async function capturedArgs(input: {
+  adapter: { run: (request: import('../src/types.js').RunRequest) => Promise<import('../src/types.js').RunResult> };
+  model: ModelProfile;
+  runtime: AdapterRuntime;
+  mode: 'plan' | 'agent' | 'yolo';
+  resumeId?: string;
+}): Promise<string[]> {
+  let args: string[] | undefined;
+  input.runtime.runProcess = async (_command, captured, options) => {
+    args = captured;
+    const line = readFileSync(join(FIXTURE_DIR, 'codex.jsonl'), 'utf8');
+    for (const item of line.split(/\r?\n/).filter(Boolean)) options.onStdoutLine?.(item);
+    return { exitCode: 0, stdout: line, stderr: '' };
+  };
+  await input.adapter.run({
+    model: input.model,
+    prompt: 'characterize permissions',
+    cwd: FIXTURE_DIR,
+    mode: input.mode,
+    ...(input.resumeId ? { resumeId: input.resumeId } : {}),
+  });
+  assert.ok(args);
+  return args;
+}
+
 test('CodexAdapter replays sanitized fixture with session, usage, and tool events', async () => {
   const runtime = createFixtureRuntime({ codex: { file: 'codex.jsonl', mode: 'jsonl' } });
   const { result, events } = await runFixture(new CodexAdapter(runtime), testModel('codex'));
@@ -182,6 +207,21 @@ test('CodexAdapter rejects non-zero fixture exit', async () => {
   await assert.rejects(
     () => runFixture(new CodexAdapter(runtime), testModel('codex')),
   );
+});
+
+test('Codex resume reapplies the requested plan sandbox', async () => {
+  const runtime = createFixtureRuntime({ codex: { file: 'codex.jsonl', mode: 'jsonl' } });
+  const args = await capturedArgs({
+    adapter: new CodexAdapter(runtime),
+    model: testModel('codex'),
+    runtime,
+    mode: 'plan',
+    resumeId: 'existing-thread',
+  });
+
+  assert.deepEqual(args.slice(0, 5), ['exec', 'resume', '--json', '--skip-git-repo-check', '-m']);
+  assert.equal(args.includes('-s'), true);
+  assert.equal(args.includes('read-only'), true);
 });
 
 test('CursorAdapter rejects fixture without final response', async () => {

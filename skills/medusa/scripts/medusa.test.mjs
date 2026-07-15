@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -52,6 +52,8 @@ async function createPassingReview(t) {
     '--delivery', 'delivery.md',
     '--verification', 'verification.txt',
     '--artifact', 'artifact.txt',
+    '--producer-provider', 'codex',
+    '--producer-model', 'codex:gpt-fixture',
     '--producer-family', 'openai',
     '--out', packetRelative,
   ], cwd), 'generate evidence packet');
@@ -94,10 +96,93 @@ test('rejects a packet whose frozen criteria were tampered with', async (t) => {
   assert.match(result.stderr, /parsed criteria do not match captured criteria input/);
 });
 
+test('rejects a packet whose producer identity was tampered with', async (t) => {
+  const fixture = await createPassingReview(t);
+  const packet = JSON.parse(await readFile(fixture.packetPath, 'utf8'));
+  packet.producer.model = 'codex:tampered';
+  await writeFile(fixture.packetPath, `${JSON.stringify(packet, null, 2)}\n`);
+  const result = runNode('validate-review-report.mjs', [fixture.packetPath, fixture.reportPath], fixture.cwd);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /fingerprint does not match packet contents/);
+});
+
 test('rejects a verdict after the reviewed workspace changes', async (t) => {
   const fixture = await createPassingReview(t);
   await writeFile(join(fixture.cwd, 'artifact.txt'), 'changed after review\n');
   const result = runNode('validate-review-report.mjs', [fixture.packetPath, fixture.reportPath], fixture.cwd);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workspace fingerprint is stale/);
+});
+
+test('accepts only the three explicit tracked public templates after content scanning', async (t) => {
+  const cwd = await createFixture(t);
+  await writeFile(join(cwd, '.env.example'), 'PUBLIC_EXAMPLE_VALUE=<replace-me>\n');
+  await writeFile(join(cwd, 'lamine.example.yaml'), 'nvidia:\n  api_keys:\n    glm_5_2: <replace-me>\n');
+  await mkdir(join(cwd, 'templates/aws-athena-mcp'), { recursive: true });
+  await writeFile(join(cwd, 'templates/aws-athena-mcp/.env.example'), 'AWS_PROFILE=<replace-me>\n');
+  mustPass(run('git', ['add', '.env.example', 'lamine.example.yaml', 'templates/aws-athena-mcp/.env.example'], cwd), 'git add public templates');
+  mustPass(run('git', ['commit', '-qm', 'track public templates'], cwd), 'git commit public templates');
+
+  const result = runNode('evidence-packet.mjs', [
+    '--workspace', cwd,
+    '--request', 'request.md',
+    '--criteria', 'criteria.json',
+    '--delivery', 'delivery.md',
+    '--verification', 'verification.txt',
+    '--artifact', 'artifact.txt',
+    '--producer-provider', 'codex',
+    '--producer-model', 'codex:gpt-fixture',
+    '--producer-family', 'openai',
+    '--out', '.agents/reviews/review-packet.json',
+  ], cwd);
+
+  mustPass(result, 'packet with explicit public templates');
+});
+
+for (const fixture of [
+  { name: 'real credential filename', path: '.env', content: 'PUBLIC_FIXTURE=<replace-me>\n', error: /tracked credential paths/ },
+  { name: 'generic example filename', path: 'nested/.env.example', content: 'PUBLIC_FIXTURE=<replace-me>\n', error: /tracked credential paths/ },
+  { name: 'secret-shaped public template content', path: '.env.example', content: `${['API_KEY', 'fixturevalue123456789012345'].join('=')}\n`, error: /public template contains secret-shaped content/ },
+]) {
+  test(`rejects ${fixture.name}`, async (t) => {
+    const cwd = await createFixture(t);
+    await mkdir(dirname(join(cwd, fixture.path)), { recursive: true });
+    await writeFile(join(cwd, fixture.path), fixture.content);
+    mustPass(run('git', ['add', '-f', fixture.path], cwd), `git add ${fixture.path}`);
+    mustPass(run('git', ['commit', '-qm', `track ${fixture.path}`], cwd), `git commit ${fixture.path}`);
+    const result = runNode('evidence-packet.mjs', [
+      '--workspace', cwd,
+      '--request', 'request.md',
+      '--criteria', 'criteria.json',
+      '--delivery', 'delivery.md',
+      '--verification', 'verification.txt',
+      '--artifact', 'artifact.txt',
+      '--producer-provider', 'codex',
+      '--producer-model', 'codex:gpt-fixture',
+      '--producer-family', 'openai',
+      '--out', '.agents/reviews/review-packet.json',
+    ], cwd);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, fixture.error);
+  });
+}
+
+test('rejects an existing permissive Medusa state root instead of repairing it', { skip: process.platform === 'win32' }, async (t) => {
+  const cwd = await createFixture(t);
+  await mkdir(join(cwd, '.agents'), { mode: 0o755 });
+  await chmod(join(cwd, '.agents'), 0o755);
+  const result = runNode('evidence-packet.mjs', [
+    '--workspace', cwd,
+    '--request', 'request.md',
+    '--criteria', 'criteria.json',
+    '--delivery', 'delivery.md',
+    '--verification', 'verification.txt',
+    '--artifact', 'artifact.txt',
+    '--producer-provider', 'codex',
+    '--producer-model', 'codex:gpt-fixture',
+    '--producer-family', 'openai',
+    '--out', '.agents/reviews/review-packet.json',
+  ], cwd);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /\.agents must use mode 0700/);
 });

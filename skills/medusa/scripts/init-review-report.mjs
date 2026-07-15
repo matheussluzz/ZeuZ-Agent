@@ -14,8 +14,9 @@ try {
   const packetStat = await lstat(packetPath);
   if (packetStat.isSymbolicLink() || !packetStat.isFile()) throw new Error('Packet must be a regular non-symlink file.');
   if (process.platform !== 'win32' && (packetStat.mode & 0o077) !== 0) throw new Error('Packet must use mode 0600.');
+  if (process.platform !== 'win32' && typeof process.getuid === 'function' && packetStat.uid !== process.getuid()) throw new Error('Packet must be owned by the active OS user.');
   const packet = JSON.parse(await readFile(packetPath, 'utf8'));
-  if (packet.schemaVersion !== '1.0' || !packet.packetFingerprint || !packet.workspace?.cwd || !Array.isArray(packet.criteria)) throw new Error('Packet does not have the Medusa 1.0 shape.');
+  if (packet.schemaVersion !== '1.0' || !packet.packetFingerprint || !packet.workspace?.cwd || !packet.producer?.provider || !packet.producer?.model || !packet.producer?.family || !Array.isArray(packet.criteria)) throw new Error('Packet does not have the Medusa 1.0 shape.');
 
   const workspace = await realpath(packet.workspace.cwd);
   const reviewRoot = await realpath(resolve(workspace, '.agents/reviews'));

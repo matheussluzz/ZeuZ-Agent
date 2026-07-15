@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -57,6 +57,55 @@ test('TaskStore accepts deterministic root, clock, and IDs', async () => {
     assert.equal(task.createdAt, '2026-01-02T03:04:05.000Z');
     assert.equal(task.updatedAt, '2026-01-02T03:04:05.000Z');
     assert.equal((await store.list())[0]?.id, task.id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('stores reject a symlinked state root', async () => {
+  const fixture = await mkdtemp(join(tmpdir(), 'zeuz-state-root-'));
+  const target = join(fixture, 'target');
+  const root = join(fixture, 'state-link');
+  try {
+    await mkdir(target, { mode: 0o700 });
+    await symlink(target, root);
+    await assert.rejects(() => new SessionStore({ root, runtime: fixedRuntime() }).create('/workspace'), /State container must be a real non-symlink directory/);
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test('stores reject an existing permissive private state directory', { skip: process.platform === 'win32' }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-state-mode-'));
+  try {
+    await mkdir(join(root, 'sessions'), { mode: 0o755 });
+    await assert.rejects(() => new SessionStore({ root, runtime: fixedRuntime() }).create('/workspace'), /must be owner-only \(0700\)/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('stores reject group/world-readable persisted state files', { skip: process.platform === 'win32' }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-state-file-mode-'));
+  try {
+    const store = new SessionStore({ root, runtime: fixedRuntime() });
+    const session = await store.create('/workspace');
+    await chmod(join(root, 'sessions', `${session.id}.json`), 0o644);
+    await assert.rejects(() => store.list(), /must be owner-only \(0600\)/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('stores reject symlinked persisted state files', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-state-file-link-'));
+  const target = join(root, 'outside-record');
+  try {
+    const store = new TaskStore({ root, runtime: fixedRuntime() });
+    await store.initialize();
+    await writeFile(target, '{}\n', { mode: 0o600 });
+    await symlink(target, join(root, 'tasks', 'linked.json'));
+    await assert.rejects(() => store.list(), /regular non-symlink file/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

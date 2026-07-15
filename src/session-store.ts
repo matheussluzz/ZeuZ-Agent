@@ -1,14 +1,15 @@
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { basename, join, resolve } from 'node:path';
+import { readFile, readdir } from 'node:fs/promises';
 
 import { DEFAULT_MODEL_ID } from './catalog.js';
 import { redactSecrets } from './redact.js';
 import { systemRuntime, type RuntimeSeams } from './runtime.js';
+import { assertPrivateStateFile, assertStateRecordId, ensurePrivateStateDirectory, ensureStateContainerDirectory, writePrivateStateFileAtomic } from './state-policy.js';
 import type { PermissionMode, SessionMessage, ZeuzSession } from './types.js';
 
 export function stateDirectory(): string {
-  return process.env.ZEUZ_STATE_DIR ?? join(homedir(), '.agents');
+  return resolve(process.env.ZEUZ_STATE_DIR ?? join(homedir(), '.agents'));
 }
 
 export interface SessionStoreOptions {
@@ -27,16 +28,19 @@ export function makeMessage(role: SessionMessage['role'], content: string, model
 }
 
 export class SessionStore {
+  private readonly root: string;
   private readonly sessionsDir: string;
   private readonly runtime: RuntimeSeams;
 
   constructor(options: SessionStoreOptions = {}) {
     this.runtime = options.runtime ?? systemRuntime;
-    this.sessionsDir = join(options.root ?? stateDirectory(), 'sessions');
+    this.root = resolve(options.root ?? stateDirectory());
+    this.sessionsDir = join(this.root, 'sessions');
   }
 
   async initialize(): Promise<void> {
-    await mkdir(this.sessionsDir, { recursive: true, mode: 0o700 });
+    await ensureStateContainerDirectory(this.root);
+    await ensurePrivateStateDirectory(this.sessionsDir, this.root);
   }
 
   async create(cwd: string, options: { title?: string; modelId?: string; mode?: PermissionMode; parentId?: string; summary?: string; messages?: SessionMessage[]; userSlug?: string } = {}): Promise<ZeuzSession> {
@@ -62,12 +66,11 @@ export class SessionStore {
 
   async save(session: ZeuzSession): Promise<void> {
     await this.initialize();
+    assertStateRecordId(session.id);
     session.updatedAt = this.runtime.now();
     const target = this.pathFor(session.id);
-    const temporary = `${target}.${process.pid}.tmp`;
     const serialized = redactSecrets(JSON.stringify(session, null, 2));
-    await writeFile(temporary, `${serialized}\n`, { encoding: 'utf8', mode: 0o600 });
-    await rename(temporary, target);
+    await writePrivateStateFileAtomic(target, `${serialized}\n`);
   }
 
   async load(idOrPrefix: string): Promise<ZeuzSession> {
@@ -85,8 +88,11 @@ export class SessionStore {
     const sessions: ZeuzSession[] = [];
     for (const file of files) {
       try {
-        sessions.push(JSON.parse(await readFile(join(this.sessionsDir, file), 'utf8')) as ZeuzSession);
-      } catch {
+        const path = join(this.sessionsDir, file);
+        await assertPrivateStateFile(path, this.sessionsDir);
+        sessions.push(JSON.parse(await readFile(path, 'utf8')) as ZeuzSession);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'UnsafeStateRootError') throw error;
         // A corrupt session should not prevent access to healthy sessions.
       }
     }
@@ -106,6 +112,7 @@ export class SessionStore {
   }
 
   private pathFor(id: string): string {
+    assertStateRecordId(id);
     return join(this.sessionsDir, `${id}.json`);
   }
 }
