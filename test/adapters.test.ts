@@ -16,6 +16,7 @@ import {
   type AdapterRuntime,
 } from '../src/adapters/runtime.js';
 import { MODEL_CATALOG } from '../src/catalog.js';
+import { BoundedLineDecoder } from '../src/streaming.js';
 import type { AgentEvent, ModelProfile, ProviderId } from '../src/types.js';
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/adapters');
@@ -88,6 +89,7 @@ function createFixtureRuntime(
       if (name === 'NVIDIA_API_KEY_GLM_52') return 'zeuz-fixture-glm-route-key';
       return process.env[name];
     },
+    httpRequest: base.httpRequest,
     ...overrides,
   };
 }
@@ -105,6 +107,36 @@ async function runFixture(
     onEvent: (event) => events.push(event),
   });
   return { result, events };
+}
+
+function createByteFragmentedRuntime(fixtures: Record<string, ExecutableFixture>): AdapterRuntime {
+  const runtime = createFixtureRuntime(fixtures);
+  runtime.runProcess = async (command, _args, options) => {
+    const name = command.split('/').at(-1) ?? '';
+    const spec = fixtures[name];
+    if (!spec) throw new Error(`Missing byte-fragment fixture for ${name}`);
+    const stdout = readFileSync(join(FIXTURE_DIR, spec.file));
+    const decoder = new TextDecoder();
+    if (spec.mode === 'jsonl') {
+      const lines = new BoundedLineDecoder('stdout');
+      for (const byte of stdout) {
+        const text = decoder.decode(Uint8Array.of(byte), { stream: true });
+        if (text) lines.push(text, (line) => options.onStdoutLine?.(line));
+      }
+      const tail = decoder.decode();
+      if (tail) lines.push(tail, (line) => options.onStdoutLine?.(line));
+      lines.finish((line) => options.onStdoutLine?.(line));
+    } else {
+      for (const byte of stdout) {
+        const text = decoder.decode(Uint8Array.of(byte), { stream: true });
+        if (text) options.onStdoutChunk?.(text);
+      }
+      const tail = decoder.decode();
+      if (tail) options.onStdoutChunk?.(tail);
+    }
+    return { exitCode: spec.exitCode ?? 0, stdout: stdout.toString('utf8'), stderr: spec.stderr ?? '' };
+  };
+  return runtime;
 }
 
 async function capturedArgs(input: {
@@ -198,6 +230,68 @@ test('AgyAdapter replays sanitized plain-text fixture', async () => {
   assert.equal(result.nativeSessionId, undefined);
   assert.equal(result.usage, undefined);
   assert.ok(events.some((event) => event.type === 'delta'));
+});
+
+test('all six adapters parse fixtures fragmented at every byte boundary', async () => {
+  const cases: Array<{
+    provider: ProviderId;
+    fixture: string;
+    executable: string;
+    adapter(runtime: AdapterRuntime): { run: (request: import('../src/types.js').RunRequest) => Promise<import('../src/types.js').RunResult> };
+    model: ModelProfile;
+  }> = [
+    { provider: 'codex', fixture: 'codex.jsonl', executable: 'codex', adapter: (runtime) => new CodexAdapter(runtime), model: testModel('codex') },
+    { provider: 'cursor', fixture: 'cursor.jsonl', executable: 'cursor-agent', adapter: (runtime) => new CursorAdapter(runtime), model: testModel('cursor') },
+    { provider: 'claude', fixture: 'claude.jsonl', executable: 'claude', adapter: (runtime) => new ClaudeAdapter(runtime), model: testModel('claude') },
+    { provider: 'copilot', fixture: 'copilot.jsonl', executable: 'copilot', adapter: (runtime) => new CopilotAdapter({ runtime }), model: testModel('copilot') },
+    { provider: 'agy', fixture: 'agy.txt', executable: 'agy', adapter: (runtime) => new AgyAdapter(runtime), model: testModel('agy') },
+  ];
+  for (const item of cases) {
+    const runtime = createByteFragmentedRuntime({ [item.executable]: { file: item.fixture, mode: item.provider === 'agy' ? 'text' : 'jsonl' } });
+    const { result } = await runFixture(item.adapter(runtime), item.model);
+    assert.ok(result.text.length > 0, `${item.provider} should reconstruct a final response`);
+  }
+
+  const runtime = createByteFragmentedRuntime({ copilot: { file: 'nvidia.jsonl', mode: 'jsonl' } });
+  const copilot = new CopilotAdapter({ provider: 'nvidia', nvidia: true, runtime });
+  const { result } = await runFixture(new NvidiaAdapter({ runtime, copilot }), MODEL_CATALOG.find((model) => model.id === 'nvidia:glm-5.2')!);
+  assert.match(result.text, /zeuz-nvidia-glm-fixture/);
+});
+
+test('JSONL adapters reject malformed, oversized raw, and truncated process streams by name', async () => {
+  const base = createFixtureRuntime({ codex: { file: 'codex.jsonl', mode: 'jsonl' } });
+  const malformed: AdapterRuntime = {
+    ...base,
+    runProcess: async (_command, _args, options) => {
+      options.onStdoutLine?.('{malformed');
+      return { exitCode: 0, stdout: '{malformed', stderr: '' };
+    },
+  };
+  await assert.rejects(() => runFixture(new CodexAdapter(malformed), testModel('codex')), { name: 'ProtocolParseError' });
+
+  const oversized: AdapterRuntime = {
+    ...base,
+    runProcess: async (_command, _args, options) => {
+      options.onStdoutLine?.(JSON.stringify({ type: 'status', payload: 'x'.repeat(1024 * 1024) }));
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  };
+  await assert.rejects(() => runFixture(new CodexAdapter(oversized), testModel('codex')), { name: 'StreamBudgetExceededError' });
+
+  const truncated: AdapterRuntime = {
+    ...base,
+    runProcess: async (_command, _args, options) => {
+      const line = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'partial' } });
+      options.onStdoutLine?.(line);
+      return {
+        exitCode: 0,
+        stdout: line,
+        stderr: '',
+        truncation: [{ stream: 'stdout', limitBytes: 4, observedBytes: 20, discardedBytes: 16 }],
+      };
+    },
+  };
+  await assert.rejects(() => runFixture(new CodexAdapter(truncated), testModel('codex')), { name: 'UnsafeCompletionError' });
 });
 
 test('CodexAdapter rejects non-zero fixture exit', async () => {

@@ -25,6 +25,10 @@ import type { AgentEvent, HealthResult, ProviderId, RunRequest, RunResult, Works
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PROCESS_SOURCE = readFileSync(join(REPO_ROOT, 'src/process.ts'), 'utf8');
+const LEGACY_PROCESS_SOURCE = PROCESS_SOURCE.slice(
+  PROCESS_SOURCE.indexOf('export async function runProcessLegacy'),
+  PROCESS_SOURCE.indexOf('export function findExecutable'),
+);
 const CONTROLLER_SOURCE = readFileSync(join(REPO_ROOT, 'src/controller.ts'), 'utf8');
 const GIT_SOURCE = readFileSync(join(REPO_ROOT, 'src/git.ts'), 'utf8');
 const NVIDIA_SOURCE = readFileSync(join(REPO_ROOT, 'src/adapters/nvidia.ts'), 'utf8');
@@ -145,10 +149,11 @@ test('[characterization] runProcess retains full stdout/stderr buffers without t
   }
 });
 
-test('[characterization] runProcess source uses untyped SIGINT then 1500ms SIGKILL because timer seam is not injectable', () => {
-  assert.match(PROCESS_SOURCE, /child\.kill\('SIGINT'\)/);
-  assert.match(PROCESS_SOURCE, /setTimeout\(\(\) => child\.kill\('SIGKILL'\), 1_500\)/);
-  assert.doesNotMatch(PROCESS_SOURCE, /terminationStage|abortCause|truncation/);
+test('[characterization] legacy runner preserves the untyped SIGINT then 1500ms SIGKILL rollback behavior', () => {
+  assert.match(LEGACY_PROCESS_SOURCE, /child\.kill\('SIGINT'\)/);
+  assert.match(LEGACY_PROCESS_SOURCE, /setTimeout\(\(\) => child\.kill\('SIGKILL'\), 1_500\)/);
+  assert.doesNotMatch(LEGACY_PROCESS_SOURCE, /terminationStage|abortCause/);
+  assert.match(LEGACY_PROCESS_SOURCE, /BoundedByteAccumulator/);
 });
 
 test('[characterization] runProcess abort during active streaming settles once with partial stdout and no typed termination metadata', async () => {
@@ -264,16 +269,16 @@ test('[characterization] runProcess spawn error-before-abort rejects exactly onc
   }
 });
 
-test('[characterization] pre-aborted signal before spawn error terminates the isolated caller with SIGINT', { timeout: 5_000 }, async () => {
+test('[characterization transition] legacy rollback no longer signals a child when already aborted', { timeout: 5_000 }, async () => {
   const probe = spawn(process.execPath, [
     '--import', 'tsx',
     '--input-type=module',
     '-e',
     [
-      'import { runProcess } from "./src/process.ts";',
+      'import { runProcessLegacy } from "./src/process.ts";',
       'const controller = new AbortController();',
       'controller.abort();',
-      'await runProcess("zeuz-missing-executable-after-preabort-fixture", [], { cwd: process.cwd(), signal: controller.signal });',
+      'await runProcessLegacy("zeuz-missing-executable-after-preabort-fixture", [], { cwd: process.cwd(), signal: controller.signal });',
     ].join(' '),
   ], {
     cwd: REPO_ROOT,
@@ -285,8 +290,8 @@ test('[characterization] pre-aborted signal before spawn error terminates the is
     probe.once('error', reject);
     probe.once('close', (code, signal) => resolve({ code, signal }));
   });
-  assert.equal(terminal.signal, 'SIGINT');
-  assert.equal(terminal.code, null);
+  assert.equal(terminal.signal, null);
+  assert.equal(terminal.code, 0);
 });
 
 test('[characterization] runProcess abort-before-nonzero-close resolves exactly once instead of producing a parent error event', async () => {
@@ -320,16 +325,11 @@ test('[characterization] runProcess abort-before-nonzero-close resolves exactly 
   }
 });
 
-test('[characterization] controller send/ask/runReview/remediate lack a shared producer/review/remediation deadline policy', () => {
-  assert.doesNotMatch(CONTROLLER_SOURCE, /producerDeadline|reviewDeadline|remediationDeadline|resolveDeadline/i);
-  const phaseMethods = ['async send(', 'async ask(', 'private async runReview(', 'private async remediate('];
-  for (const marker of phaseMethods) {
-    const start = CONTROLLER_SOURCE.indexOf(marker);
-    assert.ok(start >= 0, `expected controller method ${marker}`);
-    const nextMethod = CONTROLLER_SOURCE.indexOf('\n  async ', start + marker.length);
-    const block = CONTROLLER_SOURCE.slice(start, nextMethod > start ? nextMethod : start + 4_000);
-    assert.doesNotMatch(block, /AbortSignal\.timeout/);
-  }
+test('[characterization transition] controller phases now use the shared deadline policy without changing deep-health timeout', () => {
+  assert.match(CONTROLLER_SOURCE, /resolveDeadlinePolicy/);
+  assert.match(CONTROLLER_SOURCE, /runPhase\('producer'/);
+  assert.match(CONTROLLER_SOURCE, /runPhase\('review'/);
+  assert.match(CONTROLLER_SOURCE, /runPhase\('remediation'/);
   assert.match(CONTROLLER_SOURCE, /AbortSignal\.timeout\(45_000\)/);
 });
 
@@ -470,7 +470,7 @@ for (const scenario of [
   });
 }
 
-test('[characterization] workspaceFingerprint is undefined outside Git and writable controller modes infer changed workspace from that ambiguity', async () => {
+test('[characterization transition] legacy undefined fingerprint is now fail-closed as unmeasurable', async () => {
   const nonGitRoot = await mkdtemp(join(tmpdir(), 'zeuz-wave03-nongit-'));
   const { controller, root } = await controllerHarness({
     fingerprints: [undefined, undefined, undefined],
@@ -480,12 +480,11 @@ test('[characterization] workspaceFingerprint is undefined outside Git and writa
   try {
     assert.equal(isGitRepository(nonGitRoot), false);
     assert.equal(workspaceFingerprint(nonGitRoot), undefined);
-    assert.match(CONTROLLER_SOURCE, /before === undefined \? this\.session\.permissionMode !== 'plan' : before !== after/);
     await assert.rejects(
       () => controller.send('non-git writable characterization'),
-      (error: Error & { review?: { verdict?: string; summary?: string } }) => {
-        assert.equal(error.review?.verdict, 'REVIEW_BLOCKED');
-        assert.match(error.review?.summary ?? '', /fingerprint is unavailable/i);
+      (error: Error & { code?: string }) => {
+        assert.equal(error.code, 'WORKSPACE_UNMEASURABLE');
+        assert.match(error.message, /unmeasurable/i);
         return true;
       },
     );
@@ -564,11 +563,11 @@ test('[characterization] AgyAdapter final response depends on returned full stdo
   assert.notEqual(result.text, 'chunk-only-incremental');
 });
 
-test('[characterization] NvidiaAdapter.runDirect uses global fetch with stream:false and response.json rather than injectable bounded body transport', () => {
-  assert.match(NVIDIA_SOURCE, /await fetch\(/);
+test('[characterization transition] NvidiaAdapter direct route uses injected bounded HTTP transport', () => {
+  assert.match(NVIDIA_SOURCE, /runtime\.httpRequest/);
   assert.match(NVIDIA_SOURCE, /stream:\s*false/);
-  assert.match(NVIDIA_SOURCE, /await response\.json\(\)/);
-  assert.doesNotMatch(NVIDIA_SOURCE, /httpTransport|boundedBody|injectableFetch/i);
+  assert.match(NVIDIA_SOURCE, /readBoundedHttpBody/);
+  assert.doesNotMatch(NVIDIA_SOURCE, /await response\.json\(\)/);
 });
 
 test('[characterization] NvidiaAdapter.runDirect posts stream:false through global fetch and parses JSON body', async () => {

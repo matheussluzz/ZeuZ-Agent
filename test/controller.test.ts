@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { AdapterRegistry } from '../src/adapters/index.js';
+import { AdapterTerminationError } from '../src/adapters/protocol.js';
 import { DEFAULT_MODEL_ID } from '../src/catalog.js';
 import { ZeuzController, type ControllerDependencies } from '../src/controller.js';
+import type { PartialDeadlineConfig } from '../src/deadline-policy.js';
 import { SessionStore } from '../src/session-store.js';
 import type { RuntimeSeams } from '../src/runtime.js';
 import type { AgentAdapter, AgentEvent, HealthResult, ProviderId, RunRequest, RunResult, WorkspaceBootstrap } from '../src/types.js';
@@ -96,6 +98,7 @@ async function harness(input: {
   mode?: 'plan' | 'agent' | 'yolo';
   run(request: RunRequest): Promise<RunResult>;
   health?: Partial<Record<ProviderId, boolean>>;
+  deadlines?: PartialDeadlineConfig;
 }): Promise<{ controller: ZeuzController; root: string }> {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-controller-'));
   const runtime = deterministicRuntime(input.fingerprints);
@@ -112,6 +115,7 @@ async function harness(input: {
   const controller = await ZeuzController.create('/fixture-workspace', {
     ...(input.modelId ? { modelId: input.modelId } : {}),
     mode: input.mode ?? 'agent',
+    ...(input.deadlines ? { deadlines: input.deadlines } : {}),
   }, {
     runtime,
     sessions,
@@ -131,6 +135,137 @@ test('controller defaults to primary Sol and honors explicit session model selec
     assert.equal(second.controller.session.activeModelId, 'copilot:claude-sonnet-5');
   } finally {
     await Promise.all([first.root, second.root].map(async (root) => await rm(root, { recursive: true, force: true })));
+  }
+});
+
+test('controller applies producer deadline zero without availability fallback', async () => {
+  const calls: string[] = [];
+  const events: AgentEvent[] = [];
+  const { controller, root } = await harness({
+    mode: 'plan',
+    deadlines: { producerMs: 0 },
+    run: async (request) => {
+      calls.push(request.model.id);
+      assert.equal(request.signal?.aborted, true);
+      return { text: 'must not be delivered' };
+    },
+  });
+  try {
+    await assert.rejects(() => controller.send('deadline', (event) => events.push(event)), {
+      name: 'PhaseDeadlineError',
+      code: 'PHASE_DEADLINE_EXCEEDED',
+      phase: 'producer',
+    });
+    assert.deepEqual(calls, [DEFAULT_MODEL_ID]);
+    assert.ok(events.some((event) => event.type === 'cancelled' && event.cause === 'deadline' && event.phase === 'producer'));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('controller composes external producer cancellation without fallback', async () => {
+  const external = new AbortController();
+  external.abort();
+  const calls: string[] = [];
+  const { controller, root } = await harness({
+    mode: 'plan',
+    run: async (request) => {
+      calls.push(request.model.id);
+      assert.equal(request.signal?.aborted, true);
+      throw new Error('model unavailable');
+    },
+  });
+  try {
+    await assert.rejects(() => controller.send('cancel', undefined, external.signal), {
+      name: 'PhaseCancelledError',
+      code: 'PHASE_CANCELLED',
+      phase: 'producer',
+    });
+    assert.deepEqual(calls, [DEFAULT_MODEL_ID]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('controller persists a proven native session on cancellation and resumes the next turn', async () => {
+  const external = new AbortController();
+  external.abort();
+  const resumeIds: Array<string | undefined> = [];
+  const { controller, root } = await harness({
+    mode: 'plan',
+    modelId: 'cursor:composer-2.5',
+    run: async (request) => {
+      resumeIds.push(request.resumeId);
+      if (request.signal?.aborted) {
+        throw new AdapterTerminationError(
+          { cause: 'cancelled', stage: 'exited', exitObserved: true },
+          { nativeSessionId: 'proven-native-session' },
+        );
+      }
+      return { text: 'resumed safely', nativeSessionId: 'proven-native-session' };
+    },
+  });
+  try {
+    await assert.rejects(() => controller.send('cancel me', undefined, external.signal), {
+      name: 'PhaseCancelledError',
+    });
+    assert.equal(controller.session.providerSessions['cursor:composer-2.5'], 'proven-native-session');
+    const outcome = await controller.send('resume me');
+    assert.equal(outcome.response, 'resumed safely');
+    assert.deepEqual(resumeIds, [undefined, 'proven-native-session']);
+    assert.ok(controller.session.messages.some((message) => /Turn terminated: cause=cancelled/.test(message.content)));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('review deadline is converted to fail-closed REVIEW_BLOCKED', async () => {
+  const { controller, root } = await harness({
+    fingerprints: ['before', 'after', 'after', 'after', 'after'],
+    deadlines: { reviewMs: 0 },
+    run: async (request) => {
+      if (request.ephemeral) {
+        assert.equal(request.signal?.aborted, true);
+        return reviewReport(request);
+      }
+      return { text: 'changed workspace' };
+    },
+  });
+  try {
+    await assert.rejects(
+      () => controller.send('change and time out review'),
+      (error: Error & { review?: { verdict?: string; summary?: string } }) => {
+        assert.equal(error.review?.verdict, 'REVIEW_BLOCKED');
+        assert.match(error.review?.summary ?? '', /deadline/i);
+        return true;
+      },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('remediation deadline blocks delivery with a typed phase error', async () => {
+  let producerCalls = 0;
+  const { controller, root } = await harness({
+    fingerprints: ['before', 'after', 'after', 'after', 'after'],
+    deadlines: { remediationMs: 0 },
+    run: async (request) => {
+      if (request.ephemeral) return reviewReport(request, 'CHANGES_REQUIRED');
+      producerCalls += 1;
+      if (producerCalls === 2) assert.equal(request.signal?.aborted, true);
+      return { text: producerCalls === 1 ? 'initial change' : 'late remediation' };
+    },
+  });
+  try {
+    await assert.rejects(() => controller.send('change then remediate'), {
+      name: 'PhaseDeadlineError',
+      code: 'PHASE_DEADLINE_EXCEEDED',
+      phase: 'remediation',
+    });
+    assert.equal(producerCalls, 2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

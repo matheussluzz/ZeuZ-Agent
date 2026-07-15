@@ -1,6 +1,7 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
+import { assertProcessNotCancelled, assertSafeProcessCompletion, withBoundedEvents } from './protocol.js';
 
 export class AgyAdapter implements AgentAdapter {
   readonly provider = 'agy' as const;
@@ -11,6 +12,7 @@ export class AgyAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     const executable = this.runtime.findExecutable('agy');
     if (!executable) throw new Error('agy was not found in PATH.');
 
@@ -29,6 +31,8 @@ export class AgyAdapter implements AgentAdapter {
       },
     });
 
+    assertSafeProcessCompletion(result);
+    assertProcessNotCancelled(result);
     if (result.exitCode !== 0) throw new Error(result.stderr.trim() || `agy exited with code ${result.exitCode}`);
     const text = result.stdout.trim();
     if (!text) throw new Error('Antigravity completed without a final response.');

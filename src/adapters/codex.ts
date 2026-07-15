@@ -1,6 +1,7 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
+import { assertProcessNotCancelled, assertSafeProcessCompletion, JsonlProtocolState, withBoundedEvents } from './protocol.js';
 
 interface CodexEvent {
   type?: string;
@@ -26,6 +27,7 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     const executable = this.runtime.resolveCodexExecutable();
     const args = request.resumeId
       ? this.resumeArgs(request)
@@ -34,7 +36,7 @@ export class CodexAdapter implements AgentAdapter {
     let text = '';
     let nativeSessionId = request.resumeId;
     let usage: Record<string, unknown> | undefined;
-    const rawEvents: unknown[] = [];
+    const protocol = new JsonlProtocolState<CodexEvent>();
 
     const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
@@ -42,15 +44,7 @@ export class CodexAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        let event: CodexEvent;
-        try {
-          event = JSON.parse(line) as CodexEvent;
-        } catch {
-          request.onEvent?.({ type: 'status', text: line });
-          return;
-        }
-
-        if (rawEvents.length < 250) rawEvents.push(event);
+        const event = protocol.parse(line);
         if (event.type === 'thread.started' && event.thread_id) nativeSessionId = event.thread_id;
         if (event.type === 'turn.completed' && event.usage) usage = event.usage;
 
@@ -79,6 +73,8 @@ export class CodexAdapter implements AgentAdapter {
       },
     });
 
+    assertSafeProcessCompletion(result);
+    assertProcessNotCancelled(result, nativeSessionId ? { nativeSessionId } : {});
     if (result.exitCode !== 0) {
       throw new Error(result.stderr.trim() || `Codex exited with code ${result.exitCode}`);
     }
@@ -88,7 +84,7 @@ export class CodexAdapter implements AgentAdapter {
       text,
       ...(nativeSessionId ? { nativeSessionId } : {}),
       ...(usage ? { usage } : {}),
-      rawEvents,
+      rawEvents: protocol.rawEvents(),
     };
   }
 

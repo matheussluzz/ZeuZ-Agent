@@ -1,6 +1,12 @@
 import type { PermissionMode } from './types.js';
 
 const CREDENTIAL_PATH = /(^|\/)(?:\.env(?:\.[^/]*)?|lamine(?:\.[^/]*)?\.ya?ml|\.npmrc|auth\.json|[^/]*(?:credentials?|secrets?)[^/]*)$/i;
+const MEDUSA_SENSITIVE_PATH = /(^|\/)(\.env(?:\..*)?|lamine(?:\.[^/]*)?\.ya?ml|\.npmrc|auth\.json|[^/]*(?:credentials?|secrets?)[^/]*\.json|[^/]+\.(?:pem|key|p12|pfx|jks))$/i;
+const PUBLIC_TRACKED_TEMPLATES = new Set([
+  '.env.example',
+  'lamine.example.yaml',
+  'templates/aws-athena-mcp/.env.example',
+]);
 
 export class ShellPolicyViolationError extends Error {
   readonly code = 'SHELL_POLICY_VIOLATION';
@@ -13,6 +19,12 @@ export class ShellPolicyViolationError extends Error {
 
 export function isCredentialPath(path: string): boolean {
   return CREDENTIAL_PATH.test(path.replaceAll('\\', '/'));
+}
+
+export function isSensitiveWorkspacePath(path: string): boolean {
+  const portable = path.replaceAll('\\', '/').replace(/^\.\//, '');
+  if (PUBLIC_TRACKED_TEMPLATES.has(portable)) return false;
+  return isCredentialPath(portable) || MEDUSA_SENSITIVE_PATH.test(portable);
 }
 
 export function assertDirectShellPolicy(command: string, mode: PermissionMode): void {
