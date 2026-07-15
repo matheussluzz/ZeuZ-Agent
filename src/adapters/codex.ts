@@ -1,7 +1,4 @@
-import { spawnSync } from 'node:child_process';
-
-import { resolveCodexExecutable, runProcess } from '../process.js';
-import { sanitizedChildEnvironment } from '../env.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 interface CodexEvent {
@@ -21,9 +18,14 @@ interface CodexEvent {
 
 export class CodexAdapter implements AgentAdapter {
   readonly provider = 'codex' as const;
+  private readonly runtime: AdapterRuntime;
+
+  constructor(runtime: AdapterRuntime = defaultAdapterRuntime) {
+    this.runtime = runtime;
+  }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const executable = resolveCodexExecutable();
+    const executable = this.runtime.resolveCodexExecutable();
     const args = request.resumeId
       ? this.resumeArgs(request)
       : this.newArgs(request);
@@ -33,9 +35,9 @@ export class CodexAdapter implements AgentAdapter {
     let usage: Record<string, unknown> | undefined;
     const rawEvents: unknown[] = [];
 
-    const result = await runProcess(executable, args, {
+    const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
-      env: sanitizedChildEnvironment(),
+      env: this.runtime.sanitizedChildEnvironment(),
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
@@ -90,19 +92,19 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   async health(): Promise<HealthResult> {
-    const started = Date.now();
+    const started = this.runtime.now();
     try {
-      const executable = resolveCodexExecutable();
-      const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
+      const executable = this.runtime.resolveCodexExecutable();
+      const result = this.runtime.spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
       return {
         provider: this.provider,
         ok: result.status === 0,
         version: result.stdout.trim(),
-        latencyMs: Date.now() - started,
+        latencyMs: this.runtime.now() - started,
         ...(result.status === 0 ? {} : { detail: result.stderr.trim() }),
       };
     } catch (error) {
-      return { provider: this.provider, ok: false, latencyMs: Date.now() - started, detail: error instanceof Error ? error.message : String(error) };
+      return { provider: this.provider, ok: false, latencyMs: this.runtime.now() - started, detail: error instanceof Error ? error.message : String(error) };
     }
   }
 

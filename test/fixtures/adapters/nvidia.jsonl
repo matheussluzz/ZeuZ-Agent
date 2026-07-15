@@ -1,0 +1,5 @@
+{"type":"assistant.message_delta","data":{"deltaContent":"[zeuz-nvidia-glm-fixture] "}}
+{"type":"tools.read_file.start","data":{"toolName":"zeuz-fixture-read_file","name":"read_file"}}
+{"type":"assistant.message_delta","data":{"deltaContent":"synthetic GLM route "}}
+{"type":"assistant.message","data":{"content":"[zeuz-nvidia-glm-fixture] Synthetic NVIDIA Copilot GLM fixture response: deterministic orchestration check complete."}}
+{"type":"result","usage":{"prompt_tokens":28,"completion_tokens":16,"total_tokens":44,"provider":"nvidia-glm-fixture"}}

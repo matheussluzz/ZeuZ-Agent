@@ -1,8 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-
-import { configuredSecretNames, sanitizedChildEnvironment } from '../env.js';
-import { findExecutable, runProcess } from '../process.js';
+import { configuredSecretNames } from '../env.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, ProviderId, RunRequest, RunResult } from '../types.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -18,22 +15,25 @@ function string(value: unknown): string | undefined {
 interface CopilotAdapterOptions {
   provider?: ProviderId;
   nvidia?: boolean;
+  runtime?: AdapterRuntime;
 }
 
 export class CopilotAdapter implements AgentAdapter {
   readonly provider: ProviderId;
   private readonly nvidia: boolean;
+  private readonly runtime: AdapterRuntime;
 
   constructor(options: CopilotAdapterOptions = {}) {
     this.provider = options.provider ?? 'copilot';
     this.nvidia = options.nvidia ?? false;
+    this.runtime = options.runtime ?? defaultAdapterRuntime;
   }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const executable = findExecutable('copilot');
+    const executable = this.runtime.findExecutable('copilot');
     if (!executable) throw new Error('copilot was not found in PATH.');
 
-    const nativeSessionId = request.resumeId ?? randomUUID();
+    const nativeSessionId = request.resumeId ?? this.runtime.randomUUID();
     const args = [
       '--prompt', request.prompt,
       '--model', this.wireModel(request),
@@ -60,7 +60,7 @@ export class CopilotAdapter implements AgentAdapter {
     const rawEvents: unknown[] = [];
     const env = this.environment(request);
 
-    const result = await runProcess(executable, args, {
+    const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
       env,
       ...(request.signal ? { signal: request.signal } : {}),
@@ -108,22 +108,24 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   async health(): Promise<HealthResult> {
-    const started = Date.now();
-    const executable = findExecutable('copilot');
-    if (!executable) return { provider: this.provider, ok: false, latencyMs: Date.now() - started, detail: 'copilot not found' };
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
+    const started = this.runtime.now();
+    const executable = this.runtime.findExecutable('copilot');
+    if (!executable) return { provider: this.provider, ok: false, latencyMs: this.runtime.now() - started, detail: 'copilot not found' };
+    const result = this.runtime.spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
     return {
       provider: this.provider,
       ok: result.status === 0,
       version: result.stdout.trim().split('\n')[0] ?? '',
-      latencyMs: Date.now() - started,
+      latencyMs: this.runtime.now() - started,
       ...(result.status === 0 ? {} : { detail: result.stderr.trim() }),
     };
   }
 
   private wireModel(request: RunRequest): string {
     if (!this.nvidia) return request.model.model;
-    return request.model.modelEnv ? (process.env[request.model.modelEnv] ?? request.model.defaultApiModel ?? request.model.model) : request.model.model;
+    return request.model.modelEnv
+      ? (this.runtime.envGet(request.model.modelEnv) ?? request.model.defaultApiModel ?? request.model.model)
+      : request.model.model;
   }
 
   private streamMode(request: RunRequest): 'on' | 'off' {
@@ -132,12 +134,12 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   private environment(request: RunRequest): NodeJS.ProcessEnv {
-    if (!this.nvidia) return sanitizedChildEnvironment();
+    if (!this.nvidia) return this.runtime.sanitizedChildEnvironment();
     if (!request.model.apiKeyEnv) throw new Error(`No API key environment configured for ${request.model.id}.`);
-    const apiKey = process.env[request.model.apiKeyEnv];
+    const apiKey = this.runtime.envGet(request.model.apiKeyEnv);
     if (!apiKey || apiKey.startsWith('nvapi-your-')) throw new Error(`Missing ${request.model.apiKeyEnv}. Configure the matching route in private lamine.yaml (or legacy .env).`);
-    return sanitizedChildEnvironment({
-      COPILOT_PROVIDER_BASE_URL: process.env.NVIDIA_API_BASE_URL ?? 'https://integrate.api.nvidia.com/v1',
+    return this.runtime.sanitizedChildEnvironment({
+      COPILOT_PROVIDER_BASE_URL: this.runtime.envGet('NVIDIA_API_BASE_URL') ?? 'https://integrate.api.nvidia.com/v1',
       COPILOT_PROVIDER_API_KEY: apiKey,
       COPILOT_PROVIDER_TYPE: 'openai',
       COPILOT_PROVIDER_WIRE_API: 'completions',

@@ -8,6 +8,7 @@ import { gitDiff } from '../git.js';
 import { findExecutable } from '../process.js';
 import type { AgentAdapter, HealthResult, PermissionMode, RunRequest, RunResult } from '../types.js';
 import { CopilotAdapter } from './copilot.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 
 interface DirectMessage {
   role: 'system' | 'user' | 'assistant';
@@ -227,9 +228,20 @@ function executeTool(request: RunRequest, action: DirectAction): string {
   }
 }
 
+export interface NvidiaAdapterOptions {
+  runtime?: AdapterRuntime;
+  copilot?: CopilotAdapter;
+}
+
 export class NvidiaAdapter implements AgentAdapter {
   readonly provider = 'nvidia' as const;
-  private readonly copilot = new CopilotAdapter({ provider: 'nvidia', nvidia: true });
+  private readonly runtime: AdapterRuntime;
+  private readonly copilot: CopilotAdapter;
+
+  constructor(options: NvidiaAdapterOptions = {}) {
+    this.runtime = options.runtime ?? defaultAdapterRuntime;
+    this.copilot = options.copilot ?? new CopilotAdapter({ provider: 'nvidia', nvidia: true, runtime: this.runtime });
+  }
 
   async run(request: RunRequest): Promise<RunResult> {
     if (!DIRECT_HARNESS.test(request.model.id)) return await this.copilot.run(request);

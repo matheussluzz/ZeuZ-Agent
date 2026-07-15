@@ -1,7 +1,4 @@
-import { spawnSync } from 'node:child_process';
-
-import { sanitizedChildEnvironment } from '../env.js';
-import { findExecutable, runProcess } from '../process.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -16,9 +13,14 @@ function string(value: unknown): string | undefined {
 
 export class CursorAdapter implements AgentAdapter {
   readonly provider = 'cursor' as const;
+  private readonly runtime: AdapterRuntime;
+
+  constructor(runtime: AdapterRuntime = defaultAdapterRuntime) {
+    this.runtime = runtime;
+  }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const executable = findExecutable('cursor-agent');
+    const executable = this.runtime.findExecutable('cursor-agent');
     if (!executable) throw new Error('cursor-agent was not found in PATH.');
 
     const args = [
@@ -42,9 +44,9 @@ export class CursorAdapter implements AgentAdapter {
     let usage: Record<string, unknown> | undefined;
     const rawEvents: unknown[] = [];
 
-    const result = await runProcess(executable, args, {
+    const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
-      env: sanitizedChildEnvironment(),
+      env: this.runtime.sanitizedChildEnvironment(),
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
@@ -108,15 +110,15 @@ export class CursorAdapter implements AgentAdapter {
   }
 
   async health(): Promise<HealthResult> {
-    const started = Date.now();
-    const executable = findExecutable('cursor-agent');
-    if (!executable) return { provider: this.provider, ok: false, latencyMs: Date.now() - started, detail: 'cursor-agent not found' };
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
+    const started = this.runtime.now();
+    const executable = this.runtime.findExecutable('cursor-agent');
+    if (!executable) return { provider: this.provider, ok: false, latencyMs: this.runtime.now() - started, detail: 'cursor-agent not found' };
+    const result = this.runtime.spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
     return {
       provider: this.provider,
       ok: result.status === 0,
       version: result.stdout.trim(),
-      latencyMs: Date.now() - started,
+      latencyMs: this.runtime.now() - started,
       ...(result.status === 0 ? {} : { detail: result.stderr.trim() }),
     };
   }

@@ -1,7 +1,4 @@
-import { spawnSync } from 'node:child_process';
-
-import { sanitizedChildEnvironment } from '../env.js';
-import { findExecutable, runProcess } from '../process.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -16,9 +13,14 @@ function string(value: unknown): string | undefined {
 
 export class ClaudeAdapter implements AgentAdapter {
   readonly provider = 'claude' as const;
+  private readonly runtime: AdapterRuntime;
+
+  constructor(runtime: AdapterRuntime = defaultAdapterRuntime) {
+    this.runtime = runtime;
+  }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const executable = findExecutable('claude');
+    const executable = this.runtime.findExecutable('claude');
     if (!executable) throw new Error('claude was not found in PATH. Install Claude Code or select the Cursor Fable route.');
 
     const args = [
@@ -43,9 +45,9 @@ export class ClaudeAdapter implements AgentAdapter {
     let resultError: string | undefined;
     const rawEvents: unknown[] = [];
 
-    const result = await runProcess(executable, args, {
+    const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
-      env: sanitizedChildEnvironment({ CLAUDE_CODE_SKIP_PROMPT_HISTORY: request.ephemeral ? '1' : undefined }),
+      env: this.runtime.sanitizedChildEnvironment({ CLAUDE_CODE_SKIP_PROMPT_HISTORY: request.ephemeral ? '1' : undefined }),
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
@@ -112,10 +114,10 @@ export class ClaudeAdapter implements AgentAdapter {
   }
 
   async health(): Promise<HealthResult> {
-    const started = Date.now();
-    const executable = findExecutable('claude');
-    if (!executable) return { provider: this.provider, ok: false, latencyMs: Date.now() - started, detail: 'claude not installed (optional)' };
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
+    const started = this.runtime.now();
+    const executable = this.runtime.findExecutable('claude');
+    if (!executable) return { provider: this.provider, ok: false, latencyMs: this.runtime.now() - started, detail: 'claude not installed (optional)' };
+    const result = this.runtime.spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
     const version = result.stdout.trim().split('\n')[0] ?? '';
     const match = version.match(/(\d+)\.(\d+)\.(\d+)/);
     const fableCapable = Boolean(match && [Number(match[1]), Number(match[2]), Number(match[3])].join('.').localeCompare('2.1.170', undefined, { numeric: true }) >= 0);
@@ -124,7 +126,7 @@ export class ClaudeAdapter implements AgentAdapter {
       provider: this.provider,
       ok,
       version,
-      latencyMs: Date.now() - started,
+      latencyMs: this.runtime.now() - started,
       ...(ok ? {} : { detail: result.status === 0 ? 'Claude Code 2.1.170+ is required for the configured Fable 5 fallback.' : result.stderr.trim() }),
     };
   }

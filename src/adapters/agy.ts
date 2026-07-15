@@ -1,14 +1,16 @@
-import { spawnSync } from 'node:child_process';
-
-import { sanitizedChildEnvironment } from '../env.js';
-import { findExecutable, runProcess } from '../process.js';
+import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 export class AgyAdapter implements AgentAdapter {
   readonly provider = 'agy' as const;
+  private readonly runtime: AdapterRuntime;
+
+  constructor(runtime: AdapterRuntime = defaultAdapterRuntime) {
+    this.runtime = runtime;
+  }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const executable = findExecutable('agy');
+    const executable = this.runtime.findExecutable('agy');
     if (!executable) throw new Error('agy was not found in PATH.');
 
     // agy parses flags after --print as prompt input, so --print must be last.
@@ -17,9 +19,9 @@ export class AgyAdapter implements AgentAdapter {
     if (request.mode !== 'plan') args.push('--dangerously-skip-permissions');
     args.push('--print', request.prompt);
 
-    const result = await runProcess(executable, args, {
+    const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
-      env: sanitizedChildEnvironment(),
+      env: this.runtime.sanitizedChildEnvironment(),
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutChunk: (chunk) => request.onEvent?.({ type: 'delta', text: chunk }),
       onStderrLine: (line) => {
@@ -34,11 +36,11 @@ export class AgyAdapter implements AgentAdapter {
   }
 
   async health(): Promise<HealthResult> {
-    const started = Date.now();
-    const executable = findExecutable('agy');
-    if (!executable) return { provider: this.provider, ok: false, latencyMs: Date.now() - started, detail: 'agy not found' };
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
+    const started = this.runtime.now();
+    const executable = this.runtime.findExecutable('agy');
+    if (!executable) return { provider: this.provider, ok: false, latencyMs: this.runtime.now() - started, detail: 'agy not found' };
+    const result = this.runtime.spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 8_000 });
     const version = (result.stdout || result.stderr).trim().split('\n')[0] ?? '';
-    return { provider: this.provider, ok: result.status === 0, version, latencyMs: Date.now() - started };
+    return { provider: this.provider, ok: result.status === 0, version, latencyMs: this.runtime.now() - started };
   }
 }
