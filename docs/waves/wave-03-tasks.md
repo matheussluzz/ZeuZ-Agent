@@ -41,7 +41,7 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 - [x] Add characterization tests proving Git untracked files above 5 MiB fall back to size/mtime identity instead of `unmeasurable`.
 - [x] Add characterization tests proving adapter/fixture paths can depend on complete stdout/stderr buffers.
 - [x] Add characterization tests proving `NvidiaAdapter.runDirect()` uses unbounded `fetch` + `response.json()` outside the CLI fixture path.
-- [ ] Commit the green characterization checkpoint separately before production contract changes.
+- [x] Commit the green characterization checkpoint separately before production contract changes (`20b7c98`).
 
 ### Shared runner and deadlines
 
