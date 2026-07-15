@@ -2,6 +2,7 @@ import { configuredSecretNames } from '../env.js';
 import { permissionArguments } from '../permissions.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, ProviderId, RunRequest, RunResult } from '../types.js';
+import { assertProcessNotCancelled, assertSafeProcessCompletion, JsonlProtocolState, withBoundedEvents } from './protocol.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -31,6 +32,7 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     const executable = this.runtime.findExecutable('copilot');
     if (!executable) throw new Error('copilot was not found in PATH.');
 
@@ -55,7 +57,7 @@ export class CopilotAdapter implements AgentAdapter {
     let streamedText = '';
     let finalText = '';
     let usage: Record<string, unknown> | undefined;
-    const rawEvents: unknown[] = [];
+    const protocol = new JsonlProtocolState<JsonRecord>();
     const env = this.environment(request);
 
     const result = await this.runtime.runProcess(executable, args, {
@@ -64,14 +66,7 @@ export class CopilotAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        let event: JsonRecord;
-        try {
-          event = JSON.parse(line) as JsonRecord;
-        } catch {
-          request.onEvent?.({ type: 'status', text: line });
-          return;
-        }
-        if (rawEvents.length < 250) rawEvents.push(event);
+        const event = protocol.parse(line);
         const type = string(event.type);
         const data = record(event.data);
 
@@ -97,12 +92,14 @@ export class CopilotAdapter implements AgentAdapter {
       },
     });
 
+    assertSafeProcessCompletion(result);
+    assertProcessNotCancelled(result, { nativeSessionId });
     if (result.exitCode !== 0) throw new Error(result.stderr.trim() || `copilot exited with code ${result.exitCode}`);
     const text = finalText || streamedText;
     if (!text) throw new Error(`${this.provider} completed without a final response.`);
     if (!streamedText) request.onEvent?.({ type: 'delta', text });
 
-    return { text, nativeSessionId, ...(usage ? { usage } : {}), rawEvents };
+    return { text, nativeSessionId, ...(usage ? { usage } : {}), rawEvents: protocol.rawEvents() };
   }
 
   async health(): Promise<HealthResult> {

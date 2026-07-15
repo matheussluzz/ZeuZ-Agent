@@ -5,11 +5,13 @@ import { dirname, isAbsolute, relative, resolve } from 'node:path';
 
 import { installRoot, sanitizedChildEnvironment } from '../env.js';
 import { gitDiff } from '../git.js';
+import { readBoundedHttpBody, type HttpTransportResponse } from '../http-transport.js';
 import { findExecutable } from '../process.js';
 import { assertDirectShellPolicy, isCredentialPath } from '../security-policy.js';
 import type { AgentAdapter, HealthResult, PermissionMode, RunRequest, RunResult } from '../types.js';
 import { CopilotAdapter } from './copilot.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
+import { withBoundedEvents } from './protocol.js';
 
 interface DirectMessage {
   role: 'system' | 'user' | 'assistant';
@@ -92,18 +94,11 @@ function parseAction(content: string): DirectAction | undefined {
   }
 }
 
-async function safeHttpError(response: Response): Promise<string> {
-  let title = response.statusText || 'request failed';
-  try {
-    const payload = JSON.parse(await response.text()) as { title?: unknown; detail?: unknown };
-    if (typeof payload.title === 'string' && payload.title.trim()) title = payload.title.trim();
-  } catch {
-    // Provider error bodies can contain account identifiers or echoed input; do not surface them.
-  }
+function safeHttpError(response: HttpTransportResponse): string {
   if (response.status === 401 || response.status === 403) return `NVIDIA HTTP ${response.status}: authentication or authorization failed.`;
   if (response.status === 404) return 'NVIDIA HTTP 404: this model endpoint is unavailable for the configured account.';
   if (response.status === 429) return 'NVIDIA HTTP 429: rate limit or quota reached.';
-  return `NVIDIA HTTP ${response.status}: ${title.slice(0, 160)}.`;
+  return `NVIDIA HTTP ${response.status}: request failed.`;
 }
 
 export function runSandboxedCommand(cwd: string, command: string, mode: PermissionMode): string {
@@ -244,6 +239,7 @@ export class NvidiaAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     if (!DIRECT_HARNESS.test(request.model.id)) return await this.copilot.run(request);
     return await this.runDirect(request);
   }
@@ -254,9 +250,9 @@ export class NvidiaAdapter implements AgentAdapter {
 
   private async runDirect(request: RunRequest): Promise<RunResult> {
     if (!request.model.apiKeyEnv) throw new Error(`No API key configured for ${request.model.id}.`);
-    const apiKey = process.env[request.model.apiKeyEnv];
+    const apiKey = this.runtime.envGet(request.model.apiKeyEnv);
     if (!apiKey || apiKey.startsWith('nvapi-your-')) throw new Error(`Missing ${request.model.apiKeyEnv}. Configure the matching route in private lamine.yaml (or legacy .env).`);
-    const model = request.model.modelEnv ? (process.env[request.model.modelEnv] ?? request.model.defaultApiModel ?? request.model.model) : request.model.model;
+    const model = request.model.modelEnv ? (this.runtime.envGet(request.model.modelEnv) ?? request.model.defaultApiModel ?? request.model.model) : request.model.model;
     if (request.prompt.trim() === 'Reply with exactly: ok') {
       const text = await this.complete({
         apiKey,
@@ -318,14 +314,21 @@ export class NvidiaAdapter implements AgentAdapter {
   private async complete(input: { apiKey: string; model: string; messages: DirectMessage[]; maxTokens?: number; signal?: AbortSignal }): Promise<string> {
     const timeout = AbortSignal.timeout(90_000);
     const signal = input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
-    const response = await fetch(`${(process.env.NVIDIA_API_BASE_URL ?? 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')}/chat/completions`, {
+    const response = await this.runtime.httpRequest({
+      url: `${(this.runtime.envGet('NVIDIA_API_BASE_URL') ?? 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')}/chat/completions`,
       method: 'POST',
       headers: { Authorization: `Bearer ${input.apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: input.model, messages: input.messages, stream: false, max_tokens: input.maxTokens ?? 4096, temperature: 0.2, top_p: 0.95 }),
       signal,
     });
-    if (!response.ok) throw new Error(await safeHttpError(response));
-    const payload = await response.json() as { choices?: Array<{ message?: { content?: string; reasoning_content?: string } }> };
+    const body = await readBoundedHttpBody(response);
+    if (!response.ok) throw new Error(safeHttpError(response));
+    let payload: { choices?: Array<{ message?: { content?: string; reasoning_content?: string } }> };
+    try {
+      payload = JSON.parse(body) as typeof payload;
+    } catch (error) {
+      throw new Error('NVIDIA returned a malformed JSON response.', { cause: error });
+    }
     const message = payload.choices?.[0]?.message;
     const content = message?.content?.trim();
     if (content) return content;

@@ -1,14 +1,30 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { afterEach } from 'node:test';
 
 import { NvidiaAdapter, runSandboxedCommand, safeWorkspacePath } from '../src/adapters/nvidia.js';
+import { createDefaultAdapterRuntime } from '../src/adapters/runtime.js';
 import { requireModel } from '../src/catalog.js';
 import { findExecutable } from '../src/process.js';
 
 const roots: string[] = [];
+
+function sandboxExecCanApplyProfile(): boolean {
+  const executable = findExecutable('sandbox-exec');
+  if (!executable) return false;
+  const probe = spawnSync(executable, ['-p', '(version 1) (allow default)', '/usr/bin/true'], {
+    encoding: 'utf8',
+    timeout: 5_000,
+  });
+  return probe.status === 0;
+}
+
+async function* chunks(values: Array<string | Uint8Array>): AsyncGenerator<Uint8Array> {
+  for (const value of values) yield typeof value === 'string' ? Buffer.from(value) : value;
+}
 
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(async (root) => await rm(root, { recursive: true, force: true })));
@@ -44,7 +60,71 @@ test('NVIDIA HTTP failures do not expose provider account identifiers', async ()
   }
 });
 
-test('direct NVIDIA plan commands cannot read workspace secret files', { skip: process.platform !== 'darwin' || !findExecutable('sandbox-exec') }, async () => {
+test('direct NVIDIA route uses injected fragmented HTTP transport', async () => {
+  const base = createDefaultAdapterRuntime();
+  const payload = Buffer.from(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+  let observedUrl = '';
+  const runtime = {
+    ...base,
+    envGet: (name: string) => name === 'NVIDIA_API_KEY_QWEN' ? 'fixture-route-key' : undefined,
+    httpRequest: async (input: import('../src/http-transport.js').HttpRequestInput) => {
+      observedUrl = input.url;
+      assert.equal(input.headers.Authorization, 'Bearer fixture-route-key');
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        chunks: chunks([...payload].map((byte) => Uint8Array.of(byte))),
+      };
+    },
+  };
+  const result = await new NvidiaAdapter({ runtime }).run({
+    model: requireModel('nvidia:qwen-3.5'),
+    prompt: 'Reply with exactly: ok',
+    cwd: process.cwd(),
+    mode: 'plan',
+  });
+  assert.equal(result.text, 'ok');
+  assert.match(observedUrl, /\/chat\/completions$/);
+});
+
+test('direct NVIDIA malformed and oversized HTTP bodies fail without exposing payload', async () => {
+  const base = createDefaultAdapterRuntime();
+  const model = requireModel('nvidia:qwen-3.5');
+  const request = { model, prompt: 'Reply with exactly: ok', cwd: process.cwd(), mode: 'plan' as const };
+  const malformed = new NvidiaAdapter({
+    runtime: {
+      ...base,
+      envGet: (name) => name === 'NVIDIA_API_KEY_QWEN' ? 'fixture-route-key' : undefined,
+      httpRequest: async () => ({ ok: true, status: 200, statusText: 'OK', chunks: chunks(['{malformed-secret-shaped']) }),
+    },
+  });
+  await assert.rejects(() => malformed.run(request), (error: Error) => {
+    assert.match(error.message, /malformed JSON/);
+    assert.doesNotMatch(error.message, /secret-shaped/);
+    return true;
+  });
+
+  const oversized = new NvidiaAdapter({
+    runtime: {
+      ...base,
+      envGet: (name) => name === 'NVIDIA_API_KEY_QWEN' ? 'fixture-route-key' : undefined,
+      httpRequest: async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        chunks: chunks(['x'.repeat(8 * 1024 * 1024 + 1)]),
+      }),
+    },
+  });
+  await assert.rejects(() => oversized.run(request), (error: Error & { code?: string }) => {
+    assert.equal(error.code, 'UNSAFE_COMPLETION');
+    assert.doesNotMatch(error.message, /xxxxx/);
+    return true;
+  });
+});
+
+test('direct NVIDIA plan commands cannot read workspace secret files', { skip: process.platform !== 'darwin' || !sandboxExecCanApplyProfile() }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-nvidia-sandbox-'));
   roots.push(root);
   const secretFixture = `${['TEST_API_KEY', 'fixture-do-not-expose'].join('=')}\n`;

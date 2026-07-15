@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 import { sanitizedChildEnvironment } from '../env.js';
+import { defaultHttpTransport, type HttpTransport } from '../http-transport.js';
 import {
   findExecutable,
   resolveCodexExecutable,
@@ -29,13 +30,20 @@ export interface AdapterRuntime {
   randomUUID(): string;
   sanitizedChildEnvironment(extra?: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
   envGet(name: string): string | undefined;
+  httpRequest: HttpTransport;
 }
 
-export function createDefaultAdapterRuntime(): AdapterRuntime {
+export function createDefaultAdapterRuntime(options: { processRunner?: 'supervised' | 'legacy' } = {}): AdapterRuntime {
+  const configuredRunner = options.processRunner ?? (
+    process.env.ZEUZ_PROCESS_RUNNER === 'legacy' ? 'legacy' : 'supervised'
+  );
   return {
     findExecutable,
     resolveCodexExecutable,
-    runProcess,
+    runProcess: async (command, args, processOptions) => await runProcess(command, args, {
+      ...processOptions,
+      runner: configuredRunner,
+    }),
     spawnSync(executable, args, options) {
       const result = spawnSync(executable, args, options);
       return {
@@ -48,6 +56,7 @@ export function createDefaultAdapterRuntime(): AdapterRuntime {
     randomUUID: () => randomUUID(),
     sanitizedChildEnvironment,
     envGet: (name) => process.env[name],
+    httpRequest: defaultHttpTransport,
   };
 }
 

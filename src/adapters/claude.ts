@@ -1,6 +1,7 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
+import { assertProcessNotCancelled, assertSafeProcessCompletion, JsonlProtocolState, withBoundedEvents } from './protocol.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -21,6 +22,7 @@ export class ClaudeAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     const executable = this.runtime.findExecutable('claude');
     if (!executable) throw new Error('claude was not found in PATH. Install Claude Code or select the Cursor Fable route.');
 
@@ -42,7 +44,7 @@ export class ClaudeAdapter implements AgentAdapter {
     let nativeSessionId = request.resumeId;
     let usage: Record<string, unknown> | undefined;
     let resultError: string | undefined;
-    const rawEvents: unknown[] = [];
+    const protocol = new JsonlProtocolState<JsonRecord>();
 
     const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
@@ -50,14 +52,7 @@ export class ClaudeAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        let event: JsonRecord;
-        try {
-          event = JSON.parse(line) as JsonRecord;
-        } catch {
-          request.onEvent?.({ type: 'status', text: line.trim() });
-          return;
-        }
-        if (rawEvents.length < 250) rawEvents.push(event);
+        const event = protocol.parse(line);
         nativeSessionId = string(event.session_id) ?? string(event.sessionId) ?? nativeSessionId;
 
         const type = string(event.type);
@@ -99,6 +94,8 @@ export class ClaudeAdapter implements AgentAdapter {
       },
     });
 
+    assertSafeProcessCompletion(result);
+    assertProcessNotCancelled(result, nativeSessionId ? { nativeSessionId } : {});
     if (resultError) throw new Error(resultError);
     if (result.exitCode !== 0) throw new Error(result.stderr.trim().slice(0, 2_000) || `claude exited with code ${result.exitCode}`);
     const text = finalText || streamedText;
@@ -108,7 +105,7 @@ export class ClaudeAdapter implements AgentAdapter {
       text,
       ...(nativeSessionId ? { nativeSessionId } : {}),
       ...(usage ? { usage } : {}),
-      rawEvents,
+      rawEvents: protocol.rawEvents(),
     };
   }
 

@@ -50,6 +50,7 @@ function harness(provider: ProviderId): { adapter: AgentAdapter; model: ModelPro
     randomUUID: () => 'permission-session',
     sanitizedChildEnvironment: (extra) => base.sanitizedChildEnvironment(extra),
     envGet: (name) => name === 'NVIDIA_API_KEY_GLM_52' ? 'fixture-route-key' : undefined,
+    httpRequest: base.httpRequest,
   };
 
   if (provider === 'codex') return { adapter: new CodexAdapter(runtime), model: model(provider), calls };
@@ -107,6 +108,7 @@ test('NVIDIA Copilot route receives only its selected synthetic provider key', a
     randomUUID: () => 'permission-session',
     sanitizedChildEnvironment: (extra) => ({ ...base.sanitizedChildEnvironment(), ...extra }),
     envGet: (name) => name === 'NVIDIA_API_KEY_GLM_52' ? 'selected-fixture-key' : name === 'NVIDIA_API_BASE_URL' ? 'https://example.invalid/v1' : undefined,
+    httpRequest: base.httpRequest,
   };
   const copilot = new CopilotAdapter({ provider: 'nvidia', nvidia: true, runtime });
   await new NvidiaAdapter({ runtime, copilot }).run({ model: requireModel('nvidia:glm-5.2'), prompt: 'fixture', cwd: FIXTURE_DIR, mode: 'plan' });

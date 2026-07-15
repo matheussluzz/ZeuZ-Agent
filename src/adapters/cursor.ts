@@ -1,6 +1,7 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
+import { assertProcessNotCancelled, assertSafeProcessCompletion, JsonlProtocolState, withBoundedEvents } from './protocol.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -21,6 +22,7 @@ export class CursorAdapter implements AgentAdapter {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    request = withBoundedEvents(request);
     const executable = this.runtime.findExecutable('cursor-agent');
     if (!executable) throw new Error('cursor-agent was not found in PATH.');
 
@@ -41,7 +43,7 @@ export class CursorAdapter implements AgentAdapter {
     let finalText = '';
     let nativeSessionId = request.resumeId;
     let usage: Record<string, unknown> | undefined;
-    const rawEvents: unknown[] = [];
+    const protocol = new JsonlProtocolState<JsonRecord>();
 
     const result = await this.runtime.runProcess(executable, args, {
       cwd: request.cwd,
@@ -49,14 +51,7 @@ export class CursorAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        let event: JsonRecord;
-        try {
-          event = JSON.parse(line) as JsonRecord;
-        } catch {
-          request.onEvent?.({ type: 'status', text: line });
-          return;
-        }
-        if (rawEvents.length < 250) rawEvents.push(event);
+        const event = protocol.parse(line);
 
         nativeSessionId = string(event.session_id) ?? string(event.sessionId) ?? nativeSessionId;
         const eventType = string(event.type);
@@ -95,6 +90,8 @@ export class CursorAdapter implements AgentAdapter {
       },
     });
 
+    assertSafeProcessCompletion(result);
+    assertProcessNotCancelled(result, nativeSessionId ? { nativeSessionId } : {});
     if (result.exitCode !== 0) throw new Error(result.stderr.trim() || `cursor-agent exited with code ${result.exitCode}`);
     const text = finalText || streamedText;
     if (!text) throw new Error('Cursor completed without a final response.');
@@ -104,7 +101,7 @@ export class CursorAdapter implements AgentAdapter {
       text,
       ...(nativeSessionId ? { nativeSessionId } : {}),
       ...(usage ? { usage } : {}),
-      rawEvents,
+      rawEvents: protocol.rawEvents(),
     };
   }
 

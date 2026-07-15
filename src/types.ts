@@ -8,7 +8,8 @@ export type AgentEvent =
   | { type: 'tool'; text: string; status?: 'started' | 'completed' | 'failed' }
   | { type: 'diff'; text: string }
   | { type: 'warning'; text: string }
-  | { type: 'error'; text: string };
+  | { type: 'error'; text: string }
+  | { type: 'cancelled'; text: string; cause: 'deadline' | 'external'; phase: 'producer' | 'review' | 'remediation' };
 
 export interface ModelProfile {
   id: string;

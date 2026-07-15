@@ -3,6 +3,17 @@ import { isAbsolute, resolve } from 'node:path';
 import { realpath, stat } from 'node:fs/promises';
 
 import { AdapterRegistry } from './adapters/index.js';
+import { AdapterTerminationError } from './adapters/protocol.js';
+import {
+  createPhaseAbortSource,
+  deadlineConfigFromEnvironment,
+  PhaseCancelledError,
+  PhaseDeadlineError,
+  resolveDeadlinePolicy,
+  type DeadlinePolicy,
+  type PartialDeadlineConfig,
+  type PhaseKind,
+} from './deadline-policy.js';
 import { DEFAULT_MODEL_ID, MODEL_CATALOG, isConfigured, requireModel } from './catalog.js';
 import { currentBranch, gitDiff, gitStatus, listBranches, switchBranch } from './git.js';
 import { buildTurnPrompt, reviewPrompt, reviewerFor } from './orchestration.js';
@@ -11,7 +22,9 @@ import { defaultUserSlug, WorkspaceContextManager } from './context.js';
 import { redactSecrets } from './redact.js';
 import { makeMessage, SessionStore } from './session-store.js';
 import { SkillRegistry } from './skills.js';
-import { measurablyUnchanged, systemRuntime, type RuntimeSeams } from './runtime.js';
+import { runtimeWorkspaceSnapshot, systemRuntime, type RuntimeSeams } from './runtime.js';
+import { classifyWorkspaceChange, type WorkspaceChangeEvidence, type WorkspaceSnapshot } from './workspace.js';
+import { emitBoundedEvent } from './streaming.js';
 import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ProviderId, ReviewResult, RunRequest, RunResult, TurnOutcome, WorkspaceBootstrap, ZeuzSession } from './types.js';
 
 type EventSink = (event: AgentEvent) => void;
@@ -25,10 +38,20 @@ export interface ControllerDependencies {
   contexts: ContextProvider;
   skills: SkillProvider;
   runtime: RuntimeSeams;
+  deadlines: DeadlinePolicy;
+}
+
+export class WorkspaceMeasurementError extends Error {
+  readonly code = 'WORKSPACE_UNMEASURABLE';
+
+  constructor() {
+    super('Workspace state is unmeasurable; fallback, replay, and delivery are blocked.');
+    this.name = 'WorkspaceMeasurementError';
+  }
 }
 
 function emit(sink: EventSink | undefined, event: AgentEvent): void {
-  sink?.(event);
+  emitBoundedEvent(sink, event);
 }
 
 function fallbackSummary(session: ZeuzSession): string {
@@ -44,6 +67,7 @@ export class ZeuzController {
   session: ZeuzSession;
   bootstrap: WorkspaceBootstrap;
   private readonly runtime: RuntimeSeams;
+  private readonly deadlines: DeadlinePolicy;
 
   private constructor(session: ZeuzSession, bootstrap: WorkspaceBootstrap, dependencies: ControllerDependencies) {
     this.session = session;
@@ -53,11 +77,12 @@ export class ZeuzController {
     this.contexts = dependencies.contexts;
     this.skills = dependencies.skills;
     this.runtime = dependencies.runtime;
+    this.deadlines = dependencies.deadlines;
   }
 
   static async create(
     cwd: string,
-    options: { sessionId?: string; modelId?: string; mode?: PermissionMode } = {},
+    options: { sessionId?: string; modelId?: string; mode?: PermissionMode; deadlines?: PartialDeadlineConfig } = {},
     overrides: Partial<ControllerDependencies> = {},
   ): Promise<ZeuzController> {
     const runtime = overrides.runtime ?? systemRuntime;
@@ -69,6 +94,7 @@ export class ZeuzController {
       contexts,
       skills: overrides.skills ?? new SkillRegistry(),
       runtime,
+      deadlines: overrides.deadlines ?? resolveDeadlinePolicy(options.deadlines ?? deadlineConfigFromEnvironment()),
     };
     await store.initialize();
     const session = options.sessionId
@@ -87,10 +113,10 @@ export class ZeuzController {
     return requireModel(this.session.activeModelId);
   }
 
-  async send(userText: string, onEvent?: EventSink): Promise<TurnOutcome> {
+  async send(userText: string, onEvent?: EventSink, signal?: AbortSignal): Promise<TurnOutcome> {
     await this.refreshBootstrap(this.session.permissionMode);
     const primary = this.activeModel();
-    const before = this.runtime.fingerprint(this.session.cwd);
+    const before = this.workspaceSnapshot();
     const resumeId = this.session.providerSessions[primary.id];
     const includeHandoff = !resumeId || this.session.lastUsedModelId !== primary.id;
     const skillContext = await this.skills.contextFor(userText);
@@ -104,31 +130,31 @@ export class ZeuzController {
     let producer = primary;
     let result: RunResult;
     try {
-      result = await this.run(primary.provider, {
+      result = await this.runPhase('producer', primary.provider, {
         model: primary,
         prompt,
         cwd: this.session.cwd,
         mode: this.session.permissionMode,
         ...(resumeId ? { resumeId } : {}),
         ...(onEvent ? { onEvent } : {}),
-      });
+      }, signal);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const unchanged = measurablyUnchanged(before, this.runtime.fingerprint(this.session.cwd));
-      if (primary.family !== 'GPT-5.6 Sol' || !unchanged || !/(?:not found|unavailable|rate.?limit|quota|\b429\b|authentication|unauthorized|model.+(?:missing|not))/i.test(message)) throw error;
+      const evidence = this.workspaceChange(before);
+      if (primary.family !== 'GPT-5.6 Sol' || evidence.state !== 'unchanged' || error instanceof PhaseDeadlineError || error instanceof PhaseCancelledError || !/(?:not found|unavailable|rate.?limit|quota|\b429\b|authentication|unauthorized|model.+(?:missing|not))/i.test(message)) throw error;
       producer = await this.fableFallback();
       emit(onEvent, { type: 'warning', text: `${primary.label} is unavailable (${message}). Falling back explicitly to ${producer.label}.` });
       let fallbackPrompt = buildTurnPrompt({ session: this.session, model: producer, userText, includeHandoff: true, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
       try {
-        result = await this.run(producer.provider, { model: producer, prompt: fallbackPrompt, cwd: this.session.cwd, mode: this.session.permissionMode, ...(onEvent ? { onEvent } : {}) });
+        result = await this.runPhase('producer', producer.provider, { model: producer, prompt: fallbackPrompt, cwd: this.session.cwd, mode: this.session.permissionMode, ...(onEvent ? { onEvent } : {}) }, signal);
       } catch (fallbackError) {
-        const fallbackUnchanged = measurablyUnchanged(before, this.runtime.fingerprint(this.session.cwd));
-        if (producer.provider !== 'claude' || !fallbackUnchanged) throw fallbackError;
+        const fallbackEvidence = this.workspaceChange(before);
+        if (producer.provider !== 'claude' || fallbackEvidence.state !== 'unchanged' || fallbackError instanceof PhaseDeadlineError || fallbackError instanceof PhaseCancelledError) throw fallbackError;
         const directFailure = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
         producer = requireModel('cursor:claude-fable-5-thinking-high');
         emit(onEvent, { type: 'warning', text: `Direct Claude Fable failed (${directFailure}). Falling back explicitly to ${producer.label}.` });
         fallbackPrompt = buildTurnPrompt({ session: this.session, model: producer, userText, includeHandoff: true, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
-        result = await this.run(producer.provider, { model: producer, prompt: fallbackPrompt, cwd: this.session.cwd, mode: this.session.permissionMode, ...(onEvent ? { onEvent } : {}) });
+        result = await this.runPhase('producer', producer.provider, { model: producer, prompt: fallbackPrompt, cwd: this.session.cwd, mode: this.session.permissionMode, ...(onEvent ? { onEvent } : {}) }, signal);
       }
     }
 
@@ -136,8 +162,12 @@ export class ZeuzController {
     this.session.messages.push(this.message('assistant', result.text, producer.id));
     await this.sessions.save(this.session);
 
-    const after = this.runtime.fingerprint(this.session.cwd);
-    const changedWorkspace = before === undefined ? this.session.permissionMode !== 'plan' : before !== after;
+    const change = this.workspaceChange(before);
+    if (change.state === 'unmeasurable' && this.session.permissionMode !== 'plan') {
+      await this.recordHandoff(userText, producer.id, this.session.permissionMode, 'blocked', onEvent);
+      throw new WorkspaceMeasurementError();
+    }
+    const changedWorkspace = change.state === 'changed';
     let response = result.text;
     let review: ReviewResult | undefined;
 
@@ -147,7 +177,13 @@ export class ZeuzController {
 
       if (review.verdict === 'CHANGES_REQUIRED') {
         emit(onEvent, { type: 'warning', text: `Adversarial review requested changes (${review.findings.length} finding${review.findings.length === 1 ? '' : 's'})` });
-        const remediation = await this.remediate(producer, review, onEvent);
+        let remediation: RunResult;
+        try {
+          remediation = await this.remediate(producer, review, onEvent);
+        } catch (error) {
+          await this.recordHandoff(userText, producer.id, this.session.permissionMode, 'blocked', onEvent, true, review);
+          throw error;
+        }
         response = `${response}\n\n---\n\nAdversarial remediation:\n\n${remediation.text}`;
         emit(onEvent, { type: 'status', text: 'Re-running adversarial verification' });
         review = await this.runReview(producer, onEvent);
@@ -156,55 +192,65 @@ export class ZeuzController {
 
     let reviewGateError: unknown;
     if (changedWorkspace && this.session.permissionMode !== 'plan' && review) {
-      try { assertReviewPass(review, this.runtime.fingerprint(this.session.cwd)); } catch (error) { reviewGateError = error; }
+      try { assertReviewPass(review, this.measurableFingerprint()); } catch (error) { reviewGateError = error; }
     }
     await this.recordHandoff(userText, producer.id, this.session.permissionMode, reviewGateError || (review && review.verdict !== 'PASS') ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
     if (reviewGateError) throw reviewGateError;
     return { response, modelId: producer.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
-  async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode): Promise<TurnOutcome> {
+  async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode, signal?: AbortSignal): Promise<TurnOutcome> {
     await this.refreshBootstrap(mode);
     const model = requireModel(modelQuery);
-    const before = this.runtime.fingerprint(this.session.cwd);
+    const before = this.workspaceSnapshot();
     const skillContext = await this.skills.contextFor(task);
     const prompt = buildTurnPrompt({ session: this.session, model, userText: task, includeHandoff: true, mode, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
     await this.recordHandoff(task, model.id, mode, 'in_progress', onEvent);
     emit(onEvent, { type: 'status', text: `Delegating to ${model.label}` });
-    const result = await this.run(model.provider, {
+    const result = await this.runPhase('producer', model.provider, {
       model,
       prompt,
       cwd: this.session.cwd,
       mode,
       ...(onEvent ? { onEvent } : {}),
-    });
+    }, signal);
     this.session.messages.push(this.message('system', `Delegated to ${model.id}: ${task}`));
     this.session.messages.push(this.message('assistant', result.text, model.id));
     await this.sessions.save(this.session);
 
-    const after = this.runtime.fingerprint(this.session.cwd);
-    const changedWorkspace = before === undefined ? mode !== 'plan' : before !== after;
+    const change = this.workspaceChange(before);
+    if (change.state === 'unmeasurable' && mode !== 'plan') {
+      await this.recordHandoff(task, model.id, mode, 'blocked', onEvent);
+      throw new WorkspaceMeasurementError();
+    }
+    const changedWorkspace = change.state === 'changed';
     let response = result.text;
     let review: ReviewResult | undefined;
     if (changedWorkspace && mode !== 'plan') {
       review = await this.runReview(model, onEvent);
       if (review.verdict === 'CHANGES_REQUIRED') {
         const remediationPrompt = `Address the following adversarial findings in the workspace. Validate every change and explain any finding you reject with concrete evidence.\n\n${review.raw}`;
-        const remediation = await this.run(model.provider, {
-          model,
-          prompt: buildTurnPrompt({ session: this.session, model, userText: remediationPrompt, includeHandoff: false, mode, bootstrapContext: this.bootstrap.context }),
-          cwd: this.session.cwd,
-          mode,
-          ...(result.nativeSessionId ? { resumeId: result.nativeSessionId } : {}),
-          ...(onEvent ? { onEvent } : {}),
-        });
+        let remediation: RunResult;
+        try {
+          remediation = await this.runPhase('remediation', model.provider, {
+            model,
+            prompt: buildTurnPrompt({ session: this.session, model, userText: remediationPrompt, includeHandoff: false, mode, bootstrapContext: this.bootstrap.context }),
+            cwd: this.session.cwd,
+            mode,
+            ...(result.nativeSessionId ? { resumeId: result.nativeSessionId } : {}),
+            ...(onEvent ? { onEvent } : {}),
+          }, signal);
+        } catch (error) {
+          await this.recordHandoff(task, model.id, mode, 'blocked', onEvent, true, review);
+          throw error;
+        }
         response = `${response}\n\n---\n\nAdversarial remediation:\n\n${remediation.text}`;
         review = await this.runReview(model, onEvent);
       }
     }
     let reviewGateError: unknown;
     if (changedWorkspace && mode !== 'plan' && review) {
-      try { assertReviewPass(review, this.runtime.fingerprint(this.session.cwd)); } catch (error) { reviewGateError = error; }
+      try { assertReviewPass(review, this.measurableFingerprint()); } catch (error) { reviewGateError = error; }
     }
     await this.recordHandoff(task, model.id, mode, reviewGateError || (review && review.verdict !== 'PASS') ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
     if (reviewGateError) throw reviewGateError;
@@ -412,7 +458,8 @@ export class ZeuzController {
     try {
       const originalRequest = [...this.session.messages].reverse().find((message) => message.role === 'user' || message.role === 'system');
       const producerDelivery = [...this.session.messages].reverse().find((message) => message.role === 'assistant');
-      const fingerprint = this.runtime.fingerprint(this.session.cwd);
+      const snapshot = this.workspaceSnapshot();
+      const fingerprint = snapshot.measurable ? snapshot.fingerprint : undefined;
       if (!fingerprint) {
         const review = blockedReview({ reviewer, raw: '', reason: 'Workspace fingerprint is unavailable; review freshness cannot be established.' });
         this.session.messages.push(this.message('reviewer', JSON.stringify(review), reviewer.id));
@@ -443,7 +490,7 @@ export class ZeuzController {
         verification: 'The independent reviewer must re-run proportional deterministic checks; producer claims are not accepted as proof.',
         bootstrapContract: this.bootstrap.context,
       });
-      const result = await this.run(reviewer.provider, {
+      const result = await this.runPhase('review', reviewer.provider, {
         model: reviewer,
         prompt: `${reviewPrompt(primary, this.session.cwd)}\n\n${await this.skills.contextFor('$medusa adversarial review') ?? ''}\n\nMEDUSA_RUNTIME_PACKET_JSON\n${JSON.stringify(packet)}\nEND_MEDUSA_RUNTIME_PACKET_JSON`,
         cwd: this.session.cwd,
@@ -452,7 +499,8 @@ export class ZeuzController {
         ...(onEvent ? { onEvent } : {}),
       });
       let review = parseRuntimeReview(result.text, packet, reviewer);
-      const currentFingerprint = this.runtime.fingerprint(this.session.cwd);
+      const currentSnapshot = this.workspaceSnapshot();
+      const currentFingerprint = currentSnapshot.measurable ? currentSnapshot.fingerprint : undefined;
       if (!currentFingerprint || currentFingerprint !== packet.workspace.fingerprint) {
         review = blockedReview({ packet, reviewer, raw: result.text, reason: 'Workspace changed during review; the packet is stale.' });
       }
@@ -472,7 +520,7 @@ export class ZeuzController {
     const resumeId = this.session.providerSessions[primary.id];
     const remediationTask = `Mandatory adversarial review returned CHANGES_REQUIRED. Address every valid finding in the workspace, run proportional verification, and explicitly rebut any invalid finding with file/line/test evidence. Do not ignore low-severity findings without explanation.\n\n${review.raw}`;
     const prompt = buildTurnPrompt({ session: this.session, model: primary, userText: remediationTask, includeHandoff: false, bootstrapContext: this.bootstrap.context });
-    const result = await this.run(primary.provider, {
+    const result = await this.runPhase('remediation', primary.provider, {
       model: primary,
       prompt,
       cwd: this.session.cwd,
@@ -520,14 +568,74 @@ export class ZeuzController {
     return requireModel(claude.ok ? 'claude:fable' : 'cursor:claude-fable-5-thinking-high');
   }
 
+  private workspaceSnapshot(): WorkspaceSnapshot {
+    return runtimeWorkspaceSnapshot(this.runtime, this.session.cwd);
+  }
+
+  private workspaceChange(before: WorkspaceSnapshot): WorkspaceChangeEvidence {
+    return classifyWorkspaceChange(before, this.workspaceSnapshot());
+  }
+
+  private measurableFingerprint(): string | undefined {
+    const snapshot = this.workspaceSnapshot();
+    return snapshot.measurable ? snapshot.fingerprint : undefined;
+  }
+
+  private async runPhase(
+    phase: PhaseKind,
+    provider: ProviderId,
+    request: RunRequest,
+    externalSignal?: AbortSignal,
+  ): Promise<RunResult> {
+    const abort = createPhaseAbortSource({
+      phase,
+      policy: this.deadlines,
+      ...(externalSignal ? { externalSignal } : {}),
+    });
+    try {
+      const result = await this.run(provider, { ...request, signal: abort.signal });
+      const cause = abort.getCause();
+      if (cause === 'deadline') throw new PhaseDeadlineError(phase, abort.deadlineMs);
+      if (cause === 'external') throw new PhaseCancelledError(phase);
+      return result;
+    } catch (error) {
+      if (error instanceof AdapterTerminationError) {
+        const nativeSessionId = error.partialResult.nativeSessionId;
+        if (nativeSessionId) this.session.providerSessions[request.model.id] = nativeSessionId;
+        this.session.lastUsedModelId = request.model.id;
+        this.session.messages.push(this.message(
+          'system',
+          `Turn terminated: cause=${error.termination.cause}; stage=${error.termination.stage}; phase=${phase}.`,
+          request.model.id,
+        ));
+        await this.sessions.save(this.session);
+      }
+      const cause = abort.getCause();
+      if (cause) {
+        emit(request.onEvent, {
+          type: 'cancelled',
+          cause,
+          phase,
+          text: cause === 'deadline' ? `${phase} deadline reached.` : `${phase} cancelled.`,
+        });
+        if (cause === 'deadline') throw new PhaseDeadlineError(phase, abort.deadlineMs);
+        throw new PhaseCancelledError(phase);
+      }
+      throw error;
+    } finally {
+      abort.dispose();
+    }
+  }
+
   private async run(provider: ProviderId, request: RunRequest): Promise<RunResult> {
     const protectedRequest: RunRequest = request.onEvent
-      ? { ...request, onEvent: (event) => request.onEvent?.({ ...event, text: redactSecrets(event.text) }) }
+      ? { ...request, onEvent: (event) => emitBoundedEvent(request.onEvent, { ...event, text: redactSecrets(event.text) }) }
       : request;
     try {
       const result = await this.registry.get(provider).run(protectedRequest);
       return { ...result, text: redactSecrets(result.text) };
     } catch (error) {
+      if (error instanceof AdapterTerminationError) throw error;
       throw new Error(redactSecrets(error instanceof Error ? error.message : String(error)));
     }
   }
