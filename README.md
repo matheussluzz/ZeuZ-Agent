@@ -264,7 +264,7 @@ One capability matrix supplies the provider-native flags for all six adapters. T
 
 ## Adversarial review
 
-When a model changes the workspace, ZeuZ fingerprints the real tree, freezes the original request, criteria, delivery, diff/artifacts, verification evidence, and producer/reviewer identities in a Medusa packet, and asks a different model family to inspect the actual artifact in read-only mode. The report is bound to that packet and workspace fingerprint.
+When a model changes the workspace, ZeuZ measures the real tree as `changed`, `unchanged`, or `unmeasurable`, freezes the original request, criteria, delivery, diff/artifacts, verification evidence, and producer/reviewer identities in a Medusa packet, and asks a different model family to inspect the actual artifact in read-only mode. Git and bounded non-Git workspaces are supported. `unmeasurable` is never treated as unchanged: it blocks fallback, replay, and freshness-sensitive delivery.
 
 The valid outcomes are:
 
@@ -275,6 +275,14 @@ The valid outcomes are:
 Changed artifacts are delivered only after a structurally valid, fresh, cross-family `PASS`. Invalid output, reviewer failure, same-family assignment, packet tampering, or a workspace change after review is `REVIEW_BLOCKED`. A second `CHANGES_REQUIRED` after remediation remains blocked and is never presented as degraded success.
 
 No forced defect count exists: inventing findings is not adversarial rigor.
+
+## Long-running process safety
+
+Producer, adversarial-review, and remediation phases have independent deadlines. Defaults are 60 minutes, 30 minutes, and 60 minutes; validated maxima are 120 minutes, 60 minutes, and 120 minutes. Configure milliseconds with `ZEUZ_PRODUCER_DEADLINE_MS`, `ZEUZ_REVIEW_DEADLINE_MS`, and `ZEUZ_REMEDIATION_DEADLINE_MS`. Zero means immediate timeout; negative, non-finite, or above-maximum values fail configuration.
+
+The shared adapter runner signals only its direct child: `SIGINT`, a 1.5-second grace period, then `SIGKILL`, followed by a 500-millisecond close watchdog. ZeuZ does not claim descendant-tree termination. The default byte budgets are 8 MiB stdout, 2 MiB stderr, 256 KiB per incomplete line, 1 MiB for retained raw protocol events, 256 KiB per provider-neutral text event, 1 MiB per downstream event queue, and 8 MiB per direct NVIDIA HTTP response body. UTF-8 boundaries are preserved. Overflow emits metadata only and unsafe protocol completion fails instead of returning partial success.
+
+For one release, `ZEUZ_PROCESS_RUNNER=legacy` selects the previous signaling lifecycle while retaining Wave 03 byte bounds and controller deadlines. The supervised runner remains the default; remove the legacy path after one bounded-runner release.
 
 ## Dashboard licensing
 

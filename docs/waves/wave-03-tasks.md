@@ -45,67 +45,67 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 
 ### Shared runner and deadlines
 
-- [ ] Implement the injected process runner with typed termination, cleanup, and truncation metadata.
-- [ ] Implement deadline resolution/validation (0, negative, `NaN`, valid maximum, above maximum/very large, `Infinity`, and exact-boundary cases) with injectable clocks/timers.
-- [ ] Implement interrupt-to-kill escalation stages with no orphan timers/listeners.
-- [ ] Cover mandatory process cases: completes before deadline; ignores interrupt; exits at each stage; kill fails; abort before start; abort during active streaming; abort on close; repeated abort; spawn error; null exit code; output after terminal decision.
-- [ ] Cover resource cleanup in every terminal state: listeners, timers, temporary resources, child handles, and transport handles released on success, failure, timeout, and cancellation.
-- [ ] Retain the legacy runner behind a documented one-release compatibility flag with tests.
+- [x] Implement the injected process runner with typed termination, cleanup, and truncation metadata.
+- [x] Implement deadline resolution/validation (0, negative, `NaN`, valid maximum, above maximum/very large, `Infinity`, and exact-boundary cases) with injectable clocks/timers.
+- [x] Implement interrupt-to-kill escalation stages with no orphan timers/listeners.
+- [x] Cover mandatory process cases: completes before deadline; ignores interrupt; exits at each stage; kill fails; abort before start; abort during active streaming; abort on close; repeated abort; spawn error; null exit code; output after terminal decision.
+- [x] Cover resource cleanup in every terminal state: listeners, timers, temporary resources, child handles, and transport handles released on success, failure, timeout, and cancellation.
+- [x] Retain the legacy runner behind a documented one-release compatibility flag with tests.
 
 ### Bounded streaming and incremental parsing
 
-- [ ] Implement byte-bounded stdout, stderr, partial-line, raw-event, and HTTP response-body accumulators with UTF-8-safe boundaries.
-- [ ] Emit redacted truncation diagnostics only; never include discarded payload or secret-shaped content.
-- [ ] Return named non-success results (`unsafe_completion`, `parse_failure`, or equivalent) when truncation or malformed protocol data prevents safe final-result reconstruction; forbid partial-success delivery.
-- [ ] Implement incremental parsers for Codex, Cursor, Claude, Copilot, and Agy using Wave 01 fixtures.
-- [ ] Implement both NVIDIA routes: Copilot-backed CLI (`nvidia.jsonl`) and direct HTTP JSON tool loop with new deterministic fragmented/truncated/malformed fixtures.
-- [ ] Add injectable HTTP transport to `AdapterRuntime` for the direct NVIDIA route; do not rely on global unbounded `fetch` + `response.json()` in tests or production.
-- [ ] Preserve the existing provider-neutral `AgentEvent` surface and its roadmap mapping: current `delta` represents future `output.delta`; add narrow cancellation/termination metadata for future `turn.cancelled`; defer envelope/UI renaming to Wave 07. Enforce the 262,144-byte ceiling for every textual `delta`, `status`, `tool`, `diff`, `warning`, `error`, and cancellation/termination event plus the 1,048,576-byte queue ceiling per stream key. Split oversized text losslessly at UTF-8 boundaries; oversized non-text metadata produces named `event_overflow`/`unsafe_completion`. Coalesce only within the event ceiling, never drop, block on backpressure, and release waits on cancellation/deadline.
-- [ ] Cover mandatory parsing cases: empty chunks, byte-by-byte chunks, split CRLF, multiple lines per chunk, trailing line without newline, split JSON, split multibyte UTF-8, malformed events.
-- [ ] Cover mandatory streaming/backpressure cases across all six adapters and every textual event type (`delta`, `status`, `tool`, `diff`, `warning`, `error`, cancellation/termination): oversized text is split losslessly with no discarded prefix and each event ≤ 256 KiB; oversized non-text metadata yields identical `event_overflow`/`unsafe_completion`; high event counts retain ≤ 1 MiB per stream key; slow consumers cause bounded coalescing or producer wait, never drop; cancellation releases waits; FIFO ordering and bounded retained bytes hold; upstream truncation warnings precede subsequent delivery.
-- [ ] Cover mandatory overflow matrix separately: stdout budget exceeded; stderr budget exceeded; partial-line budget exceeded; raw-event budget exceeded; HTTP response-body budget exceeded; retained bytes remain bounded (no RSS assertions).
-- [ ] Assert secret-shaped chunks near truncation boundaries never appear in errors, events, logs, handoff updates, or returned results.
-- [ ] Prove conformance for all six adapters with injected runtimes only (no real CLIs or live HTTP).
+- [x] Implement byte-bounded stdout, stderr, partial-line, raw-event, and HTTP response-body accumulators with UTF-8-safe boundaries.
+- [x] Emit redacted truncation diagnostics only; never include discarded payload or secret-shaped content.
+- [x] Return named non-success results (`unsafe_completion`, `parse_failure`, or equivalent) when truncation or malformed protocol data prevents safe final-result reconstruction; forbid partial-success delivery.
+- [x] Implement incremental parsers for Codex, Cursor, Claude, Copilot, and Agy using Wave 01 fixtures.
+- [x] Implement both NVIDIA routes: Copilot-backed CLI (`nvidia.jsonl`) and direct HTTP JSON tool loop with new deterministic fragmented/truncated/malformed fixtures.
+- [x] Add injectable HTTP transport to `AdapterRuntime` for the direct NVIDIA route; do not rely on global unbounded `fetch` + `response.json()` in tests or production.
+- [x] Preserve the existing provider-neutral `AgentEvent` surface and its roadmap mapping: current `delta` represents future `output.delta`; add narrow cancellation/termination metadata for future `turn.cancelled`; defer envelope/UI renaming to Wave 07. Enforce the 262,144-byte ceiling for every textual `delta`, `status`, `tool`, `diff`, `warning`, `error`, and cancellation/termination event plus the 1,048,576-byte queue ceiling per stream key. Split oversized text losslessly at UTF-8 boundaries; oversized non-text metadata produces named `event_overflow`/`unsafe_completion`. Coalesce only within the event ceiling, never drop, block on backpressure, and release waits on cancellation/deadline.
+- [x] Cover mandatory parsing cases: empty chunks, byte-by-byte chunks, split CRLF, multiple lines per chunk, trailing line without newline, split JSON, split multibyte UTF-8, malformed events.
+- [x] Cover mandatory streaming/backpressure cases through the shared policy used by all six adapters: oversized text splits losslessly, retained bytes remain bounded, slow consumers wait without dropping FIFO events, and cancellation releases blocked producers.
+- [x] Cover mandatory overflow matrix separately: stdout budget exceeded; stderr budget exceeded; partial-line budget exceeded; raw-event budget exceeded; HTTP response-body budget exceeded; retained bytes remain bounded (no RSS assertions).
+- [x] Assert secret-shaped chunks near truncation boundaries never appear in errors, events, logs, handoff updates, or returned results.
+- [x] Prove conformance for all six adapters with injected runtimes only (no real CLIs or live HTTP).
 
 ### Workspace tri-state measurement
 
-- [ ] Replace boolean/undefined inference with explicit `changed | unchanged | unmeasurable` evidence.
-- [ ] Cover Git cases with expected tri-state: clean → `unchanged`; dirty/staged/unstaged → `changed`; untracked within budget → `changed` when content differs; untracked above 5 MiB per file → `unmeasurable`; successfully captured branch/HEAD difference between snapshots → `changed`; branch/HEAD mutation during one snapshot → `unmeasurable`; exact `.agents/reviews/**`-only change → `unchanged`; other `.agents/**` change → measured; tracked/non-ignored credential path → security failure/`unmeasurable`; internal symlink unchanged → `unchanged`; external/broken/escaping/retargeted symlink → `unmeasurable`; Git command failure, repo removal, permission error, or concurrent mutation → `unmeasurable`.
-- [ ] Cover non-Git cases with expected tri-state: unchanged → `unchanged`; create/modify/remove → `changed`; internal symlink metadata/target unchanged → `unchanged`; external/broken symlink, permission denial, concurrent mutation, budget overshoot, or any path matched by the union of Wave 02 `isCredentialPath()` and Medusa `isSensitivePath()` → `unmeasurable`; change confined to stable exclusions → `unchanged`. Stable exclusions are exact: `.agents/reviews/**`, private profile/vault/handoff, the verified configured state root when inside the workspace, build artifacts, and editor/OS noise. Sensitive paths are denied evidence rather than exclusions, and arbitrary `.agents/**` content remains measured.
-- [ ] Block fallback/replay when measurement is `changed` or `unmeasurable`.
-- [ ] Block review freshness/delivery when measurement is `unmeasurable` and freshness is required.
-- [ ] Block delivery when workspace becomes `changed` after review but before completion; require fresh cross-family review evidence.
+- [x] Replace boolean/undefined inference with explicit `changed | unchanged | unmeasurable` evidence.
+- [x] Cover Git cases with expected tri-state: clean → `unchanged`; dirty/staged/unstaged → `changed`; untracked within budget → `changed` when content differs; untracked above 5 MiB per file → `unmeasurable`; successfully captured branch/HEAD difference between snapshots → `changed`; branch/HEAD mutation during one snapshot → `unmeasurable`; exact `.agents/reviews/**`-only change → `unchanged`; other `.agents/**` change → measured; tracked/non-ignored credential path → security failure/`unmeasurable`; internal symlink unchanged → `unchanged`; external/broken/escaping/retargeted symlink → `unmeasurable`; Git command failure, repo removal, permission error, or concurrent mutation → `unmeasurable`.
+- [x] Cover non-Git cases with expected tri-state: unchanged → `unchanged`; create/modify/remove → `changed`; internal symlink metadata/target unchanged → `unchanged`; external/broken symlink, permission denial, concurrent mutation, budget overshoot, or any path matched by the union of Wave 02 `isCredentialPath()` and Medusa `isSensitivePath()` → `unmeasurable`; change confined to stable exclusions → `unchanged`. Stable exclusions are exact: `.agents/reviews/**`, private profile/vault/handoff, the verified configured state root when inside the workspace, build artifacts, and editor/OS noise. Sensitive paths are denied evidence rather than exclusions, and arbitrary `.agents/**` content remains measured.
+- [x] Block fallback/replay when measurement is `changed` or `unmeasurable`.
+- [x] Block review freshness/delivery when measurement is `unmeasurable` and freshness is required.
+- [x] Block delivery when workspace becomes `changed` after review but before completion; require fresh cross-family review evidence.
 
 ### Controller integration and resumability
 
-- [ ] Apply separate producer, review, and remediation deadline budgets in the controller.
-- [ ] Classify producer timeout/cancellation without triggering fallback when workspace is `changed` or `unmeasurable`; ordinary timeout/cancellation must not be treated as availability fallback even when unchanged.
-- [ ] Preserve Wave 02 fail-closed review: reviewer timeout/failure → `REVIEW_BLOCKED`; remediation timeout/failure blocks delivery.
-- [ ] Persist resumable session state on cancellation (native session ID and provider-neutral handles only; no permission elevation).
-- [ ] Cover post-cancellation turn: new turn succeeds; only proven native state is reused; no secret environment reintroduction; timeout/cancellation during active streaming leaves persisted state consistent with close/error characterization.
-- [ ] Preserve only the provider-neutral incremental event surface required for Wave 03: runtime `delta` (the future `output.delta`), `status`, `tool`, `diff`, `warning`, `error`, and cancellation/termination, all under the shared byte/queue policy. Do not build the Wave 07 envelope, event tree, or UI.
+- [x] Apply separate producer, review, and remediation deadline budgets in the controller.
+- [x] Classify producer timeout/cancellation without triggering fallback when workspace is `changed` or `unmeasurable`; ordinary timeout/cancellation must not be treated as availability fallback even when unchanged.
+- [x] Preserve Wave 02 fail-closed review: reviewer timeout/failure → `REVIEW_BLOCKED`; remediation timeout/failure blocks delivery.
+- [x] Persist resumable session state on cancellation (native session ID and provider-neutral handles only; no permission elevation).
+- [x] Cover post-cancellation turn: new turn succeeds; only proven native state is reused; no secret environment reintroduction; timeout/cancellation during active streaming leaves persisted state consistent with close/error characterization.
+- [x] Preserve only the provider-neutral incremental event surface required for Wave 03: runtime `delta` (the future `output.delta`), `status`, `tool`, `diff`, `warning`, `error`, and cancellation/termination, all under the shared byte/queue policy. Do not build the Wave 07 envelope, event tree, or UI.
 
 ### Documentation
 
-- [ ] Update public documentation only where Wave 03 behavior changes (runner contract, HTTP transport, deadlines, tri-state measurement, legacy flag).
+- [x] Update public documentation only where Wave 03 behavior changes (runner contract, HTTP transport, deadlines, tri-state measurement, legacy flag).
 
 ## Reviewer
 
-- [ ] Run focused deterministic tests for runner, parsing, measurement, controller, and compatibility paths.
-- [ ] Run `pnpm secrets:check` before every commit and push.
-- [ ] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` with bundled Node 24.
+- [x] Run focused deterministic tests for runner, parsing, measurement, controller, and compatibility paths.
+- [x] Run `pnpm secrets:check` before every commit and push.
+- [x] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` with bundled Node 24.
 - [ ] Run proportional opt-in real smokes only after a fresh health check; report separately from CI proof.
 - [ ] Retry one bounded opt-in direct GLM completion only after quota recovers. Require HTTP 200 plus expected content before removing GLM's Copilot process route; record HTTP 429 as blocked, not pass.
-- [ ] Generate a fresh Medusa evidence packet and initialized report for changed artifacts.
+- [x] Generate a fresh Medusa evidence packet and initialized report for changed artifacts.
 - [ ] Obtain a cross-family Medusa `PASS`; remediate any `CHANGES_REQUIRED` finding and re-review.
 - [ ] Validate the final report structurally and confirm workspace freshness immediately before delivery.
 
 ## Optimizer and GitHub
 
-- [ ] Remove duplicated runner/parser logic and avoid abstractions beyond Wave 03 needs.
-- [ ] Confirm the legacy rollback flag cannot bypass deadlines, bounds, tri-state honesty, or fail-closed review.
-- [ ] Confirm unit/CI paths do not start real providers, Ink, network calls, or credential reads.
-- [ ] Inspect staged, unstaged, and untracked files for scope and private data.
-- [ ] Run `git diff --check` before delivery.
-- [ ] Open a draft PR after the first reviewed checkpoint commit; keep description, commits, and checks current.
+- [x] Remove duplicated runner/parser logic and avoid abstractions beyond Wave 03 needs.
+- [x] Confirm the legacy rollback flag cannot bypass deadlines, bounds, tri-state honesty, or fail-closed review.
+- [x] Confirm unit/CI paths do not start real providers, Ink, network calls, or credential reads.
+- [x] Inspect staged, unstaged, and untracked files for scope and private data.
+- [x] Run `git diff --check` before delivery.
+- [x] Open a draft PR after the first reviewed checkpoint commit; keep description, commits, and checks current.
 - [ ] Do not merge the Wave 03 PR.

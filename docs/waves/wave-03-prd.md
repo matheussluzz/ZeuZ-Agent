@@ -1,6 +1,6 @@
 # Wave 03 PRD — Process resilience and observable streaming
 
-Status: planning; implementation pending
+Status: implementation complete; final Medusa re-review pending
 
 Branch: `agent/wave-03-process-resilience-streaming`
 
