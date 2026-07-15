@@ -101,3 +101,16 @@ test('rejects a verdict after the reviewed workspace changes', async (t) => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workspace fingerprint is stale/);
 });
+
+test('characterizes tracked public templates blocking packet generation before Wave 02', async (t) => {
+  const cwd = await createFixture(t);
+  await writeFile(join(cwd, '.env.example'), 'PUBLIC_EXAMPLE_VALUE=<replace-me>\n');
+  mustPass(run('git', ['add', '.env.example'], cwd), 'git add public template');
+  mustPass(run('git', ['commit', '-qm', 'track public template'], cwd), 'git commit public template');
+  const result = runNode('evidence-packet.mjs', [
+    '--workspace', cwd, '--request', 'request.md', '--criteria', 'criteria.json', '--delivery', 'delivery.md', '--verification', 'verification.txt',
+    '--artifact', 'artifact.txt', '--producer-family', 'openai', '--out', '.agents/reviews/review-packet.json',
+  ], cwd);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /tracked sensitive paths/);
+});

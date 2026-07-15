@@ -210,3 +210,29 @@ test('controller remediates once and re-runs review deterministically', async ()
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('characterizes reviewer execution failure as CHANGES_REQUIRED before Wave 02', async () => {
+  const { controller, root } = await harness({ fingerprints: ['before', 'after', 'after'], run: async (request) => {
+    if (request.model.provider === 'cursor') throw new Error('reviewer unavailable');
+    return { text: 'producer response' };
+  } });
+  try {
+    const outcome = await controller.send('change work');
+    assert.equal(outcome.review?.verdict, 'CHANGES_REQUIRED');
+    assert.match(outcome.review?.summary ?? '', /did not return valid structured evidence/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('characterizes delivery after a second CHANGES_REQUIRED verdict before Wave 02', async () => {
+  let producerRuns = 0;
+  const { controller, root } = await harness({ fingerprints: ['before', 'after', 'after', 'after'], run: async (request) => {
+    if (request.model.provider === 'cursor') return { text: JSON.stringify({ verdict: 'CHANGES_REQUIRED', summary: 'still broken', findings: [{ severity: 'high', title: 'fixture', detail: 'fix' }] }) };
+    producerRuns += 1;
+    return { text: producerRuns === 1 ? 'initial response' : 'remediated response' };
+  } });
+  try {
+    const outcome = await controller.send('change and remain broken');
+    assert.equal(outcome.review?.verdict, 'CHANGES_REQUIRED');
+    assert.match(outcome.response, /Adversarial remediation/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
