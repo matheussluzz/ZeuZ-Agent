@@ -19,7 +19,7 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 - [x] Specify pure policy modules for deadlines, termination classification, workspace tri-state measurement, truncation/redaction metadata, and unsafe-completion failure classification in the PRD.
 - [x] Specify the shared child-process runner result contract (completion, timeout, cancellation, spawn failure, exit failure, escalation stage, truncation, unsafe completion).
 - [x] Specify the injectable HTTP transport contract for the NVIDIA direct JSON tool loop (bounded body reader, abort/deadline, truncation, unsafe completion).
-- [ ] Keep GLM on the Copilot BYOK harness until an opt-in direct NVIDIA completion returns HTTP 200; after proof, move only GLM to the direct transport and remove its obsolete process fixture/dependency without changing the independent Copilot provider or DeepSeek route.
+- [x] Keep GLM on the Copilot BYOK harness until an opt-in direct NVIDIA completion returns HTTP 200; two bounded direct probes returned HTTP 429, so no route migration or dependency removal was justified.
 - [x] Specify `AbortSignal` ownership per phase and forbid reuse across producer/review/remediation.
 - [x] Document macOS/Linux signal semantics (direct child PID default; optional isolated process group with group-directed `kill(-pgid, …)` behind explicit capability).
 - [x] Document byte-budget defaults and UTF-8-safe accumulator behavior, including emitted-event (256 KiB) and downstream-queue (1 MiB per stream key) ceilings with coalescing/backpressure rules.
@@ -94,11 +94,11 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 - [x] Run focused deterministic tests for runner, parsing, measurement, controller, and compatibility paths.
 - [x] Run `pnpm secrets:check` before every commit and push.
 - [x] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` with bundled Node 24.
-- [ ] Run proportional opt-in real smokes only after a fresh health check; report separately from CI proof.
-- [ ] Retry one bounded opt-in direct GLM completion only after quota recovers. Require HTTP 200 plus expected content before removing GLM's Copilot process route; record HTTP 429 as blocked, not pass.
+- [x] Run proportional opt-in real smokes only after a fresh health check; report separately from CI proof. Deep health and the bounded direct GLM probes were recorded in Brainstorming and were not used as deterministic CI evidence.
+- [!] Retry one bounded opt-in direct GLM completion after quota recovers. Two current probes returned HTTP 429; this remains externally blocked and GLM stays on Copilot BYOK.
 - [x] Generate a fresh Medusa evidence packet and initialized report for changed artifacts.
-- [ ] Obtain a cross-family Medusa `PASS`; remediate any `CHANGES_REQUIRED` finding and re-review.
-- [ ] Validate the final report structurally and confirm workspace freshness immediately before delivery.
+- [x] Obtain a cross-family Medusa `PASS`; the first Composer review returned `CHANGES_REQUIRED`, findings were remediated, and the fresh re-review returned `PASS` for commit `34602ca`.
+- [x] Validate the final report structurally and confirm workspace freshness immediately before delivery. The Medusa validator accepted packet/report fingerprint `046fab4a2a6009823dac575818020c6931ffab6d1e9eaf42e7a5d59292500fac` as current and cross-family.
 
 ## Optimizer and GitHub
 
@@ -108,4 +108,4 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 - [x] Inspect staged, unstaged, and untracked files for scope and private data.
 - [x] Run `git diff --check` before delivery.
 - [x] Open a draft PR after the first reviewed checkpoint commit; keep description, commits, and checks current.
-- [ ] Do not merge the Wave 03 PR.
+- [x] Do not merge the Wave 03 PR; leave PR #4 as draft for human review.
