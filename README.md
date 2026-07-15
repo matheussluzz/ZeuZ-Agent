@@ -171,12 +171,15 @@ On first use in a repository, ZeuZ asks six short questions: development/data/pr
 
 ```text
 users/<os-username>.md   # private local instructions
+handoff.md               # private latest-demand/session continuity
 vault/Home.md           # visible Obsidian-compatible index
 vault/Glossary/Index.md # durable vocabulary
 vault/{Schemas,Rules,Sources,Decisions}/Index.md
 ```
 
-Actual `users/*.md` and `vault/**` content is ignored by Git. The public repository contains only neutral templates. Before every model turn, ZeuZ bootstraps `AGENTS.md`, the active user profile, `vault/Home.md`, and the glossary. Vault text is treated as data, never as executable instruction.
+Actual `handoff.md`, `users/*.md`, and `vault/**` content is ignored by Git. The public repository contains only neutral templates. Before every model turn, ZeuZ bootstraps `AGENTS.md`, the active user profile, the private handoff, `vault/Home.md`, and the glossary. Vault text is treated as data, never as executable instruction.
+
+During writable turns, the ZeuZ host deterministically records a bounded `Latest ZeuZ turn` block at start and completion; the operating contract also requires the active agent to curate the durable sections after substantive work. A fresh session can therefore recover the latest demand, verified state, open risks, and next actions without replaying the full transcript. The file must remain below 4,096 tokens for the active model; because providers tokenize differently, ZeuZ also enforces a conservative 12,000-character bootstrap/write ceiling and warns when it has to compact the loaded copy. Plan mode never creates or updates it.
 
 The adaptive protocol teaches while delivering when the user is unfamiliar and stays compact for an advanced user. ZeuZ never exposes or pretends to know a hidden proficiency score.
 

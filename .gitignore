@@ -22,6 +22,8 @@ sessions/
 *.transcript.json
 
 # Local user instructions and Obsidian knowledge
+/handoff.md
+/.handoff.*.tmp
 users/*.md
 !users/example.md
 vault/**

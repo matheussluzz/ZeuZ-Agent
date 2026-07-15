@@ -92,7 +92,7 @@ export class ZeuzController {
         mode: options.mode ?? 'agent',
       });
     session.userSlug ??= defaultUserSlug();
-    const bootstrap = await new WorkspaceContextManager().load(session.cwd, session.userSlug);
+    const bootstrap = await new WorkspaceContextManager().load(session.cwd, session.userSlug, { initializeHandoff: session.permissionMode !== 'plan' });
     await store.save(session);
     return new ZeuzController(session, bootstrap);
   }
@@ -102,13 +102,14 @@ export class ZeuzController {
   }
 
   async send(userText: string, onEvent?: EventSink): Promise<TurnOutcome> {
-    await this.refreshBootstrap();
+    await this.refreshBootstrap(this.session.permissionMode);
     const primary = this.activeModel();
     const before = workspaceFingerprint(this.session.cwd);
     const resumeId = this.session.providerSessions[primary.id];
     const includeHandoff = !resumeId || this.session.lastUsedModelId !== primary.id;
     const skillContext = await this.skills.contextFor(userText);
     const prompt = buildTurnPrompt({ session: this.session, model: primary, userText, includeHandoff, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
+    await this.recordHandoff(userText, primary.id, this.session.permissionMode, 'in_progress', onEvent);
 
     this.session.messages.push(makeMessage('user', userText));
     await this.sessions.save(this.session);
@@ -167,15 +168,17 @@ export class ZeuzController {
       }
     }
 
+    await this.recordHandoff(userText, producer.id, this.session.permissionMode, review && review.verdict !== 'PASS' ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
     return { response, modelId: producer.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
   async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode): Promise<TurnOutcome> {
-    await this.refreshBootstrap();
+    await this.refreshBootstrap(mode);
     const model = requireModel(modelQuery);
     const before = workspaceFingerprint(this.session.cwd);
     const skillContext = await this.skills.contextFor(task);
     const prompt = buildTurnPrompt({ session: this.session, model, userText: task, includeHandoff: true, mode, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
+    await this.recordHandoff(task, model.id, mode, 'in_progress', onEvent);
     emit(onEvent, { type: 'status', text: `Delegating to ${model.label}` });
     const result = await this.run(model.provider, {
       model,
@@ -208,6 +211,7 @@ export class ZeuzController {
         review = await this.runReview(model, onEvent);
       }
     }
+    await this.recordHandoff(task, model.id, mode, review && review.verdict !== 'PASS' ? 'blocked' : 'completed', onEvent, changedWorkspace, review);
     return { response, modelId: model.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
@@ -451,8 +455,33 @@ export class ZeuzController {
     return result;
   }
 
-  private async refreshBootstrap(): Promise<void> {
-    this.bootstrap = await this.contexts.load(this.session.cwd, this.session.userSlug ?? defaultUserSlug());
+  private async recordHandoff(
+    latestDemand: string,
+    modelId: string,
+    mode: PermissionMode,
+    status: 'in_progress' | 'completed' | 'blocked',
+    onEvent?: EventSink,
+    changedWorkspace?: boolean,
+    review?: ReviewResult,
+  ): Promise<void> {
+    if (mode === 'plan') return;
+    try {
+      const warning = await this.contexts.updateHandoff(this.session.cwd, {
+        latestDemand,
+        modelId,
+        status,
+        ...(changedWorkspace === undefined ? {} : { changedWorkspace }),
+        ...(review ? { reviewVerdict: review.verdict } : {}),
+      });
+      if (warning) emit(onEvent, { type: 'warning', text: warning });
+      this.bootstrap = await this.contexts.load(this.session.cwd, this.session.userSlug ?? defaultUserSlug());
+    } catch (error) {
+      emit(onEvent, { type: 'warning', text: `handoff.md update failed: ${error instanceof Error ? error.message : String(error)}` });
+    }
+  }
+
+  private async refreshBootstrap(mode = this.session.permissionMode): Promise<void> {
+    this.bootstrap = await this.contexts.load(this.session.cwd, this.session.userSlug ?? defaultUserSlug(), { initializeHandoff: mode !== 'plan' });
   }
 
   private async fableFallback(): Promise<ModelProfile> {
