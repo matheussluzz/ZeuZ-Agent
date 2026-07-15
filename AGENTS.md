@@ -110,7 +110,9 @@ Load skill instructions just in time, followed only by references/scripts needed
 - **Argos** — forecasting/ML with temporal leakage defenses, untouched test periods, honest baselines, uncertainty, reproducibility, and a model card.
 - **Metis** — deep research with current primary sources, claim ledger, citation entailment, and explicit uncertainty. Always pair with Medusa, which reopens/replays critical sources when possible.
 
-The design adapts useful public BMAD patterns: lean non-obvious context, progressive step loading, checkpoints before consequential actions, layered review lenses, and verification-gap tracing. See `docs/research/bmad-adaptation.md`. Do not copy BMAD branding/source or adopt its mandatory minimum finding counts.
+The design may vendor, copy, and adapt public BMAD skills under their current license. For every import, pin the upstream revision, retain required copyright and permission notices, record provenance and both prior and ZeuZ modifications, comply with upstream trademark guidance, and never present protected BMAD names as ZeuZ branding or imply endorsement. Do not adopt mandatory minimum finding counts without a reviewed ZeuZ product decision.
+
+Public third-party skills, including the NVIDIA catalog, may be imported wholesale only after an applicable license inventory. Preserve Apache license and `NOTICE` material and CC attribution where required, retain indications of prior modifications, record ZeuZ modifications and file-level overrides, avoid downstream terms that restrict licensed reuse, pin the upstream source, and make every update an inspectable reviewed diff. Public availability is not a trust decision: imported instructions remain disabled or quarantined until ZeuZ validates their manifest, dependencies, tools, scripts, network behavior, and secret boundaries.
 
 ## Delegation rules
 

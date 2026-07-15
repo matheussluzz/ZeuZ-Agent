@@ -1,6 +1,6 @@
 # ZeuZ-Agent Roadmap Candidate
 
-Status: discussion draft; architecture decisions D01–D12 are not frozen
+Status: discussion draft; D02 is frozen, while D01 and D03–D12 remain open
 
 Research cutoff: 2026-07-15
 
@@ -36,12 +36,12 @@ This document is not yet a delivery commitment. The open decisions below intenti
 
 ## Architecture decision checkpoint
 
-Matheus can approve all recommended defaults together and list only exceptions.
+Matheus can approve the remaining recommended defaults together and list only exceptions. D02 was frozen on 2026-07-15: complete licensed BMAD and NVIDIA catalog imports are allowed under the provenance, attribution, trademark, validation, and review controls below.
 
 | ID | Decision | Recommended default | Why it is material |
 | --- | --- | --- | --- |
 | D01 | Relationship between skills and subagents | Keep skills as portable packages; create specialist agent profiles that load one or more skills and spawn only when useful | One process per catalog skill wastes context and conflates reusable knowledge with isolated execution |
-| D02 | Third-party skill acquisition | Dynamic installation from pinned upstream provenance; ZeuZ-native adaptations for selected BMAD patterns; no copied BMAD branding/source | Catalogs change independently, while vendoring hundreds of skills creates update, license, and context debt |
+| D02 | Third-party skill acquisition | Import and adapt the complete BMAD and NVIDIA skill catalogs from pinned upstream revisions; preserve applicable licenses, copyright, attribution, modification history, provenance, and trademark boundaries; update only through reviewed sync diffs | Wholesale local availability serves ZeuZ's broad capability goal, but hundreds of changing files require automated provenance, validation, package-size, and update controls |
 | D03 | Slash command promise | `/skill search|info|install|enable|run <id>` covers the full catalog; installed and enabled skills may receive collision-safe direct aliases | Hundreds of global top-level commands would make autocomplete noisy and collision-prone |
 | D04 | Paid-model fallback | Prefer healthy Agy/NVIDIA routes for bounded work; automatically use paid frontier routes only when capability, health, or reviewer-family separation requires them, with a visible reason and a user-configured per-session budget | A blanket cost rule can weaken completion or the independent review gate, while an uncapped fallback can create surprise cost |
 | D05 | Discovery default | Use an autonomous fast path with explicit assumptions, a coaching path on request, and mandatory questions only for material ambiguity or consequential actions | Exhaustive questions conflict with high autonomy and can hold simple work hostage |
@@ -228,7 +228,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** first half of candidate 18 and N01 catalog concerns.
 
-**Exit criteria:** Agent Skills-compatible discovery; validation of metadata, dependencies, conflicts, context budgets, allowed tools, integrity, source revision, license, and trust state; deterministic routing reasons; pinned dynamic install/update/remove; quarantine on validation failure; no silent dependency truncation.
+**Exit criteria:** Agent Skills-compatible discovery; complete pinned BMAD and NVIDIA catalog imports; a reproducible sync tool that emits source revision, file inventory, applicable license/attribution, required Apache `NOTICE` material, prior and ZeuZ modification records, file-level overrides, integrity data, and a human-reviewable diff; downstream distribution adds no terms that restrict licensed reuse; validation of metadata, dependencies, conflicts, context budgets, allowed tools, scripts, network behavior, integrity, source revision, license, and trust state; deterministic routing reasons; install/update/remove controls; imported skills disabled or quarantined until validation; package-size and startup budgets with separately versioned free catalog bundles if the core npm artifact would become excessive; no silent dependency truncation.
 
 **Rollback:** built-in pantheon packages remain available from a reviewed local catalog snapshot.
 
@@ -308,7 +308,7 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 **Scope:** N08 contributor-facing prerequisites before public release.
 
-**Exit criteria:** stable extension interfaces; examples and templates; contribution/security/support policies; license and attribution inventory; trademark-safe BMAD-inspired workflows; skill and MCP validation commands; architecture decision records; no private artifact in source or package.
+**Exit criteria:** stable extension interfaces; examples and templates; contribution/security/support policies; complete third-party license, attribution, source-revision, and modification inventory; clear documentation that identifies imported BMAD and NVIDIA skills without implying endorsement or using their marks as ZeuZ branding; skill and MCP validation commands; architecture decision records; no private artifact in source or package.
 
 **Rollback:** experimental APIs remain explicitly versioned and can be disabled before 1.0.
 
@@ -352,8 +352,9 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 
 - Agent Skills packaging and progressive disclosure: <https://agentskills.io/specification>
 - NVIDIA Agent Skills catalog and tooling: <https://github.com/NVIDIA/skills>
-- BMAD brainstorming pattern: <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/src/core-skills/bmad-brainstorming/SKILL.md>
-- Current BMAD PRD workflow: <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/src/bmm-skills/2-plan-workflows/bmad-prd/SKILL.md>
+- BMAD brainstorming skill and current PRD workflow: <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/src/core-skills/bmad-brainstorming/SKILL.md>, <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/src/bmm-skills/2-plan-workflows/bmad-prd/SKILL.md>
+- BMAD MIT license and trademark notice: <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/LICENSE>, <https://github.com/bmad-code-org/BMAD-METHOD/blob/main/TRADEMARK.md>
+- NVIDIA Apache 2.0 / CC BY 4.0 license: <https://github.com/NVIDIA/skills/blob/main/LICENSE>
 - Skills versus isolated subagents: <https://code.claude.com/docs/en/features-overview>
 - Subagent lifecycle concepts: <https://code.claude.com/docs/en/agents>
 - Terminal skill/subagent/task command precedents: <https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference>
@@ -361,11 +362,11 @@ No original candidate is rejected outright. Several are merged, split, or absorb
 - Telegram Bot API long polling: <https://core.telegram.org/bots/api#getupdates>
 - npm unscoped public packages and trusted publishing: <https://docs.npmjs.com/creating-and-publishing-unscoped-public-packages/>, <https://docs.npmjs.com/trusted-publishers/>
 
-ZeuZ may adapt generic public workflow ideas and interoperable skill formats under applicable licenses. It must not copy BMAD branding/source into ZeuZ-native workflows, imply endorsement, or import third-party instructions without provenance, license review, pinning, validation, and explicit trust state.
+ZeuZ may copy and adapt the complete public BMAD and NVIDIA skill catalogs under their applicable licenses. Every imported copy must preserve required licenses, applicable Apache `NOTICE` material, and attribution; identify its pinned source, prior modifications, and ZeuZ modifications; respect trademark boundaries; avoid implying upstream endorsement; and add no downstream restriction to licensed reuse. Third-party instructions remain untrusted data until provenance, license, integrity, manifest, dependency, script, tool, network, secret, and permission validation establishes an explicit trust state.
 
 ## Remaining answers required to freeze Wave 00
 
-1. Approve or override decisions D01–D12.
+1. Approve or override decisions D01 and D03–D12; D02 is frozen unless Matheus revises it.
 2. Select the first MCP profiles or approve “none enabled; GitHub, browser/web documentation, local Git/filesystem, and optional collaboration SaaS evaluated first.”
 3. Define Telegram remote commands and confirmation rules, including whether it remains terminal-lifetime-only in the MVP.
 4. Decide whether vault encryption is required before the memory MVP or may follow after local permission hardening.
