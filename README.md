@@ -260,15 +260,19 @@ Switching `/model` compacts the provider-neutral transcript before the handoff. 
 
 `yolo` never disables redaction and never authorizes credential disclosure or writes outside the selected scope.
 
+One capability matrix supplies the provider-native flags for all six adapters. The requested mode is reapplied to resumed sessions; a provider that cannot prove a requested mode or resume capability fails with `UnsupportedCapabilityError` instead of silently emulating it.
+
 ## Adversarial review
 
-When a model changes the workspace, ZeuZ fingerprints the real tree, builds a Medusa evidence packet from the original request and delivery, and asks a different model family to inspect the actual artifact in read-only mode.
+When a model changes the workspace, ZeuZ fingerprints the real tree, freezes the original request, criteria, delivery, diff/artifacts, verification evidence, and producer/reviewer identities in a Medusa packet, and asks a different model family to inspect the actual artifact in read-only mode. The report is bound to that packet and workspace fingerprint.
 
 The valid outcomes are:
 
 - `PASS` — no actionable correctness, security, or requirement gap remains;
 - `CHANGES_REQUIRED` — the producer remediates, then a second independent verification runs;
 - `REVIEW_BLOCKED` — required evidence or a real independent reviewer was unavailable.
+
+Changed artifacts are delivered only after a structurally valid, fresh, cross-family `PASS`. Invalid output, reviewer failure, same-family assignment, packet tampering, or a workspace change after review is `REVIEW_BLOCKED`. A second `CHANGES_REQUIRED` after remediation remains blocked and is never presented as degraded success.
 
 No forced defect count exists: inventing findings is not adversarial rigor.
 
@@ -278,10 +282,10 @@ Hefesto's offline-basic mode produces a dependency-free SVG/HTML dashboard. High
 
 ## Privacy and security
 
-- sessions live in `~/.agents/sessions` with owner-only permissions;
-- delegated metadata lives in `~/.agents/tasks`;
+- sessions live in `~/.agents/sessions` with owner-only directory/file permissions;
+- delegated metadata lives in owner-only `~/.agents/tasks` and `~/.agents/runtime` roots;
 - credentials, auth databases, raw provider logs, and real profiles/vaults are Git-ignored;
-- child environments are secret-sanitized; `lamine.yaml` and `.env` are explicitly denied to the direct NVIDIA tool loop;
+- child environments are secret-sanitized; `lamine.yaml`, `.env`, credential filenames, shell composition in `plan`, escaping paths, and unsafe symlinks are explicitly denied to the direct NVIDIA tool loop;
 - delegation depth is one and concurrency is three;
 - every publish path runs a tracked-file secret scan.
 
@@ -295,7 +299,7 @@ node bin/zeuz health
 
 ## Verified status and honest limitations
 
-The 2026-07-15 macOS Wave 01 baseline ran explicit plan-mode real smokes after a fresh shallow health check. Codex Luna low, Cursor Composer fast, Copilot Haiku, Antigravity Flash low, and NVIDIA GLM passed. Direct Claude Haiku failed because its OAuth session was expired even though the version-only shallow health check passed; shallow health therefore does not prove authentication. The same session's deep NVIDIA probe passed GLM and Qwen, while DeepSeek returned no final response, Kimi returned `404`, and MiniMax returned `400`. These real smokes are diagnostics, not deterministic CI evidence, and route health must be rechecked before use.
+The 2026-07-15 macOS Wave 01 baseline ran explicit plan-mode real smokes after a fresh shallow health check. Codex Luna low, Cursor Composer fast, Copilot Haiku, Antigravity Flash low, and NVIDIA GLM passed. Direct Claude Haiku failed because its OAuth session was expired even though the version-only shallow health check passed; shallow health therefore does not prove authentication. At the start of Wave 02, all six shallow provider checks passed. A fresh deep NVIDIA probe passed GLM and MiniMax, while DeepSeek returned no final response, Kimi returned `404`, and Qwen timed out. The subsequent bounded GLM delegate still degraded and was interrupted; Cursor Fable completed the read-only fallback audit. These diagnostics are not deterministic CI evidence, and route health must be rechecked before use.
 
 This is a public alpha, not a security boundary for hostile untrusted repositories. Review `yolo` usage and provider-native permissions accordingly.
 

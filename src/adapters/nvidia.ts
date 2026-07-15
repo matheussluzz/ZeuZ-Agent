@@ -6,6 +6,7 @@ import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { installRoot, sanitizedChildEnvironment } from '../env.js';
 import { gitDiff } from '../git.js';
 import { findExecutable } from '../process.js';
+import { assertDirectShellPolicy, isCredentialPath } from '../security-policy.js';
 import type { AgentAdapter, HealthResult, PermissionMode, RunRequest, RunResult } from '../types.js';
 import { CopilotAdapter } from './copilot.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
@@ -25,7 +26,6 @@ interface DirectAction {
 const DIRECT_HARNESS = /(?:minimax|qwen|kimi)/i;
 const MAX_TOOL_STEPS = 16;
 const MAX_TOOL_OUTPUT = 60_000;
-const SECRET_FILE = /(?:^|\/)(?:\.env(?:\.[^/]*)?|lamine(?:\.local)?\.ya?ml|\.npmrc|auth\.json|credentials?[^/]*|secrets?[^/]*)$/i;
 
 const SYSTEM_PROMPT = `You are a coding agent inside ZeuZ-Agent. You have local tools through a strict JSON action protocol.
 
@@ -51,7 +51,7 @@ Rules:
 - Be brutally honest about failures and uncertainty.
 - If a tool fails, adapt or report the failure; never pretend it succeeded.`;
 
-function safePath(cwd: string, input: unknown, forWrite = false): string {
+export function safeWorkspacePath(cwd: string, input: unknown, forWrite = false): string {
   if (typeof input !== 'string' || !input.trim()) throw new Error('A non-empty relative path is required.');
   if (isAbsolute(input)) throw new Error('Absolute paths are not allowed.');
   const root = realpathSync(cwd);
@@ -107,8 +107,7 @@ async function safeHttpError(response: Response): Promise<string> {
 }
 
 export function runSandboxedCommand(cwd: string, command: string, mode: PermissionMode): string {
-  if (!command.trim()) throw new Error('Command is required.');
-  if (/(?:^|\s)(?:sudo|git\s+push|git\s+reset\s+--hard|rm\s+-rf\s+\/)(?:\s|$)/i.test(command)) throw new Error('Destructive or remote-mutating command denied.');
+  assertDirectShellPolicy(command, mode);
 
   if (mode === 'plan') {
     const first = command.trim().split(/\s+/)[0] ?? '';
@@ -160,8 +159,8 @@ function executeTool(request: RunRequest, action: DirectAction): string {
   const input = action.input ?? {};
   switch (action.tool) {
     case 'read_file': {
-      const path = safePath(request.cwd, input.path);
-      if (SECRET_FILE.test(path)) throw new Error('Reading secret-bearing files is denied.');
+      const path = safeWorkspacePath(request.cwd, input.path);
+      if (isCredentialPath(path)) throw new Error('Reading secret-bearing files is denied.');
       const lines = readFileSync(path, 'utf8').split('\n');
       const start = Math.max(1, Number(input.start ?? 1));
       const end = Math.min(lines.length, Number(input.end ?? start + 239), start + 1_999);
@@ -176,15 +175,15 @@ function executeTool(request: RunRequest, action: DirectAction): string {
     }
     case 'search': {
       if (typeof input.query !== 'string' || !input.query) throw new Error('search.query is required.');
-      const path = input.path ? safePath(request.cwd, input.path) : request.cwd;
+      const path = input.path ? safeWorkspacePath(request.cwd, input.path) : request.cwd;
       const result = spawnSync('rg', ['-n', '--hidden', '--glob', '!.git/**', '--glob', '!.env*', '--glob', '!lamine*.yaml', '--glob', '!.npmrc', '--fixed-strings', input.query, path], { cwd: request.cwd, env: sanitizedChildEnvironment(), encoding: 'utf8', timeout: 30_000, maxBuffer: MAX_TOOL_OUTPUT * 2 });
       if (result.status !== 0 && result.status !== 1) throw new Error(result.stderr.trim());
       return bounded(result.stdout.trim() || '(no matches)');
     }
     case 'write_file': {
       if (request.mode === 'plan') throw new Error('write_file is disabled in plan mode.');
-      const path = safePath(request.cwd, input.path, true);
-      if (SECRET_FILE.test(path)) throw new Error('Writing secret-bearing files is denied.');
+      const path = safeWorkspacePath(request.cwd, input.path, true);
+      if (isCredentialPath(path)) throw new Error('Writing secret-bearing files is denied.');
       if (typeof input.content !== 'string') throw new Error('write_file.content must be a string.');
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, input.content, { encoding: 'utf8', mode: 0o644 });
@@ -192,8 +191,8 @@ function executeTool(request: RunRequest, action: DirectAction): string {
     }
     case 'replace_in_file': {
       if (request.mode === 'plan') throw new Error('replace_in_file is disabled in plan mode.');
-      const path = safePath(request.cwd, input.path, true);
-      if (SECRET_FILE.test(path)) throw new Error('Writing secret-bearing files is denied.');
+      const path = safeWorkspacePath(request.cwd, input.path, true);
+      if (isCredentialPath(path)) throw new Error('Writing secret-bearing files is denied.');
       if (typeof input.old !== 'string' || typeof input.new !== 'string' || !input.old) throw new Error('replace_in_file requires non-empty old and string new.');
       const current = readFileSync(path, 'utf8');
       const count = current.split(input.old).length - 1;

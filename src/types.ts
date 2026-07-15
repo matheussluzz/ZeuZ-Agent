@@ -114,8 +114,13 @@ export interface ReviewResult {
   verdict: 'PASS' | 'CHANGES_REQUIRED' | 'REVIEW_BLOCKED';
   summary: string;
   findings: ReviewFinding[];
+  blockers: string[];
   raw: string;
   reviewerModelId: string;
+  reviewerFamily: string;
+  producerFamily: string;
+  packetFingerprint?: string;
+  workspaceFingerprint?: string;
 }
 
 export interface TurnOutcome {

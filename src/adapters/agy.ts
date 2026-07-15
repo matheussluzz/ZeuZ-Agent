@@ -1,4 +1,5 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
+import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 export class AgyAdapter implements AgentAdapter {
@@ -15,8 +16,7 @@ export class AgyAdapter implements AgentAdapter {
 
     // agy parses flags after --print as prompt input, so --print must be last.
     const args = ['--model', request.model.model];
-    if (request.mode !== 'yolo') args.push('--sandbox');
-    if (request.mode !== 'plan') args.push('--dangerously-skip-permissions');
+    args.push(...permissionArguments(this.provider, request.mode, request.resumeId));
     args.push('--print', request.prompt);
 
     const result = await this.runtime.runProcess(executable, args, {

@@ -1,4 +1,5 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
+import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 type JsonRecord = Record<string, unknown>;
@@ -32,9 +33,7 @@ export class ClaudeAdapter implements AgentAdapter {
       '--no-chrome',
     ];
 
-    if (request.mode === 'plan') args.push('--permission-mode', 'plan');
-    if (request.mode === 'agent') args.push('--permission-mode', 'acceptEdits');
-    if (request.mode === 'yolo') args.push('--dangerously-skip-permissions');
+    args.push(...permissionArguments(this.provider, request.mode, request.resumeId));
     if (request.resumeId) args.push('--resume', request.resumeId);
     if (request.ephemeral) args.push('--no-session-persistence');
 

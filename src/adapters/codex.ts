@@ -1,4 +1,5 @@
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
+import { permissionArguments } from '../permissions.js';
 import type { AgentAdapter, HealthResult, RunRequest, RunResult } from '../types.js';
 
 interface CodexEvent {
@@ -112,8 +113,7 @@ export class CodexAdapter implements AgentAdapter {
     const args = ['exec', '--json', '--skip-git-repo-check', '-C', request.cwd, '-m', request.model.model];
     if (request.model.reasoningEffort) args.push('-c', `model_reasoning_effort=${JSON.stringify(request.model.reasoningEffort)}`);
     if (request.ephemeral) args.push('--ephemeral');
-    if (request.mode === 'yolo') args.push('--dangerously-bypass-approvals-and-sandbox');
-    else args.push('-s', request.mode === 'plan' ? 'read-only' : 'workspace-write');
+    args.push(...permissionArguments(this.provider, request.mode));
     args.push(request.prompt);
     return args;
   }
@@ -122,7 +122,7 @@ export class CodexAdapter implements AgentAdapter {
     const args = ['exec', 'resume', '--json', '--skip-git-repo-check', '-m', request.model.model];
     if (request.model.reasoningEffort) args.push('-c', `model_reasoning_effort=${JSON.stringify(request.model.reasoningEffort)}`);
     if (request.ephemeral) args.push('--ephemeral');
-    if (request.mode === 'yolo') args.push('--dangerously-bypass-approvals-and-sandbox');
+    args.push(...permissionArguments(this.provider, request.mode, request.resumeId));
     args.push(request.resumeId ?? '', request.prompt);
     return args;
   }

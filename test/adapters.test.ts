@@ -121,7 +121,13 @@ async function capturedArgs(input: {
     for (const item of line.split(/\r?\n/).filter(Boolean)) options.onStdoutLine?.(item);
     return { exitCode: 0, stdout: line, stderr: '' };
   };
-  await input.adapter.run({ model: input.model, prompt: 'characterize permissions', cwd: FIXTURE_DIR, mode: input.mode, ...(input.resumeId ? { resumeId: input.resumeId } : {}) });
+  await input.adapter.run({
+    model: input.model,
+    prompt: 'characterize permissions',
+    cwd: FIXTURE_DIR,
+    mode: input.mode,
+    ...(input.resumeId ? { resumeId: input.resumeId } : {}),
+  });
   assert.ok(args);
   return args;
 }
@@ -203,12 +209,19 @@ test('CodexAdapter rejects non-zero fixture exit', async () => {
   );
 });
 
-test('characterizes Codex resume omitting the requested plan sandbox before Wave 02', async () => {
+test('Codex resume reapplies the requested plan sandbox', async () => {
   const runtime = createFixtureRuntime({ codex: { file: 'codex.jsonl', mode: 'jsonl' } });
-  const args = await capturedArgs({ adapter: new CodexAdapter(runtime), model: testModel('codex'), runtime, mode: 'plan', resumeId: 'existing-thread' });
+  const args = await capturedArgs({
+    adapter: new CodexAdapter(runtime),
+    model: testModel('codex'),
+    runtime,
+    mode: 'plan',
+    resumeId: 'existing-thread',
+  });
+
   assert.deepEqual(args.slice(0, 5), ['exec', 'resume', '--json', '--skip-git-repo-check', '-m']);
-  assert.equal(args.includes('-s'), false);
-  assert.equal(args.includes('read-only'), false);
+  assert.equal(args.includes('-s'), true);
+  assert.equal(args.includes('read-only'), true);
 });
 
 test('CursorAdapter rejects fixture without final response', async () => {

@@ -3,10 +3,9 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readlink, realpath } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { relative, resolve } from 'node:path';
+import { containsSecretShape, isPublicTrackedTemplate, isSensitivePath } from './trust-policy.mjs';
 
 const REVIEW_EXCLUDE = ':(exclude).agents/reviews/**';
-const SENSITIVE_PATH = /(^|\/)(\.env(?:\..*)?|lamine(?:\.[^/]*)?\.ya?ml|\.npmrc|auth\.json|[^/]*(?:credentials?|secrets?)[^/]*\.json|[^/]+\.(?:pem|key|p12|pfx|jks))$/i;
-const isSensitivePath = (path) => SENSITIVE_PATH.test(path.replaceAll('\\', '/'));
 
 const [packetPath, reportPath] = process.argv.slice(2);
 if (!packetPath || !reportPath || packetPath === '--help') {
@@ -26,7 +25,11 @@ function git(cwd, args) {
 
 async function currentWorkspaceFingerprint(cwd) {
   const trackedSensitive = git(cwd, ['ls-files']).split('\n').filter(Boolean).filter(isSensitivePath);
-  if (trackedSensitive.length) throw new Error(`tracked sensitive paths present: ${trackedSensitive.join(', ')}`);
+  const denied = trackedSensitive.filter((path) => !isPublicTrackedTemplate(path));
+  if (denied.length) throw new Error(`tracked credential paths present: ${denied.join(', ')}`);
+  for (const template of trackedSensitive.filter(isPublicTrackedTemplate)) {
+    if (containsSecretShape(await readFile(resolve(cwd, template), 'utf8'))) throw new Error(`tracked public template contains secret-shaped content: ${template}`);
+  }
   const head = git(cwd, ['rev-parse', 'HEAD']);
   const status = git(cwd, ['status', '--short', '--untracked-files=all', '--', '.', REVIEW_EXCLUDE]);
   const diff = git(cwd, ['diff', '--binary', 'HEAD', '--', '.', REVIEW_EXCLUDE]);
@@ -50,6 +53,7 @@ for (const [label, path] of [['packet', packetAbsolute], ['report', reportAbsolu
     const stat = await lstat(path);
     if (stat.isSymbolicLink() || !stat.isFile()) fileErrors.push(`${label} must be a regular non-symlink file`);
     if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) fileErrors.push(`${label} must not be group/world-readable; use mode 0600`);
+    if (process.platform !== 'win32' && typeof process.getuid === 'function' && stat.uid !== process.getuid()) fileErrors.push(`${label} must be owned by the active OS user`);
   } catch (error) {
     fileErrors.push(`${label} cannot be inspected (${error.message})`);
   }
@@ -90,24 +94,8 @@ for (const [field, value] of [
 if (packet.schemaVersion !== '1.0') errors.push('packet: unsupported schemaVersion');
 if (report.schemaVersion !== '1.0') errors.push('report: unsupported schemaVersion');
 if (report.packetFingerprint !== packet.packetFingerprint) errors.push('report: packetFingerprint mismatch');
-const expectedPacketFingerprint = sha256(JSON.stringify({
-  workspaceFingerprint: packet.workspace?.fingerprint,
-  request: packet.inputs?.request?.sha256,
-  criteria: packet.inputs?.criteria?.sha256,
-  delivery: packet.inputs?.delivery?.sha256,
-  verification: packet.inputs?.verification?.sha256,
-  artifacts: packet.artifacts,
-  producerFamily: packet.producer?.family,
-  criteriaSha256: sha256(JSON.stringify(packet.criteria ?? [])),
-  blockers: packet.blockers,
-  workspaceCwd: packet.workspace?.cwd,
-  inputPaths: {
-    request: packet.inputs?.request?.path,
-    criteria: packet.inputs?.criteria?.path,
-    delivery: packet.inputs?.delivery?.path,
-    verification: packet.inputs?.verification?.path,
-  },
-}));
+const { packetFingerprint: _packetFingerprint, ...unsignedPacket } = packet;
+const expectedPacketFingerprint = sha256(JSON.stringify(unsignedPacket));
 if (expectedPacketFingerprint !== packet.packetFingerprint) errors.push('packet: fingerprint does not match packet contents');
 try {
   const workspaceReal = await realpath(packet.workspace?.cwd);
@@ -121,6 +109,7 @@ try {
     const stat = await lstat(path);
     if (stat.isSymbolicLink() || !stat.isDirectory()) errors.push(`${label}: must be a real directory`);
     if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) errors.push(`${label}: must use mode 0700`);
+    if (process.platform !== 'win32' && typeof process.getuid === 'function' && stat.uid !== process.getuid()) errors.push(`${label}: must be owned by the active OS user`);
   }
 } catch (error) {
   errors.push(`review files: cannot verify private workspace location (${error.message})`);
@@ -128,7 +117,9 @@ try {
 requireText(report.reviewer, 'provider', 'reviewer');
 requireText(report.reviewer, 'model', 'reviewer');
 requireText(report.reviewer, 'family', 'reviewer');
-if (!isText(packet.producer?.family) && report.verdict !== 'REVIEW_BLOCKED') errors.push('packet: producer family missing');
+requireText(packet.producer, 'provider', 'producer');
+requireText(packet.producer, 'model', 'producer');
+requireText(packet.producer, 'family', 'producer');
 if (report.reviewer?.family === packet.producer?.family && report.verdict !== 'REVIEW_BLOCKED') errors.push('reviewer: family must differ from producer family');
 
 const criterionIds = uniqueIds(packet.criteria, 'packet criterion');

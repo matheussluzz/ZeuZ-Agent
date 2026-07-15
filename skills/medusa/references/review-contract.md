@@ -12,6 +12,8 @@ node scripts/evidence-packet.mjs \
   --delivery delivery.md \
   --verification verification.txt \
   --artifact path/to/artifact \
+  --producer-provider codex \
+  --producer-model codex:gpt-5.6-sol@medium \
   --producer-family openai \
   --out .agents/reviews/review-packet.json
 ```
@@ -27,7 +29,7 @@ Classify derived criteria as `source: "derived"` and state the governing contrac
 Required packet state:
 
 - request, delivery, criteria, and verification inputs captured with content hashes;
-- producer family named;
+- producer provider, model, and family named;
 - inspectable artifact paths;
 - Git HEAD/status/diff plus non-secret untracked-file hashes folded into one workspace fingerprint; denied secret paths contribute metadata only, and a tracked secret path blocks packet generation;
 - missing inputs listed explicitly under `blockers`.

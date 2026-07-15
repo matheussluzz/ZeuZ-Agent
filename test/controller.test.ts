@@ -19,6 +19,49 @@ const BOOTSTRAP: WorkspaceBootstrap = {
   warnings: [],
 };
 
+function reviewPacket(prompt: string): {
+  packetFingerprint: string;
+  expectedReviewer: { provider: string; model: string; family: string };
+  criteria: Array<{ id: string }>;
+} {
+  const match = prompt.match(/MEDUSA_RUNTIME_PACKET_JSON\n(.+)\nEND_MEDUSA_RUNTIME_PACKET_JSON/);
+  assert.ok(match?.[1], 'review prompt must contain the runtime evidence packet');
+  return JSON.parse(match[1]) as ReturnType<typeof reviewPacket>;
+}
+
+function reviewReport(request: RunRequest, verdict: 'PASS' | 'CHANGES_REQUIRED' = 'PASS'): RunResult {
+  const packet = reviewPacket(request.prompt);
+  const finding = {
+    id: 'FIND-001',
+    severity: 'HIGH',
+    title: 'Fixture defect',
+    location: 'fixture.ts:1',
+    evidence: 'Synthetic failing evidence.',
+    reproduction: 'Run the fixture.',
+    expectedCorrection: 'Fix the fixture.',
+    criterionIds: [packet.criteria[0]?.id],
+  };
+  return {
+    text: JSON.stringify({
+      schemaVersion: '1.0',
+      packetFingerprint: packet.packetFingerprint,
+      reviewer: packet.expectedReviewer,
+      deterministicChecks: [{ id: 'CHK-001', command: 'fixture check', status: 'PASS', required: true, evidence: 'fixture exit 0' }],
+      criteria: packet.criteria.map((criterion, index) => ({
+        id: criterion.id,
+        status: verdict === 'CHANGES_REQUIRED' && index === 0 ? 'NOT_MET' : 'MET',
+        evidence: ['fixture evidence'],
+        findingIds: verdict === 'CHANGES_REQUIRED' && index === 0 ? ['FIND-001'] : [],
+      })),
+      verificationGaps: [{ id: 'GAP-001', changedBehavior: 'fixture behavior', assertion: 'fixture assertion', status: verdict === 'PASS' ? 'COVERED' : 'GAP', evidence: 'fixture test' }],
+      findings: verdict === 'CHANGES_REQUIRED' ? [finding] : [],
+      blockers: [],
+      verdict,
+      summary: verdict === 'PASS' ? 'fixture pass' : 'fixture changes required',
+    }),
+  };
+}
+
 function deterministicRuntime(fingerprints: Array<string | undefined> = ['clean']): RuntimeSeams {
   let id = 0;
   let fingerprint = 0;
@@ -163,7 +206,7 @@ test('controller deterministically reviews changed work and persists provider st
     run: async (request) => {
       calls.push(request.model.id);
       if (request.model.provider === 'cursor') {
-        return { text: JSON.stringify({ verdict: 'PASS', summary: 'fixture pass', findings: [] }) };
+        return reviewReport(request);
       }
       return { text: 'producer response', nativeSessionId: 'native-session-1' };
     },
@@ -192,9 +235,7 @@ test('controller remediates once and re-runs review deterministically', async ()
     run: async (request) => {
       if (request.model.provider === 'cursor') {
         reviewRuns += 1;
-        return reviewRuns === 1
-          ? { text: JSON.stringify({ verdict: 'CHANGES_REQUIRED', summary: 'fix it', findings: [{ severity: 'high', title: 'fixture', detail: 'fix' }] }) }
-          : { text: JSON.stringify({ verdict: 'PASS', summary: 'fixed', findings: [] }) };
+        return reviewReport(request, reviewRuns === 1 ? 'CHANGES_REQUIRED' : 'PASS');
       }
       producerRuns += 1;
       return { text: producerRuns === 1 ? 'initial response' : 'remediated response', nativeSessionId: 'native-session-1' };
@@ -211,28 +252,74 @@ test('controller remediates once and re-runs review deterministically', async ()
   }
 });
 
-test('characterizes reviewer execution failure as CHANGES_REQUIRED before Wave 02', async () => {
-  const { controller, root } = await harness({ fingerprints: ['before', 'after', 'after'], run: async (request) => {
-    if (request.model.provider === 'cursor') throw new Error('reviewer unavailable');
-    return { text: 'producer response' };
-  } });
+test('reviewer execution failure blocks delivery as REVIEW_BLOCKED', async () => {
+  const { controller, root } = await harness({
+    fingerprints: ['before', 'after', 'after'],
+    run: async (request) => {
+      if (request.model.provider === 'cursor') throw new Error('reviewer unavailable');
+      return { text: 'producer response' };
+    },
+  });
   try {
-    const outcome = await controller.send('change work');
-    assert.equal(outcome.review?.verdict, 'CHANGES_REQUIRED');
-    assert.match(outcome.review?.summary ?? '', /did not return valid structured evidence/);
-  } finally { await rm(root, { recursive: true, force: true }); }
+    await assert.rejects(
+      () => controller.send('change work'),
+      (error: Error & { review?: { verdict?: string } }) => {
+        assert.equal(error.name, 'ReviewGateError');
+        assert.equal(error.review?.verdict, 'REVIEW_BLOCKED');
+        assert.match(error.message, /Reviewer execution failed/);
+        return true;
+      },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
-test('characterizes delivery after a second CHANGES_REQUIRED verdict before Wave 02', async () => {
+test('a second CHANGES_REQUIRED verdict blocks delivery after remediation', async () => {
   let producerRuns = 0;
-  const { controller, root } = await harness({ fingerprints: ['before', 'after', 'after', 'after'], run: async (request) => {
-    if (request.model.provider === 'cursor') return { text: JSON.stringify({ verdict: 'CHANGES_REQUIRED', summary: 'still broken', findings: [{ severity: 'high', title: 'fixture', detail: 'fix' }] }) };
-    producerRuns += 1;
-    return { text: producerRuns === 1 ? 'initial response' : 'remediated response' };
-  } });
+  const { controller, root } = await harness({
+    fingerprints: ['before', 'after', 'after', 'after'],
+    run: async (request) => {
+      if (request.model.provider === 'cursor') {
+        return reviewReport(request, 'CHANGES_REQUIRED');
+      }
+      producerRuns += 1;
+      return { text: producerRuns === 1 ? 'initial response' : 'remediated response' };
+    },
+  });
   try {
-    const outcome = await controller.send('change and remain broken');
-    assert.equal(outcome.review?.verdict, 'CHANGES_REQUIRED');
-    assert.match(outcome.response, /Adversarial remediation/);
-  } finally { await rm(root, { recursive: true, force: true }); }
+    await assert.rejects(
+      () => controller.send('change and remain broken'),
+      (error: Error & { review?: { verdict?: string } }) => {
+        assert.equal(error.name, 'ReviewGateError');
+        assert.equal(error.review?.verdict, 'CHANGES_REQUIRED');
+        return true;
+      },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('resuming a provider session reapplies the current less-permissive mode', async () => {
+  const requests: RunRequest[] = [];
+  const { controller, root } = await harness({
+    mode: 'yolo',
+    fingerprints: ['same', 'same', 'same', 'same'],
+    run: async (request) => {
+      requests.push(request);
+      return { text: 'producer response', nativeSessionId: 'native-session-1' };
+    },
+  });
+  try {
+    await controller.send('first turn');
+    await controller.setPermission('plan');
+    await controller.send('resumed turn');
+    assert.equal(requests[0]?.mode, 'yolo');
+    assert.equal(requests[0]?.resumeId, undefined);
+    assert.equal(requests[1]?.mode, 'plan');
+    assert.equal(requests[1]?.resumeId, 'native-session-1');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
