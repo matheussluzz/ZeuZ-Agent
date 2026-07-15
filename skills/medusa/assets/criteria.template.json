@@ -1,0 +1,8 @@
+[
+  {
+    "id": "REQ-001",
+    "text": "One atomic, observable acceptance criterion derived from the original request.",
+    "required": true,
+    "source": "user"
+  }
+]

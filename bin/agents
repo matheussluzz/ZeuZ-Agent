@@ -1,12 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env node
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="$ROOT/.env"
-
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Erro: $ENV_FILE não encontrado. Copie .env.example para .env e preencha as chaves." >&2
-  exit 1
-fi
-
-exec node --env-file="$ENV_FILE" "$ROOT/bin/agents.mjs" "$@"
+await import('./zeuz');

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0",
+  "packetFingerprint": "replace-with-packet-fingerprint",
+  "reviewer": {
+    "provider": "independent-provider",
+    "model": "comparable-model",
+    "family": "different-from-producer"
+  },
+  "deterministicChecks": [
+    {
+      "id": "CHK-001",
+      "command": "exact command",
+      "status": "PASS",
+      "required": true,
+      "evidence": "exit status and relevant observation"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "REQ-001",
+      "status": "MET",
+      "evidence": ["direct artifact or behavioral evidence"],
+      "findingIds": []
+    }
+  ],
+  "verificationGaps": [
+    {
+      "id": "GAP-001",
+      "changedBehavior": "observable behavior introduced or changed",
+      "assertion": "assertion capable of failing on regression",
+      "status": "COVERED",
+      "evidence": "test or reproducible observation"
+    }
+  ],
+  "findings": [],
+  "blockers": [],
+  "verdict": "PASS",
+  "summary": "Concise evidence-led conclusion."
+}

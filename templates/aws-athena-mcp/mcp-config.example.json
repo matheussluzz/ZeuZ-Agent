@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "zeuz-athena": {
+      "command": "node",
+      "args": ["/absolute/path/to/templates/aws-athena-mcp/dist/src/server.js"],
+      "env": {
+        "AWS_PROFILE": "your-sso-profile",
+        "AWS_REGION": "us-east-1",
+        "ZEUZ_AWS_ALLOWED_ACCOUNT": "123456789012",
+        "ZEUZ_ATHENA_WORKGROUP": "zeuz-read-only",
+        "ZEUZ_ATHENA_DATABASE_ALLOWLIST": "analytics"
+      }
+    }
+  }
+}

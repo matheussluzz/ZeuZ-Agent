@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const installRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const entrypoint = resolve(installRoot, 'dist', 'src', 'cli.js');
+
+process.env.ZEUZ_INSTALL_DIR = installRoot;
+
+if (!existsSync(entrypoint)) {
+  console.error('ZeuZ-Agent is not built. Run `pnpm install && pnpm build` in:');
+  console.error(installRoot);
+  process.exit(1);
+}
+
+await import(pathToFileURL(entrypoint).href);

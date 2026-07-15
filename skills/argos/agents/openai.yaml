@@ -1,0 +1,4 @@
+interface:
+  display_name: "Argos"
+  short_description: "Run leakage-safe ML and forecasting tournaments"
+  default_prompt: "Use $argos to frame the decision, clear the data and evaluation gates, run a leakage-safe baseline-first candidate tournament, and produce a model card plus monitoring plan."

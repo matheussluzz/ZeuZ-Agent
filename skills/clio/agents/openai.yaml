@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clio"
+  short_description: "Search and maintain an Obsidian knowledge vault"
+  default_prompt: "Use $clio to find grounded context in the vault and repair its references."

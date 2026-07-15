@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hefesto"
+  short_description: "Build verified standalone HTML dashboards"
+  default_prompt: "Use $hefesto to build a clear standalone HTML dashboard from this dataset."

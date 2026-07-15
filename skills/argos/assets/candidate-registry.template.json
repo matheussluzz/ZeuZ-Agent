@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "experiment_id": "<must-match-charter>",
+  "candidates": [
+    {
+      "id": "seasonal-naive",
+      "tier": 1,
+      "family": "baseline",
+      "implementation": "project-local deterministic implementation",
+      "version_or_revision": "repository commit",
+      "hypothesis": "The most recent matching seasonal observation is a competitive forecast.",
+      "information_set": "target history available before each forecast origin",
+      "preprocessing": "none",
+      "outputs": [
+        "point"
+      ],
+      "search_budget": {
+        "max_trials": 1,
+        "max_wall_clock_minutes": 10
+      },
+      "expected_constraints": {
+        "external_data_transfer": false,
+        "license": "project license",
+        "latency": "low",
+        "compute": "cpu"
+      },
+      "known_failure_modes": [
+        "structural breaks",
+        "insufficient seasonal history"
+      ],
+      "advance_rule": "reference baseline; always retain in final scorecard",
+      "status": "proposed",
+      "result_artifact": null,
+      "elimination_reason": null
+    },
+    {
+      "id": "<required-challenger-id>",
+      "tier": 2,
+      "family": "lightgbm|chronos-2|timegpt-2|patchtst|rna|var|vecm|monte-carlo|other",
+      "implementation": "<required-library-or-service>",
+      "version_or_revision": "<required-pin>",
+      "hypothesis": "<required-structure-this-model-captures-beyond-baseline>",
+      "information_set": "<required-feature-set-and-availability-boundary>",
+      "preprocessing": "<required-fold-local-pipeline>",
+      "outputs": [
+        "point"
+      ],
+      "search_budget": {
+        "max_trials": 20,
+        "max_wall_clock_minutes": 240
+      },
+      "expected_constraints": {
+        "external_data_transfer": false,
+        "license": "<required>",
+        "latency": "<required>",
+        "compute": "<required>"
+      },
+      "known_failure_modes": [
+        "<required>"
+      ],
+      "advance_rule": "<required-predeclared-rule-against-baseline-and-guardrails>",
+      "status": "proposed",
+      "result_artifact": null,
+      "elimination_reason": null
+    }
+  ]
+}

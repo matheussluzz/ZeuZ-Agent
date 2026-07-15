@@ -1,0 +1,4 @@
+interface:
+  display_name: "Atena"
+  short_description: "Query AWS Athena safely with bounded scan costs"
+  default_prompt: "Use $atena to plan and run a read-only Athena analysis safely."

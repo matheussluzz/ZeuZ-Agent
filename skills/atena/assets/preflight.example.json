@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "purpose": {
+    "question": "Replace with the approved business question",
+    "grain": "One row per ...",
+    "audience": "Approved role or team",
+    "sensitivity": "internal"
+  },
+  "identity": {
+    "accountId": "123456789012",
+    "arn": "arn:aws:sts::123456789012:assumed-role/example/session",
+    "region": "us-east-1"
+  },
+  "scope": {
+    "catalog": "AwsDataCatalog",
+    "database": "analytics",
+    "workgroup": "zeuz-readonly",
+    "statementClass": "SELECT",
+    "sql": "SELECT metric FROM analytics.events WHERE event_date BETWEEN :start_date AND :end_date LIMIT 1000",
+    "sqlSha256": "d46d9d438c72164c1ebe3076995ad094afd3c5d6285898e3f9b54b5512f1fb39",
+    "tables": [
+      {
+        "name": "analytics.events",
+        "columns": ["event_date", "metric"],
+        "partitionPredicate": "event_date between approved start and end",
+        "sensitivity": "internal"
+      }
+    ]
+  },
+  "plan": {
+    "explainType": "IO",
+    "performed": true,
+    "estimateConfidence": "low",
+    "estimatedScanBytes": { "minimum": 0, "maximum": 1000000000 },
+    "limitations": ["EXPLAIN estimates are heuristic"]
+  },
+  "controls": {
+    "workgroupBytesScannedCutoff": 1000000000,
+    "maxResultRows": 1000,
+    "maxResultBytes": 5000000,
+    "timeoutSeconds": 120,
+    "cancelOnTimeout": true,
+    "resultMode": "managed",
+    "encryptionVerified": true,
+    "resultReuseMaxAgeMinutes": 0
+  },
+  "exceptions": [],
+  "confirmation": {
+    "required": true,
+    "phrase": "APPROVE ATHENA QUERY D46D9D438C72",
+    "confirmedBy": "",
+    "confirmedAt": ""
+  }
+}

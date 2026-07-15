@@ -1,5 +1,50 @@
+# Secrets and local credentials
 .env
 .env.*
 !.env.example
+lamine.yaml
+lamine.local.yaml
+!lamine.example.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*credentials*.json
+*secrets*.json
+auth.json
+.npmrc
+
+# ZeuZ-Agent local state
+.agents/
+sessions/
+*.session.jsonl
+*.transcript.json
+
+# Local user instructions and Obsidian knowledge
+users/*.md
+!users/example.md
+vault/**
+!vault/templates/
+!vault/templates/**
+
+# Dependencies and build output
 node_modules/
+dist/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+
+# Logs and diagnostics
+*.log
+logs/
+debug/
+
+# Editors and operating systems
 .DS_Store
+.idea/
+.vscode/
+*.swp
+*~

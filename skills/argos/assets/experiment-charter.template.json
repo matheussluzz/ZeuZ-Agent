@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "experiment_id": "<required-stable-id>",
+  "charter_version": "0.1.0",
+  "frozen_at": null,
+  "decision": {
+    "owner": "<required-owner>",
+    "action": "<required-action-changed-by-the-output>",
+    "prediction_unit": "<required-row-grain>",
+    "target": "<required-target-and-unit>",
+    "forecast_origin_definition": "<required-real-decision-timestamp>",
+    "horizon": "<required-duration-or-classification-window>",
+    "lead_time": "<required-production-lead-time>",
+    "label_maturity_delay": "<required-delay-until-label-is-reliable>",
+    "error_costs": {
+      "overprediction_or_false_positive": "<required>",
+      "underprediction_or_false_negative": "<required>"
+    },
+    "current_process": "<required-operational-rule-or-none>"
+  },
+  "data": {
+    "snapshot_id": "<required-version-or-content-hash>",
+    "entity_key": "<required-key>",
+    "event_time_column": "<required-or-not-applicable>",
+    "available_time_column_or_rule": "<required>",
+    "label_time_column_or_rule": "<required>",
+    "privacy_classification": "<required>",
+    "external_transfer_allowed": false
+  },
+  "evaluation": {
+    "split_strategy": "rolling_origin",
+    "training_start": "2024-01-01T00:00:00Z",
+    "validation_start": "2025-01-01T00:00:00Z",
+    "final_test_start": "2026-01-01T00:00:00Z",
+    "final_test_end": "2026-03-31T23:59:59Z",
+    "fold_count": 5,
+    "gap": "<required-production-realistic-gap>",
+    "primary_metric": {
+      "name": "<required>",
+      "direction": "minimize",
+      "minimum_useful_relative_improvement": 0.02
+    },
+    "guardrails": [
+      {
+        "name": "<required-guardrail>",
+        "rule": "<required-pass-rule>"
+      }
+    ],
+    "mandatory_slices": [
+      "horizon",
+      "high-value-segment",
+      "known-regime"
+    ],
+    "comparison_rule": "<required-paired-comparison-and-uncertainty-rule>",
+    "tie_breaker": "prefer lower complexity, latency, and operating cost"
+  },
+  "budget": {
+    "maximum_candidate_count": 8,
+    "maximum_trials_per_candidate": 30,
+    "maximum_wall_clock_hours": 24,
+    "maximum_external_service_cost": 0
+  },
+  "approvals": {
+    "data_use": "pending",
+    "external_transfer": "not_required",
+    "compute_and_cost": "pending"
+  },
+  "stop_conditions": [
+    "unresolved target or feature leakage",
+    "split does not emulate deployment",
+    "no candidate clears all guardrails",
+    "budget is exhausted"
+  ],
+  "reproducibility": {
+    "repository_commit": "<required>",
+    "data_snapshot": "<required>",
+    "environment_lock": "<required-path-or-image-digest>",
+    "seed_policy": "<required>"
+  }
+}

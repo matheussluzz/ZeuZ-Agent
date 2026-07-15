@@ -1,0 +1,4 @@
+interface:
+  display_name: "Medusa"
+  short_description: "Cross-family review with traceable evidence"
+  default_prompt: "Use $medusa to review this artifact against the frozen request with traceable evidence."

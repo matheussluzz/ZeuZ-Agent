@@ -1,0 +1,53 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AthenaBoundedWorkgroup",
+      "Effect": "Allow",
+      "Action": [
+        "athena:GetWorkGroup",
+        "athena:StartQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults",
+        "athena:GetQueryRuntimeStatistics",
+        "athena:StopQueryExecution"
+      ],
+      "Resource": "arn:aws:athena:REGION:ACCOUNT_ID:workgroup/WORKGROUP"
+    },
+    {
+      "Sid": "GlueCatalogMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:GetTable",
+        "glue:GetTables",
+        "glue:GetPartition",
+        "glue:GetPartitions",
+        "glue:BatchGetPartition"
+      ],
+      "Resource": [
+        "arn:aws:glue:REGION:ACCOUNT_ID:catalog",
+        "arn:aws:glue:REGION:ACCOUNT_ID:database/ALLOWED_DATABASE",
+        "arn:aws:glue:REGION:ACCOUNT_ID:table/ALLOWED_DATABASE/*"
+      ]
+    },
+    {
+      "Sid": "ApprovedDatasetPrefixes",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::DATA_BUCKET",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["APPROVED_PREFIX/*"]
+        }
+      }
+    },
+    {
+      "Sid": "ApprovedDatasetObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::DATA_BUCKET/APPROVED_PREFIX/*"
+    }
+  ]
+}

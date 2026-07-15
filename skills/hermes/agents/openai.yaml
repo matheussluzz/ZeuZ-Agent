@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hermes"
+  short_description: "Translate complexity into clear commercial language"
+  default_prompt: "Use $hermes to explain this technical work in clear business language."

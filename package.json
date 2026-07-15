@@ -1,17 +1,73 @@
 {
-  "name": "agents",
+  "name": "zeuz-agent",
   "version": "0.1.0",
-  "private": true,
+  "description": "One terminal, many coding agents — with shared context, delegated subagents, and adversarial review.",
   "type": "module",
-  "description": "Terminal REPL para LLMs NVIDIA com troca de modelo via /model",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matheussluzz/ZeuZ-Agent.git"
+  },
+  "homepage": "https://github.com/matheussluzz/ZeuZ-Agent#readme",
+  "bugs": "https://github.com/matheussluzz/ZeuZ-Agent/issues",
+  "icon": "assets/zeuz-icon.png",
   "bin": {
+    "zeuz": "./bin/zeuz",
     "agents": "./bin/agents"
   },
+  "files": [
+    "bin/agents",
+    "bin/zeuz",
+    "dist/src",
+    ".env.example",
+    "install.command",
+    "scripts/install.sh",
+    "scripts/uninstall.sh",
+    "lamine.example.yaml",
+    "AGENTS.md",
+    "assets",
+    "docs",
+    "skills",
+    "templates/aws-athena-mcp/.env.example",
+    "templates/aws-athena-mcp/README.md",
+    "templates/aws-athena-mcp/iam-policy.example.json",
+    "templates/aws-athena-mcp/mcp-config.example.json",
+    "templates/aws-athena-mcp/package.json",
+    "templates/aws-athena-mcp/src",
+    "templates/aws-athena-mcp/test",
+    "templates/aws-athena-mcp/tsconfig.json",
+    "users/example.md",
+    "vault/templates",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node --env-file=.env bin/agents.mjs",
-    "health": "node --env-file=.env bin/agents.mjs --health-only"
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm secrets:check && pnpm typecheck && pnpm test && pnpm test:skills && pnpm test:installer && pnpm test:mcp",
+    "dev": "tsx src/cli.tsx",
+    "health": "tsx src/cli.tsx health --deep",
+    "prepublishOnly": "pnpm check && pnpm build",
+    "secrets:check": "node scripts/check-secrets.mjs",
+    "start": "node bin/zeuz",
+    "test": "tsx --test test/**/*.test.ts",
+    "test:installer": "bash scripts/tests/installer.test.sh",
+    "test:skills": "node --test skills/*/scripts/*.test.mjs && PYTHONDONTWRITEBYTECODE=1 python3 skills/argos/scripts/test_argos.py",
+    "test:mcp": "pnpm --filter @zeuz/aws-athena-mcp test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "ink": "^7.1.0",
+    "react": "^19.2.7",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
   }
 }

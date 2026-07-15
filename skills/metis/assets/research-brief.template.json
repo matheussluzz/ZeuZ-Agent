@@ -1,0 +1,15 @@
+{
+  "question": "Exact research question",
+  "decision": "Decision or use this research must support",
+  "audience": "Intended audience and assumed knowledge",
+  "scope": "Included subject matter",
+  "exclusions": ["Explicitly excluded area"],
+  "cutoffDate": "2026-07-14",
+  "accessedAt": "2026-07-14",
+  "jurisdictions": [],
+  "versions": [],
+  "materialityRule": "A claim is material when changing it could change the answer, decision, risk, or central conclusion.",
+  "completionCriteria": ["Every planned material claim is classified and traceable to evidence or an explicit gap."],
+  "assumptions": [],
+  "unresolvedQuestions": []
+}

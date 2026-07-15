@@ -1,0 +1,19 @@
+{
+  "title": "ZeuZ sample dashboard",
+  "subtitle": "Sanitized offline example",
+  "source": "Synthetic data",
+  "updatedAt": "2026-07-14",
+  "kpis": [
+    { "label": "Completed tasks", "value": "42", "detail": "+12% vs. previous period" },
+    { "label": "Review pass rate", "value": "91%", "detail": "After remediation" }
+  ],
+  "chart": {
+    "title": "Tasks by week",
+    "description": "Completed synthetic tasks across four weeks.",
+    "unit": "tasks",
+    "categories": ["W1", "W2", "W3", "W4"],
+    "series": [
+      { "name": "Completed", "data": [7, 9, 11, 15] }
+    ]
+  }
+}

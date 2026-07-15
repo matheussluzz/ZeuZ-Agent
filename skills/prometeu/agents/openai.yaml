@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prometeu"
+  short_description: "Design efficient SQL with explicit cost controls"
+  default_prompt: "Use $prometeu to build and validate an efficient cost-aware SQL query."

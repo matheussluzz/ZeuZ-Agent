@@ -1,0 +1,23 @@
+{
+  "label": "baseline-or-candidate",
+  "querySha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "context": {
+    "dialect": "athena-trino",
+    "engineVersion": "record-exact-version",
+    "workgroup": "zeuz-readonly",
+    "dataSnapshot": "2026-07-14T00:00:00Z",
+    "parametersSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "resultReuse": false
+  },
+  "metrics": {
+    "bytesScanned": 1000000000,
+    "engineMilliseconds": 1000,
+    "wallMilliseconds": 1300,
+    "rowsReturned": 100
+  },
+  "checks": [
+    { "name": "output grain uniqueness", "passed": true, "evidence": "duplicate key count = 0" },
+    { "name": "control total", "passed": true, "evidence": "candidate total matches approved control" }
+  ],
+  "limitations": []
+}

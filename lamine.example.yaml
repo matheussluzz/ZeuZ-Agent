@@ -1,0 +1,16 @@
+# Copy this file to lamine.yaml and keep it local.
+# ZeuZ refuses to load a group/world-readable lamine.yaml on POSIX systems.
+nvidia:
+  base_url: https://integrate.api.nvidia.com/v1
+  api_keys:
+    glm_5_2: ""
+    deepseek_v4: ""
+    kimi_2_6: ""
+    minimax_m3: ""
+    qwen: ""
+  models:
+    glm_5_2: z-ai/glm-5.2
+    deepseek_v4: deepseek-ai/deepseek-v4-pro
+    kimi_2_6: moonshotai/kimi-k2.6
+    minimax_m3: minimaxai/minimax-m3
+    qwen: qwen/qwen3.5-397b-a17b

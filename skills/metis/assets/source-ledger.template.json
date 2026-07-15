@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0",
+  "brief": {
+    "question": "Exact research question",
+    "decision": "Decision or use this research must support",
+    "audience": "Intended audience",
+    "scope": "Included subject matter",
+    "exclusions": [],
+    "cutoffDate": "2026-07-14",
+    "accessedAt": "2026-07-14",
+    "jurisdictions": [],
+    "versions": [],
+    "materialityRule": "A claim is material when changing it could change the answer, decision, risk, or central conclusion.",
+    "completionCriteria": ["Every planned material claim is classified and traceable."],
+    "assumptions": [],
+    "unresolvedQuestions": []
+  },
+  "researcher": {"provider": "unknown", "model": "unknown", "family": "unknown"},
+  "sources": [
+    {
+      "id": "SRC-001",
+      "canonicalUrl": "https://replace.invalid/primary-source",
+      "title": "Source title",
+      "author": null,
+      "publisher": "Publisher",
+      "sourceType": "official-documentation",
+      "publicationDate": "2026-07-14",
+      "eventDate": null,
+      "accessedAt": "2026-07-14",
+      "version": null,
+      "jurisdiction": null,
+      "accessStatus": "ACCESSIBLE",
+      "selfReported": false,
+      "independenceGroup": "origin-example-org",
+      "correctionStatus": "none-found",
+      "limitations": []
+    }
+  ],
+  "claims": [
+    {
+      "id": "CLM-001",
+      "text": "One atomic, scoped claim.",
+      "claimType": "fact",
+      "importance": "MATERIAL",
+      "classification": "VERIFIED",
+      "searchPlan": {
+        "targetSourceClass": "Original governing document or official primary source",
+        "queryVariants": ["Exact subject plus version and jurisdiction"],
+        "adverseTerms": ["correction", "retraction", "superseded"],
+        "stopCondition": "Applicable primary evidence is found and adverse/version searches reveal no unresolved material conflict."
+      },
+      "citations": [
+        {
+          "sourceId": "SRC-001",
+          "sourceRole": "PRIMARY",
+          "relation": "SUPPORTS",
+          "entailment": "EXACT",
+          "location": "Section or page",
+          "sourceProposition": "Narrow restatement of what the located evidence establishes.",
+          "rationale": "Explain why the source proposition matches every material dimension of the claim."
+        }
+      ],
+      "basisClaimIds": [],
+      "reasoning": null,
+      "decisionCriteria": null,
+      "limitations": []
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-001",
+      "title": "Answer",
+      "status": "READY",
+      "claimIds": ["CLM-001"],
+      "limitations": []
+    }
+  ],
+  "limitations": []
+}

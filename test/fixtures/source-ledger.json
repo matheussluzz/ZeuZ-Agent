@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0",
+  "brief": {
+    "question": "Does the source protocol fixture contain one verified claim?",
+    "decision": "Exercise the Metis ledger validator in the root integration suite.",
+    "audience": "ZeuZ maintainers",
+    "scope": "This deterministic fixture only.",
+    "exclusions": [],
+    "cutoffDate": "2026-07-14",
+    "accessedAt": "2026-07-14",
+    "jurisdictions": [],
+    "versions": ["1.0"],
+    "materialityRule": "A claim is material when changing it could change the test result.",
+    "completionCriteria": ["The material claim is classified and traceable."],
+    "assumptions": [],
+    "unresolvedQuestions": []
+  },
+  "researcher": {
+    "provider": "test-fixture",
+    "model": "deterministic",
+    "family": "none"
+  },
+  "sources": [
+    {
+      "id": "SRC-001",
+      "canonicalUrl": "https://example.com/source",
+      "title": "Source protocol fixture",
+      "author": null,
+      "publisher": "Example",
+      "sourceType": "test-fixture",
+      "publicationDate": "2026-07-14",
+      "eventDate": null,
+      "accessedAt": "2026-07-14",
+      "version": "1.0",
+      "jurisdiction": null,
+      "accessStatus": "ACCESSIBLE",
+      "selfReported": false,
+      "independenceGroup": "fixture-origin",
+      "correctionStatus": "none-found",
+      "limitations": ["This URL exists to test structure, not factual source replay."]
+    }
+  ],
+  "claims": [
+    {
+      "id": "CLM-001",
+      "text": "The source protocol fixture has one verified claim.",
+      "claimType": "fact",
+      "importance": "MATERIAL",
+      "classification": "VERIFIED",
+      "searchPlan": {
+        "targetSourceClass": "Deterministic repository fixture",
+        "queryVariants": ["source protocol fixture verified claim"],
+        "adverseTerms": [],
+        "stopCondition": "The integration validator accepts the current schema."
+      },
+      "citations": [
+        {
+          "sourceId": "SRC-001",
+          "sourceRole": "PRIMARY",
+          "relation": "SUPPORTS",
+          "entailment": "EXACT",
+          "location": "Fixture section",
+          "sourceProposition": "The fixture defines one claim classified as VERIFIED.",
+          "rationale": "The cited fixture entry directly matches the structural test claim."
+        }
+      ],
+      "basisClaimIds": [],
+      "reasoning": null,
+      "decisionCriteria": null,
+      "limitations": []
+    }
+  ],
+  "sections": [
+    {
+      "id": "SEC-001",
+      "title": "Fixture validation",
+      "status": "READY",
+      "claimIds": ["CLM-001"],
+      "limitations": []
+    }
+  ],
+  "limitations": ["This is a local structural fixture; it does not prove URL content or entailment."]
+}

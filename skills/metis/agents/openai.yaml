@@ -1,0 +1,4 @@
+interface:
+  display_name: "Metis"
+  short_description: "Deep research with claim-level source replay"
+  default_prompt: "Use $metis to research this question with a claim ledger and independent source replay."
