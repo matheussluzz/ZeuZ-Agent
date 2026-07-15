@@ -4,7 +4,7 @@ These instructions apply to every human or model working in this repository.
 
 ## Mission and language
 
-Build ZeuZ-Agent as a trustworthy local multi-model terminal. GPT-5.6 Sol is the primary orchestrator; Fable 5 is the explicit fallback. Other models are selected for bounded work from observed strengths, not brand loyalty.
+Build ZeuZ-Agent as a trustworthy local multi-model terminal. GPT-5.6 Sol is the default primary orchestrator; Fable 5 is the explicit fallback. Every interactive session must expose model selection at startup, and an explicit user choice becomes that session's orchestrator. Other models are selected for bounded work from observed strengths, not brand loyalty.
 
 Preserve useful generic behavior Matheus describes from his professional ZeuZ system, but never request, copy, reconstruct, or commit confidential employer material. Speak to Matheus in Brazilian Portuguese unless he asks otherwise. Keep product UI, command names, source code, and public documentation in English.
 
@@ -48,14 +48,14 @@ On first use, ask whether the repository work is development, data, or product, 
 
 ## Primary orchestration
 
-The primary agent clarifies ambiguity, decomposes substantive requests, delegates bounded independent work when it protects context quality, integrates results, and owns final verification. It may handle trivial questions, status checks, and tiny localized edits directly. A subagent's confidence is never completion evidence.
+The primary agent clarifies ambiguity, decomposes substantive requests, delegates bounded independent work when it protects context quality, integrates results, and owns final verification. Only the root orchestrator spawns specialist personas; a specialist may request another capability from the root, which may spawn a sibling. Specialist-to-specialist spawning is forbidden. The primary may handle trivial questions, status checks, and tiny localized edits directly. A subagent's confidence is never completion evidence.
 
-If GPT-5.6 Sol fails before changing the workspace because it is unavailable, unauthenticated, rate-limited, quota-limited, or missing, fall back explicitly:
+If the default GPT-5.6 Sol route fails before changing the workspace because it is unavailable, unauthenticated, rate-limited, quota-limited, or missing, fall back explicitly:
 
 1. Claude Code Fable 5 when the `claude` CLI is healthy;
 2. Cursor Fable 5 Thinking High otherwise.
 
-Never retry through a fallback after the failed primary may have changed the workspace.
+An explicitly user-selected session model is never replaced silently; surface the failure and reopen model selection. Never retry through a fallback after the failed primary may have changed the workspace.
 
 ## Model assignment
 
@@ -110,7 +110,9 @@ Load skill instructions just in time, followed only by references/scripts needed
 - **Argos** — forecasting/ML with temporal leakage defenses, untouched test periods, honest baselines, uncertainty, reproducibility, and a model card.
 - **Metis** — deep research with current primary sources, claim ledger, citation entailment, and explicit uncertainty. Always pair with Medusa, which reopens/replays critical sources when possible.
 
-The design adapts useful public BMAD patterns: lean non-obvious context, progressive step loading, checkpoints before consequential actions, layered review lenses, and verification-gap tracing. See `docs/research/bmad-adaptation.md`. Do not copy BMAD branding/source or adopt its mandatory minimum finding counts.
+The design may vendor, copy, and adapt public BMAD skills under their current license. For every import, pin the upstream revision, retain required copyright and permission notices, record provenance and both prior and ZeuZ modifications, comply with upstream trademark guidance, and never present protected BMAD names as ZeuZ branding or imply endorsement. Do not adopt mandatory minimum finding counts without a reviewed ZeuZ product decision.
+
+Public third-party skills, including the NVIDIA catalog, may be imported wholesale only after an applicable license inventory. Preserve Apache license and `NOTICE` material and CC attribution where required, retain indications of prior modifications, record ZeuZ modifications and file-level overrides, avoid downstream terms that restrict licensed reuse, pin the upstream source, and make every update an inspectable reviewed diff. Public availability is not a trust decision: imported instructions remain disabled or quarantined until ZeuZ validates their manifest, dependencies, tools, scripts, network behavior, and secret boundaries.
 
 ## Delegation rules
 
