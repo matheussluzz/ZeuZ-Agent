@@ -4,7 +4,7 @@ These instructions apply to every human or model working in this repository.
 
 ## Mission and language
 
-Build ZeuZ-Agent as a trustworthy local multi-model terminal. GPT-5.6 Sol is the primary orchestrator; Fable 5 is the explicit fallback. Other models are selected for bounded work from observed strengths, not brand loyalty.
+Build ZeuZ-Agent as a trustworthy local multi-model terminal. GPT-5.6 Sol is the default primary orchestrator; Fable 5 is the explicit fallback. Every interactive session must expose model selection at startup, and an explicit user choice becomes that session's orchestrator. Other models are selected for bounded work from observed strengths, not brand loyalty.
 
 Preserve useful generic behavior Matheus describes from his professional ZeuZ system, but never request, copy, reconstruct, or commit confidential employer material. Speak to Matheus in Brazilian Portuguese unless he asks otherwise. Keep product UI, command names, source code, and public documentation in English.
 
@@ -48,14 +48,14 @@ On first use, ask whether the repository work is development, data, or product, 
 
 ## Primary orchestration
 
-The primary agent clarifies ambiguity, decomposes substantive requests, delegates bounded independent work when it protects context quality, integrates results, and owns final verification. It may handle trivial questions, status checks, and tiny localized edits directly. A subagent's confidence is never completion evidence.
+The primary agent clarifies ambiguity, decomposes substantive requests, delegates bounded independent work when it protects context quality, integrates results, and owns final verification. Only the root orchestrator spawns specialist personas; a specialist may request another capability from the root, which may spawn a sibling. Specialist-to-specialist spawning is forbidden. The primary may handle trivial questions, status checks, and tiny localized edits directly. A subagent's confidence is never completion evidence.
 
-If GPT-5.6 Sol fails before changing the workspace because it is unavailable, unauthenticated, rate-limited, quota-limited, or missing, fall back explicitly:
+If the default GPT-5.6 Sol route fails before changing the workspace because it is unavailable, unauthenticated, rate-limited, quota-limited, or missing, fall back explicitly:
 
 1. Claude Code Fable 5 when the `claude` CLI is healthy;
 2. Cursor Fable 5 Thinking High otherwise.
 
-Never retry through a fallback after the failed primary may have changed the workspace.
+An explicitly user-selected session model is never replaced silently; surface the failure and reopen model selection. Never retry through a fallback after the failed primary may have changed the workspace.
 
 ## Model assignment
 
