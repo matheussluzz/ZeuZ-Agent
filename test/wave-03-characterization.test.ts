@@ -139,7 +139,9 @@ test('[characterization] runProcess retains full stdout/stderr buffers without t
   try {
     const stdoutPayload = 'x'.repeat(120_000);
     const stderrPayload = 'y'.repeat(40_000);
-    const script = `process.stdout.write(${JSON.stringify(stdoutPayload)}); process.stderr.write(${JSON.stringify(stderrPayload)});`;
+    // Generate the payload in the child so the test does not depend on the host's
+    // per-argument size limit (Linux rejects a ~160 KiB `node -e` argument).
+    const script = `process.stdout.write('x'.repeat(${stdoutPayload.length})); process.stderr.write('y'.repeat(${stderrPayload.length}));`;
     const result = await runProcess(process.execPath, ['-e', script], { cwd: root });
     assert.equal(result.stdout.length, stdoutPayload.length);
     assert.equal(result.stderr.length, stderrPayload.length);
