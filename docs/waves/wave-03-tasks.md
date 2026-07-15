@@ -30,17 +30,17 @@ This checklist is the persistent execution record for Wave 03. Check an item onl
 
 ### Characterization checkpoint (separate green commit before production)
 
-- [ ] Add characterization tests proving `src/process.ts` accumulates unbounded stdout/stderr.
-- [ ] Add characterization tests proving untyped `SIGINT` → `SIGKILL` escalation after 1.5s without typed termination metadata.
-- [ ] Add characterization tests proving `send`, `ask`, `runReview`, and `remediate` lack a shared deadline policy.
-- [ ] Add green injected-order characterization for timeout/cancel before availability failure and availability failure before timeout/cancel. Assert the current terminal winner, exactly-once settlement, fallback eligibility, and that ordinary timeout/cancellation does not match the availability fallback predicate.
-- [ ] Add green injected-order characterization for abort before close and close before abort, plus abort before error and error before abort, including abort during active streaming. Assert the current terminal winner, exactly-once settlement, observed output, and cleanup gaps.
-- [ ] Add green injected-order characterization for native-session observation before cancellation versus successful close before controller save. Assert that `recordRun` persists only a returned successful result while abort/error/cancel may lose partial native state.
-- [ ] Add characterization tests proving availability-classified producer failures may trigger fallback only when the workspace is measurably unchanged; `changed` or `unmeasurable` states block replay.
-- [ ] Add characterization tests proving `workspaceFingerprint()` is `undefined` outside Git and the controller infers writable change from that ambiguity.
-- [ ] Add characterization tests proving Git untracked files above 5 MiB fall back to size/mtime identity instead of `unmeasurable`.
-- [ ] Add characterization tests proving adapter/fixture paths can depend on complete stdout/stderr buffers.
-- [ ] Add characterization tests proving `NvidiaAdapter.runDirect()` uses unbounded `fetch` + `response.json()` outside the CLI fixture path.
+- [x] Add characterization tests proving `src/process.ts` accumulates unbounded stdout/stderr.
+- [x] Add characterization tests proving untyped `SIGINT` → `SIGKILL` escalation after 1.5s without typed termination metadata, including isolated proof that pre-abort plus spawn failure can propagate SIGINT to the caller group.
+- [x] Add characterization tests proving `send`, `ask`, `runReview`, and `remediate` lack a shared deadline policy.
+- [x] Add green injected-order characterization for timeout/cancel before availability failure and availability failure before timeout/cancel. Assert the current terminal winner, exactly-once settlement, fallback eligibility, and that ordinary timeout/cancellation does not match the availability fallback predicate.
+- [x] Add green injected-order characterization for abort before close and close before abort, plus abort before error and error before abort, including abort during active streaming. Assert the current terminal winner, exactly-once settlement, observed output, and cleanup gaps.
+- [x] Add green injected-order characterization for native-session observation before cancellation versus successful close before controller save. Assert that `recordRun` persists only a returned successful result while abort/error/cancel may lose partial native state.
+- [x] Add characterization tests proving availability-classified producer failures may trigger fallback only when the workspace is measurably unchanged; `changed` or `unmeasurable` states block replay.
+- [x] Add characterization tests proving `workspaceFingerprint()` is `undefined` outside Git and the controller infers writable change from that ambiguity.
+- [x] Add characterization tests proving Git untracked files above 5 MiB fall back to size/mtime identity instead of `unmeasurable`.
+- [x] Add characterization tests proving adapter/fixture paths can depend on complete stdout/stderr buffers.
+- [x] Add characterization tests proving `NvidiaAdapter.runDirect()` uses unbounded `fetch` + `response.json()` outside the CLI fixture path.
 - [ ] Commit the green characterization checkpoint separately before production contract changes.
 
 ### Shared runner and deadlines

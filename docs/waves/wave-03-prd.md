@@ -21,6 +21,7 @@ Direct inspection of the merged Wave 02 tree confirms these gaps:
 | Area | Current behavior | Risk |
 | --- | --- | --- |
 | `src/process.ts` | Accumulates full stdout/stderr strings; abort sends `SIGINT` then `SIGKILL` after 1.5s with no typed cause, stage, or cleanup contract | Unbounded memory; orphan timers/listeners; opaque cancellation |
+| Abort before spawn failure | A pre-aborted signal combined with a missing executable can propagate `SIGINT` to the caller/process group before the child emits its spawn error; characterization must isolate this probe in a detached group | The orchestrator itself can be interrupted instead of receiving a typed spawn/cancel result |
 | Adapter runtime | `runProcess` returns complete buffers; fixture harness replays whole files at once | Adapters can depend on final buffers instead of incremental events |
 | Controller deadlines | `send`, `ask`, `runReview`, and `remediate` share no common producer/review/remediation deadline policy | Turns can run indefinitely; timeout competes with fallback and persistence |
 | Workspace measurement | `workspaceFingerprint()` returns `undefined` outside Git; controller treats `undefined` before/after as changed for writable modes | Non-Git workspaces get false-positive change and cannot prove review freshness |
