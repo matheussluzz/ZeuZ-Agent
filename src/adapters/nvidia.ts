@@ -116,7 +116,8 @@ export function runSandboxedCommand(cwd: string, command: string, mode: Permissi
   }
 
   const env = sanitizedChildEnvironment({ ZEUZ_DELEGATION_DEPTH: process.env.ZEUZ_DELEGATION_DEPTH ?? '0' });
-  let executable = '/bin/zsh';
+  const portableShell = '/bin/sh';
+  let executable = portableShell;
   let args = ['-lc', command];
 
   if (mode !== 'yolo') {
@@ -145,7 +146,7 @@ export function runSandboxedCommand(cwd: string, command: string, mode: Permissi
       : '';
     const profile = `(version 1)\n(allow default)\n(deny file-read-data (subpath "${escapedHome}"))\n(allow file-read-data (subpath "${escapedRoot}"))\n${runtimeAllows}\n${privateReadDenials}\n(deny file-write*)\n${writeRules}`;
     executable = sandbox;
-    args = ['-p', profile, '/bin/zsh', '-fc', command];
+    args = ['-p', profile, portableShell, '-fc', command];
   }
 
   const result = spawnSync(executable, args, { cwd, env, encoding: 'utf8', timeout: 180_000, maxBuffer: MAX_TOOL_OUTPUT * 2 });

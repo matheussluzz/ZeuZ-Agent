@@ -83,7 +83,7 @@ test('direct NVIDIA paths reject external roots and escaping symlinks', async ()
   assert.throws(() => safeWorkspacePath(root, 'escape-link'), /Symlink escapes the active workspace/);
 });
 
-test('direct NVIDIA shell subprocesses receive a sanitized synthetic environment', async () => {
+test('direct NVIDIA yolo shell is portable and receives a sanitized synthetic environment', async () => {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-nvidia-env-'));
   roots.push(root);
   const previous = process.env.ZEUZ_TEST_API_KEY;
