@@ -12,30 +12,30 @@ This checklist is the persistent execution record for Wave 01. Check an item onl
 
 ## Architecture
 
-- [ ] Add deterministic clock, ID, and fingerprint interfaces with production defaults.
-- [ ] Add injectable adapter registry/factory and process boundaries without changing zero-argument behavior.
-- [ ] Add injectable session/task stores and controller dependencies without a state migration.
-- [ ] Extract the UI-independent command parser/dispatcher foundation only.
-- [ ] Define sanitized fixture formats and an explicitly gated real-smoke entry point.
+- [x] Add deterministic clock, ID, and fingerprint interfaces with production defaults.
+- [x] Add injectable adapter registry/factory and process boundaries without changing zero-argument behavior.
+- [x] Add injectable session/task stores and controller dependencies without a state migration.
+- [x] Extract the UI-independent command parser/dispatcher foundation only.
+- [x] Define sanitized fixture formats and an explicitly gated real-smoke entry point.
 
 ## Engineering
 
-- [ ] Add characterization tests before production seam changes.
-- [ ] Cover default primary and explicit session-model selection.
-- [ ] Cover safe primary fallback and prove changed/unmeasurable workspaces are never replayed.
-- [ ] Cover mandatory review, remediation/re-review, and persistence.
-- [ ] Add valid, invalid, alias, and ambiguous command parser/dispatcher tests.
-- [ ] Add sanitized fixtures/tests for Codex, Cursor, Claude, Copilot, Agy, and NVIDIA.
-- [ ] Add compatibility-wrapper and rollback tests/documentation.
-- [ ] Add opt-in real adapter smokes outside deterministic CI.
-- [ ] Open the draft PR after the first reviewed commit; keep body, commits, and checks current.
+- [x] Add characterization tests before production seam changes.
+- [x] Cover default primary and explicit session-model selection.
+- [x] Cover safe primary fallback and prove changed/unmeasurable workspaces are never replayed.
+- [x] Cover mandatory review, remediation/re-review, and persistence.
+- [x] Add valid, invalid, alias, and ambiguous command parser/dispatcher tests.
+- [x] Add sanitized fixtures/tests for Codex, Cursor, Claude, Copilot, Agy, and NVIDIA.
+- [x] Add compatibility-wrapper and rollback tests/documentation.
+- [x] Add opt-in real adapter smokes outside deterministic CI.
+- [x] Open the draft PR after the first reviewed commit; keep body, commits, and checks current.
 
 ## Reviewer
 
-- [ ] Run focused deterministic tests.
-- [ ] Run `pnpm secrets:check` before every commit and push, recording policy blockers.
-- [ ] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` without bypassing supply-chain policy.
-- [ ] Run proportional opt-in real smokes only after a fresh health check and report them separately.
+- [x] Run focused deterministic tests.
+- [x] Run `pnpm secrets:check` before every commit and push, recording policy blockers.
+- [x] Run `pnpm check`, `pnpm build`, and `node bin/zeuz health` without bypassing supply-chain policy.
+- [x] Run proportional opt-in real smokes only after a fresh health check and report them separately.
 - [ ] Attempt the official Medusa flow and preserve formal `REVIEW_BLOCKED` if sensitive-template classification blocks it.
 - [ ] Obtain a fresh read-only adversarial review from a different model family.
 - [ ] Remediate every valid finding and obtain a second review when required.

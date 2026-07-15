@@ -1,17 +1,30 @@
-import { randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { redactSecrets } from './redact.js';
+import { systemRuntime, type RuntimeSeams } from './runtime.js';
 import { stateDirectory } from './session-store.js';
 import type { PermissionMode, TaskRecord } from './types.js';
 
 const MAX_DELEGATES = 3;
 const STALE_LOCK_MS = 30 * 60 * 1000;
 
+export interface TaskStoreOptions {
+  root?: string;
+  runtime?: RuntimeSeams;
+}
+
 export class TaskStore {
-  private readonly tasksDir = join(stateDirectory(), 'tasks');
-  private readonly runtimeDir = join(stateDirectory(), 'runtime');
+  private readonly tasksDir: string;
+  private readonly runtimeDir: string;
+  private readonly runtime: RuntimeSeams;
+
+  constructor(options: TaskStoreOptions = {}) {
+    const root = options.root ?? stateDirectory();
+    this.runtime = options.runtime ?? systemRuntime;
+    this.tasksDir = join(root, 'tasks');
+    this.runtimeDir = join(root, 'runtime');
+  }
 
   async initialize(): Promise<void> {
     await mkdir(this.tasksDir, { recursive: true, mode: 0o700 });
@@ -20,9 +33,9 @@ export class TaskStore {
 
   async create(input: { parentSessionId?: string; modelId: string; prompt: string; cwd: string; mode: PermissionMode }): Promise<TaskRecord> {
     await this.initialize();
-    const timestamp = new Date().toISOString();
+    const timestamp = this.runtime.now();
     const task: TaskRecord = {
-      id: randomUUID(),
+      id: this.runtime.newId(),
       modelId: input.modelId,
       prompt: redactSecrets(input.prompt),
       cwd: input.cwd,
@@ -38,7 +51,7 @@ export class TaskStore {
 
   async save(task: TaskRecord): Promise<void> {
     await this.initialize();
-    task.updatedAt = new Date().toISOString();
+    task.updatedAt = this.runtime.now();
     const target = join(this.tasksDir, `${task.id}.json`);
     const temporary = `${target}.${process.pid}.tmp`;
     await writeFile(temporary, `${redactSecrets(JSON.stringify(task, null, 2))}\n`, { mode: 0o600 });
@@ -66,7 +79,7 @@ export class TaskStore {
         const lockPath = join(this.runtimeDir, `delegate-${slot}.lock`);
         try {
           const handle = await open(lockPath, 'wx', 0o600);
-          await handle.writeFile(`${process.pid}\n${Date.now()}\n`);
+          await handle.writeFile(`${process.pid}\n${this.runtime.nowMs()}\n`);
           await handle.close();
           return async () => await rm(lockPath, { force: true });
         } catch (error) {
@@ -74,7 +87,7 @@ export class TaskStore {
           if (code !== 'EEXIST') throw error;
           try {
             const info = await stat(lockPath);
-            if (Date.now() - info.mtimeMs > STALE_LOCK_MS) await rm(lockPath, { force: true });
+            if (this.runtime.nowMs() - info.mtimeMs > STALE_LOCK_MS) await rm(lockPath, { force: true });
           } catch {
             // Another process may have released the slot.
           }

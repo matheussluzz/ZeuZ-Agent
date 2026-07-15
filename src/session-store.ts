@@ -1,32 +1,39 @@
-import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 
 import { DEFAULT_MODEL_ID } from './catalog.js';
 import { redactSecrets } from './redact.js';
+import { systemRuntime, type RuntimeSeams } from './runtime.js';
 import type { PermissionMode, SessionMessage, ZeuzSession } from './types.js';
 
 export function stateDirectory(): string {
   return process.env.ZEUZ_STATE_DIR ?? join(homedir(), '.agents');
 }
 
-function now(): string {
-  return new Date().toISOString();
+export interface SessionStoreOptions {
+  root?: string;
+  runtime?: RuntimeSeams;
 }
 
-export function makeMessage(role: SessionMessage['role'], content: string, modelId?: string): SessionMessage {
+export function makeMessage(role: SessionMessage['role'], content: string, modelId?: string, runtime: RuntimeSeams = systemRuntime): SessionMessage {
   return {
-    id: randomUUID(),
+    id: runtime.newId(),
     role,
     content: redactSecrets(content),
-    createdAt: now(),
+    createdAt: runtime.now(),
     ...(modelId ? { modelId } : {}),
   };
 }
 
 export class SessionStore {
-  private readonly sessionsDir = join(stateDirectory(), 'sessions');
+  private readonly sessionsDir: string;
+  private readonly runtime: RuntimeSeams;
+
+  constructor(options: SessionStoreOptions = {}) {
+    this.runtime = options.runtime ?? systemRuntime;
+    this.sessionsDir = join(options.root ?? stateDirectory(), 'sessions');
+  }
 
   async initialize(): Promise<void> {
     await mkdir(this.sessionsDir, { recursive: true, mode: 0o700 });
@@ -34,9 +41,9 @@ export class SessionStore {
 
   async create(cwd: string, options: { title?: string; modelId?: string; mode?: PermissionMode; parentId?: string; summary?: string; messages?: SessionMessage[]; userSlug?: string } = {}): Promise<ZeuzSession> {
     await this.initialize();
-    const timestamp = now();
+    const timestamp = this.runtime.now();
     const session: ZeuzSession = {
-      id: randomUUID(),
+      id: this.runtime.newId(),
       title: options.title ?? (basename(cwd) || 'ZeuZ session'),
       cwd,
       activeModelId: options.modelId ?? DEFAULT_MODEL_ID,
@@ -55,7 +62,7 @@ export class SessionStore {
 
   async save(session: ZeuzSession): Promise<void> {
     await this.initialize();
-    session.updatedAt = now();
+    session.updatedAt = this.runtime.now();
     const target = this.pathFor(session.id);
     const temporary = `${target}.${process.pid}.tmp`;
     const serialized = redactSecrets(JSON.stringify(session, null, 2));
@@ -93,7 +100,7 @@ export class SessionStore {
       mode: session.permissionMode,
       parentId: session.id,
       ...(session.summary ? { summary: session.summary } : {}),
-      messages: session.messages.map((message) => ({ ...message, id: randomUUID() })),
+      messages: session.messages.map((message) => ({ ...message, id: this.runtime.newId() })),
       ...(session.userSlug ? { userSlug: session.userSlug } : {}),
     });
   }

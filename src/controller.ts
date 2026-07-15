@@ -1,19 +1,30 @@
-import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
 import { realpath, stat } from 'node:fs/promises';
 
 import { AdapterRegistry } from './adapters/index.js';
 import { DEFAULT_MODEL_ID, MODEL_CATALOG, isConfigured, requireModel } from './catalog.js';
-import { currentBranch, gitDiff, gitStatus, listBranches, switchBranch, workspaceFingerprint } from './git.js';
+import { currentBranch, gitDiff, gitStatus, listBranches, switchBranch } from './git.js';
 import { buildTurnPrompt, reviewPrompt, reviewerFor } from './orchestration.js';
 import { defaultUserSlug, WorkspaceContextManager } from './context.js';
 import { redactSecrets } from './redact.js';
 import { makeMessage, SessionStore } from './session-store.js';
 import { SkillRegistry } from './skills.js';
+import { measurablyUnchanged, systemRuntime, type RuntimeSeams } from './runtime.js';
 import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ProviderId, ReviewFinding, ReviewResult, RunRequest, RunResult, TurnOutcome, WorkspaceBootstrap, ZeuzSession } from './types.js';
 
 type EventSink = (event: AgentEvent) => void;
+type SessionRepository = Pick<SessionStore, 'initialize' | 'create' | 'save' | 'load' | 'list' | 'fork'>;
+type ContextProvider = Pick<WorkspaceContextManager, 'load' | 'initialize' | 'updateHandoff'>;
+type SkillProvider = Pick<SkillRegistry, 'contextFor' | 'list'>;
+
+export interface ControllerDependencies {
+  sessions: SessionRepository;
+  registry: AdapterRegistry;
+  contexts: ContextProvider;
+  skills: SkillProvider;
+  runtime: RuntimeSeams;
+}
 
 function emit(sink: EventSink | undefined, event: AgentEvent): void {
   sink?.(event);
@@ -70,20 +81,39 @@ function parseReview(raw: string, reviewerModelId: string): ReviewResult {
 }
 
 export class ZeuzController {
-  readonly sessions = new SessionStore();
-  readonly registry = new AdapterRegistry();
-  readonly contexts = new WorkspaceContextManager();
-  readonly skills = new SkillRegistry();
+  readonly sessions: SessionRepository;
+  readonly registry: AdapterRegistry;
+  readonly contexts: ContextProvider;
+  readonly skills: SkillProvider;
   session: ZeuzSession;
   bootstrap: WorkspaceBootstrap;
+  private readonly runtime: RuntimeSeams;
 
-  private constructor(session: ZeuzSession, bootstrap: WorkspaceBootstrap) {
+  private constructor(session: ZeuzSession, bootstrap: WorkspaceBootstrap, dependencies: ControllerDependencies) {
     this.session = session;
     this.bootstrap = bootstrap;
+    this.sessions = dependencies.sessions;
+    this.registry = dependencies.registry;
+    this.contexts = dependencies.contexts;
+    this.skills = dependencies.skills;
+    this.runtime = dependencies.runtime;
   }
 
-  static async create(cwd: string, options: { sessionId?: string; modelId?: string; mode?: PermissionMode } = {}): Promise<ZeuzController> {
-    const store = new SessionStore();
+  static async create(
+    cwd: string,
+    options: { sessionId?: string; modelId?: string; mode?: PermissionMode } = {},
+    overrides: Partial<ControllerDependencies> = {},
+  ): Promise<ZeuzController> {
+    const runtime = overrides.runtime ?? systemRuntime;
+    const store = overrides.sessions ?? new SessionStore({ runtime });
+    const contexts = overrides.contexts ?? new WorkspaceContextManager();
+    const dependencies: ControllerDependencies = {
+      sessions: store,
+      registry: overrides.registry ?? new AdapterRegistry(),
+      contexts,
+      skills: overrides.skills ?? new SkillRegistry(),
+      runtime,
+    };
     await store.initialize();
     const session = options.sessionId
       ? await store.load(options.sessionId)
@@ -92,9 +122,9 @@ export class ZeuzController {
         mode: options.mode ?? 'agent',
       });
     session.userSlug ??= defaultUserSlug();
-    const bootstrap = await new WorkspaceContextManager().load(session.cwd, session.userSlug, { initializeHandoff: session.permissionMode !== 'plan' });
+    const bootstrap = await contexts.load(session.cwd, session.userSlug, { initializeHandoff: session.permissionMode !== 'plan' });
     await store.save(session);
-    return new ZeuzController(session, bootstrap);
+    return new ZeuzController(session, bootstrap, dependencies);
   }
 
   activeModel(): ModelProfile {
@@ -104,14 +134,14 @@ export class ZeuzController {
   async send(userText: string, onEvent?: EventSink): Promise<TurnOutcome> {
     await this.refreshBootstrap(this.session.permissionMode);
     const primary = this.activeModel();
-    const before = workspaceFingerprint(this.session.cwd);
+    const before = this.runtime.fingerprint(this.session.cwd);
     const resumeId = this.session.providerSessions[primary.id];
     const includeHandoff = !resumeId || this.session.lastUsedModelId !== primary.id;
     const skillContext = await this.skills.contextFor(userText);
     const prompt = buildTurnPrompt({ session: this.session, model: primary, userText, includeHandoff, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
     await this.recordHandoff(userText, primary.id, this.session.permissionMode, 'in_progress', onEvent);
 
-    this.session.messages.push(makeMessage('user', userText));
+    this.session.messages.push(this.message('user', userText));
     await this.sessions.save(this.session);
     emit(onEvent, { type: 'status', text: `${primary.label} is working` });
 
@@ -128,7 +158,7 @@ export class ZeuzController {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const unchanged = before === workspaceFingerprint(this.session.cwd);
+      const unchanged = measurablyUnchanged(before, this.runtime.fingerprint(this.session.cwd));
       if (primary.family !== 'GPT-5.6 Sol' || !unchanged || !/(?:not found|unavailable|rate.?limit|quota|\b429\b|authentication|unauthorized|model.+(?:missing|not))/i.test(message)) throw error;
       producer = await this.fableFallback();
       emit(onEvent, { type: 'warning', text: `${primary.label} is unavailable (${message}). Falling back explicitly to ${producer.label}.` });
@@ -136,7 +166,7 @@ export class ZeuzController {
       try {
         result = await this.run(producer.provider, { model: producer, prompt: fallbackPrompt, cwd: this.session.cwd, mode: this.session.permissionMode, ...(onEvent ? { onEvent } : {}) });
       } catch (fallbackError) {
-        const fallbackUnchanged = before === workspaceFingerprint(this.session.cwd);
+        const fallbackUnchanged = measurablyUnchanged(before, this.runtime.fingerprint(this.session.cwd));
         if (producer.provider !== 'claude' || !fallbackUnchanged) throw fallbackError;
         const directFailure = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
         producer = requireModel('cursor:claude-fable-5-thinking-high');
@@ -147,10 +177,10 @@ export class ZeuzController {
     }
 
     this.recordRun(producer, result);
-    this.session.messages.push(makeMessage('assistant', result.text, producer.id));
+    this.session.messages.push(this.message('assistant', result.text, producer.id));
     await this.sessions.save(this.session);
 
-    const after = workspaceFingerprint(this.session.cwd);
+    const after = this.runtime.fingerprint(this.session.cwd);
     const changedWorkspace = before === undefined ? this.session.permissionMode !== 'plan' : before !== after;
     let response = result.text;
     let review: ReviewResult | undefined;
@@ -175,7 +205,7 @@ export class ZeuzController {
   async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode): Promise<TurnOutcome> {
     await this.refreshBootstrap(mode);
     const model = requireModel(modelQuery);
-    const before = workspaceFingerprint(this.session.cwd);
+    const before = this.runtime.fingerprint(this.session.cwd);
     const skillContext = await this.skills.contextFor(task);
     const prompt = buildTurnPrompt({ session: this.session, model, userText: task, includeHandoff: true, mode, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
     await this.recordHandoff(task, model.id, mode, 'in_progress', onEvent);
@@ -187,11 +217,11 @@ export class ZeuzController {
       mode,
       ...(onEvent ? { onEvent } : {}),
     });
-    this.session.messages.push(makeMessage('system', `Delegated to ${model.id}: ${task}`));
-    this.session.messages.push(makeMessage('assistant', result.text, model.id));
+    this.session.messages.push(this.message('system', `Delegated to ${model.id}: ${task}`));
+    this.session.messages.push(this.message('assistant', result.text, model.id));
     await this.sessions.save(this.session);
 
-    const after = workspaceFingerprint(this.session.cwd);
+    const after = this.runtime.fingerprint(this.session.cwd);
     const changedWorkspace = before === undefined ? mode !== 'plan' : before !== after;
     let response = result.text;
     let review: ReviewResult | undefined;
@@ -218,7 +248,7 @@ export class ZeuzController {
   async compact(onEvent?: EventSink): Promise<string> {
     if (this.session.messages.length === 0) {
       this.session.summary = 'No conversation content yet.';
-      this.session.summaryUpdatedAt = new Date().toISOString();
+      this.session.summaryUpdatedAt = this.runtime.now();
       await this.sessions.save(this.session);
       return this.session.summary;
     }
@@ -243,7 +273,7 @@ export class ZeuzController {
       this.session.summary = fallbackSummary(this.session);
       emit(onEvent, { type: 'warning', text: `Model compaction failed; deterministic fallback used: ${error instanceof Error ? error.message : String(error)}` });
     }
-    this.session.summaryUpdatedAt = new Date().toISOString();
+    this.session.summaryUpdatedAt = this.runtime.now();
     await this.sessions.save(this.session);
     return this.session.summary;
   }
@@ -352,7 +382,7 @@ export class ZeuzController {
       const nvidiaModels = MODEL_CATALOG.filter((model) => model.provider === 'nvidia');
       const checks = await Promise.all(nvidiaModels.map(async (model) => {
         if (!isConfigured(model)) return `${'SKIP'.padEnd(5)} ${model.id} — missing ${model.apiKeyEnv}`;
-        const started = Date.now();
+        const started = this.runtime.nowMs();
         try {
           await this.run('nvidia', {
             model,
@@ -362,7 +392,7 @@ export class ZeuzController {
             signal: AbortSignal.timeout(45_000),
             ...(onEvent ? { onEvent } : {}),
           });
-          return `${'PASS'.padEnd(5)} ${model.id} — ${Date.now() - started}ms`;
+          return `${'PASS'.padEnd(5)} ${model.id} — ${this.runtime.nowMs() - started}ms`;
         } catch (error) {
           return `${'FAIL'.padEnd(5)} ${model.id} — ${error instanceof Error ? error.message : String(error)}`;
         }
@@ -399,7 +429,7 @@ export class ZeuzController {
 
   async branch(name: string): Promise<string> {
     const result = switchBranch(this.session.cwd, name);
-    this.session.messages.push(makeMessage('system', result));
+    this.session.messages.push(this.message('system', result));
     await this.sessions.save(this.session);
     return result;
   }
@@ -415,7 +445,7 @@ export class ZeuzController {
     try {
       const originalRequest = [...this.session.messages].reverse().find((message) => message.role === 'user' || message.role === 'system');
       const producerDelivery = [...this.session.messages].reverse().find((message) => message.role === 'assistant');
-      const evidence = `\n\nMEDUSA EVIDENCE PACKET\nOriginal request:\n${originalRequest?.content ?? 'Unavailable'}\n\nProducer delivery:\n${producerDelivery?.content ?? 'Unavailable'}\n\nWorkspace fingerprint:\n${workspaceFingerprint(this.session.cwd) ?? 'Unavailable'}`;
+      const evidence = `\n\nMEDUSA EVIDENCE PACKET\nOriginal request:\n${originalRequest?.content ?? 'Unavailable'}\n\nProducer delivery:\n${producerDelivery?.content ?? 'Unavailable'}\n\nWorkspace fingerprint:\n${this.runtime.fingerprint(this.session.cwd) ?? 'Unavailable'}`;
       const result = await this.run(reviewer.provider, {
         model: reviewer,
         prompt: `${reviewPrompt(primary, this.session.cwd)}\n\n${await this.skills.contextFor('$medusa adversarial review') ?? ''}\n\nOriginal requirements and bootstrapped contract:\n${this.bootstrap.context}${evidence}`,
@@ -425,13 +455,13 @@ export class ZeuzController {
         ...(onEvent ? { onEvent } : {}),
       });
       const review = parseReview(result.text, reviewer.id);
-      this.session.messages.push(makeMessage('reviewer', review.raw, reviewer.id));
+      this.session.messages.push(this.message('reviewer', review.raw, reviewer.id));
       await this.sessions.save(this.session);
       return review;
     } catch (error) {
       const raw = `Reviewer execution failed: ${error instanceof Error ? error.message : String(error)}`;
       const review = parseReview(raw, reviewer.id);
-      this.session.messages.push(makeMessage('reviewer', raw, reviewer.id));
+      this.session.messages.push(this.message('reviewer', raw, reviewer.id));
       await this.sessions.save(this.session);
       return review;
     }
@@ -450,7 +480,7 @@ export class ZeuzController {
       ...(onEvent ? { onEvent } : {}),
     });
     this.recordRun(primary, result);
-    this.session.messages.push(makeMessage('assistant', result.text, primary.id));
+    this.session.messages.push(this.message('assistant', result.text, primary.id));
     await this.sessions.save(this.session);
     return result;
   }
@@ -499,5 +529,9 @@ export class ZeuzController {
     } catch (error) {
       throw new Error(redactSecrets(error instanceof Error ? error.message : String(error)));
     }
+  }
+
+  private message(role: Parameters<typeof makeMessage>[0], content: string, modelId?: string): ReturnType<typeof makeMessage> {
+    return makeMessage(role, content, modelId, this.runtime);
   }
 }

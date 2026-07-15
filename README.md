@@ -295,7 +295,7 @@ node bin/zeuz health
 
 ## Verified status and honest limitations
 
-The current macOS baseline verified Codex, Cursor, Copilot, and Antigravity with real local smoke tests. On the final deep NVIDIA check, GLM and DeepSeek passed; Kimi returned `404`, while MiniMax and Qwen exceeded the 45-second health timeout. All three remain unavailable until a later `health --deep` succeeds. The installed Claude Code `2.1.159` was below the documented Fable requirement and a real Haiku probe returned `401`; direct Claude routes therefore remain non-operational in this baseline and Fable falls back through Cursor.
+The 2026-07-15 macOS Wave 01 baseline ran explicit plan-mode real smokes after a fresh shallow health check. Codex Luna low, Cursor Composer fast, Copilot Haiku, Antigravity Flash low, and NVIDIA GLM passed. Direct Claude Haiku failed because its OAuth session was expired even though the version-only shallow health check passed; shallow health therefore does not prove authentication. The same session's deep NVIDIA probe passed GLM and Qwen, while DeepSeek returned no final response, Kimi returned `404`, and MiniMax returned `400`. These real smokes are diagnostics, not deterministic CI evidence, and route health must be rechecked before use.
 
 This is a public alpha, not a security boundary for hostile untrusted repositories. Review `yolo` usage and provider-native permissions accordingly.
 
@@ -310,6 +310,16 @@ pnpm test:mcp
 pnpm build
 pnpm check
 ```
+
+Deterministic tests replay the sanitized fixtures in `test/fixtures/adapters/` and never start providers. Real adapter smokes are supplemental, excluded from `pnpm check`, and require both an explicit opt-in and an explicit route list:
+
+```bash
+ZEUZ_REAL_SMOKE=1 \
+ZEUZ_SMOKE_MODELS=codex:gpt-5.6-sol@low,cursor:composer-2.5 \
+pnpm smoke:adapters
+```
+
+Real smokes recheck provider health, run in `plan` mode, may consume quota, and report only status, latency, and response length. They are not CI evidence.
 
 ```text
 src/adapters/          provider-specific CLI/API bridges
