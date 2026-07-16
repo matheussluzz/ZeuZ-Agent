@@ -79,7 +79,7 @@ Branch: `agent/wave-04-durable-task-engine`
 - [ ] Create a fresh Medusa request/criteria/delivery/verification packet over the final artifact.
 - [ ] Obtain read-only fresh-context cross-family reviews from Composer 2.5 and GLM 5.2 as selected for this session.
 - [ ] Remediate every valid `CHANGES_REQUIRED` finding and repeat independent review until `PASS`; treat unavailable/stale/invalid review as `REVIEW_BLOCKED`.
-- [x] First final packet `5fb82a3a...` reviewed by Composer 2.5 as `CHANGES_REQUIRED`; two GLM 5.2 attempts failed in the existing Copilot harness and were retained as `REVIEW_BLOCKED`, not converted to success.
+- [x] First final packet `5fb82a3a...` reviewed by Composer 2.5 as `CHANGES_REQUIRED`; three GLM 5.2 review attempts plus a minimal direct route probe failed in the existing Copilot harness and were retained as `REVIEW_BLOCKED`, not converted to success.
 - [x] Replace crash-leaking non-Git lock files with versioned CAS leases, heartbeat, conservative dead/ambiguous reclaim, and stale-owner-safe release; add maintenance-resume, oversized artifact, cancel/completion race, and restart lock regressions.
 
 ## Optimizer and delivery
