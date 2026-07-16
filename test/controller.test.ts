@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,6 +13,7 @@ import type { PartialDeadlineConfig } from '../src/deadline-policy.js';
 import { SessionStore } from '../src/session-store.js';
 import type { RuntimeSeams } from '../src/runtime.js';
 import type { AgentAdapter, AgentEvent, HealthResult, ProviderId, RunRequest, RunResult, WorkspaceBootstrap } from '../src/types.js';
+import { measureWorkspace } from '../src/workspace.js';
 
 const BOOTSTRAP: WorkspaceBootstrap = {
   userSlug: 'fixture-user',
@@ -94,6 +96,8 @@ function fakeRegistry(input: {
 
 async function harness(input: {
   fingerprints?: Array<string | undefined>;
+  measureWorkspace?: RuntimeSeams['measureWorkspace'];
+  workspace?: string;
   modelId?: string;
   mode?: 'plan' | 'agent' | 'yolo';
   run(request: RunRequest): Promise<RunResult>;
@@ -102,6 +106,7 @@ async function harness(input: {
 }): Promise<{ controller: ZeuzController; root: string }> {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-controller-'));
   const runtime = deterministicRuntime(input.fingerprints);
+  if (input.measureWorkspace) runtime.measureWorkspace = input.measureWorkspace;
   const sessions = new SessionStore({ root, runtime });
   const contexts: ControllerDependencies['contexts'] = {
     load: async () => BOOTSTRAP,
@@ -112,7 +117,7 @@ async function harness(input: {
     contextFor: async () => undefined,
     list: async () => [],
   };
-  const controller = await ZeuzController.create('/fixture-workspace', {
+  const controller = await ZeuzController.create(input.workspace ?? '/fixture-workspace', {
     ...(input.modelId ? { modelId: input.modelId } : {}),
     mode: input.mode ?? 'agent',
     ...(input.deadlines ? { deadlines: input.deadlines } : {}),
@@ -124,6 +129,70 @@ async function harness(input: {
     registry: fakeRegistry({ run: input.run, ...(input.health ? { health: input.health } : {}) }),
   });
   return { controller, root };
+}
+
+test('controller delivers an unchanged response when the tracked public secret scanner is present', async () => {
+  const workspace = await mkdtemp(join(tmpdir(), 'zeuz-controller-public-scanner-'));
+  execFileSync('git', ['init', '-q'], { cwd: workspace });
+  execFileSync('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd: workspace });
+  execFileSync('git', ['config', 'user.name', 'ZeuZ Fixture'], { cwd: workspace });
+  await mkdir(join(workspace, 'scripts'));
+  await writeFile(join(workspace, 'tracked.txt'), 'fixture\n');
+  await writeFile(join(workspace, 'scripts/check-secrets.mjs'), 'console.log("fixture");\n');
+  execFileSync('git', ['add', 'tracked.txt', 'scripts/check-secrets.mjs'], { cwd: workspace });
+  execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: workspace });
+
+  const { controller, root } = await harness({
+    workspace,
+    measureWorkspace,
+    run: async () => ({ text: 'controller response remains visible' }),
+  });
+  try {
+    const outcome = await controller.send('unchanged turn');
+    assert.equal(outcome.response, 'controller response remains visible');
+    assert.equal(outcome.changedWorkspace, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+for (const route of [
+  { modelId: 'codex:gpt-5.6-sol@medium', continuity: 'native' },
+  { modelId: 'cursor:composer-2.5', continuity: 'native' },
+  { modelId: 'claude:fable', continuity: 'native' },
+  { modelId: 'copilot:claude-sonnet-5', continuity: 'native' },
+  { modelId: 'nvidia:glm-5.2', continuity: 'native' },
+  { modelId: 'agy:gemini-3.5-flash@medium', continuity: 'transcript' },
+  { modelId: 'nvidia:qwen-3.5', continuity: 'transcript' },
+] as const) {
+  test(`${route.modelId} delivers a second turn through ${route.continuity} continuity`, async () => {
+    const calls: RunRequest[] = [];
+    const { controller, root } = await harness({
+      modelId: route.modelId,
+      run: async (request) => {
+        calls.push(request);
+        return {
+          text: calls.length === 1 ? 'first route response' : 'second route response',
+          ...(route.continuity === 'native' ? { nativeSessionId: 'native-route-session' } : {}),
+        };
+      },
+    });
+    try {
+      assert.equal((await controller.send('first route turn')).response, 'first route response');
+      assert.equal((await controller.send('second route turn')).response, 'second route response');
+      assert.equal(calls.length, 2);
+      if (route.continuity === 'native') {
+        assert.equal(calls[1]?.resumeId, 'native-route-session');
+      } else {
+        assert.equal(calls[1]?.resumeId, undefined);
+        assert.match(calls[1]?.prompt ?? '', /first route turn/);
+        assert.match(calls[1]?.prompt ?? '', /first route response/);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 }
 
 test('controller defaults to primary Sol and honors explicit session model selection', async () => {

@@ -106,7 +106,7 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   private newArgs(request: RunRequest): string[] {
-    const args = ['exec', '--json', '--skip-git-repo-check', '-C', request.cwd, '-m', request.model.model];
+    const args = ['exec', '--ignore-user-config', '--json', '--skip-git-repo-check', '-C', request.cwd, '-m', request.model.model];
     if (request.model.reasoningEffort) args.push('-c', `model_reasoning_effort=${JSON.stringify(request.model.reasoningEffort)}`);
     if (request.ephemeral) args.push('--ephemeral');
     args.push(...permissionArguments(this.provider, request.mode));
@@ -115,10 +115,9 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   private resumeArgs(request: RunRequest): string[] {
-    const args = ['exec', 'resume', '--json', '--skip-git-repo-check', '-m', request.model.model];
+    const args = [...permissionArguments(this.provider, request.mode, request.resumeId), 'exec', 'resume', '--ignore-user-config', '--json', '--skip-git-repo-check', '-m', request.model.model];
     if (request.model.reasoningEffort) args.push('-c', `model_reasoning_effort=${JSON.stringify(request.model.reasoningEffort)}`);
     if (request.ephemeral) args.push('--ephemeral');
-    args.push(...permissionArguments(this.provider, request.mode, request.resumeId));
     args.push(request.resumeId ?? '', request.prompt);
     return args;
   }

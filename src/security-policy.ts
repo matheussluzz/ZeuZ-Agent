@@ -5,6 +5,7 @@ const MEDUSA_SENSITIVE_PATH = /(^|\/)(\.env(?:\..*)?|lamine(?:\.[^/]*)?\.ya?ml|\
 const PUBLIC_TRACKED_TEMPLATES = new Set([
   '.env.example',
   'lamine.example.yaml',
+  'scripts/check-secrets.mjs',
   'templates/aws-athena-mcp/.env.example',
 ]);
 
@@ -21,9 +22,9 @@ export function isCredentialPath(path: string): boolean {
   return CREDENTIAL_PATH.test(path.replaceAll('\\', '/'));
 }
 
-export function isSensitiveWorkspacePath(path: string): boolean {
+export function isSensitiveWorkspacePath(path: string, options: { allowPublicTrackedPath?: boolean } = {}): boolean {
   const portable = path.replaceAll('\\', '/').replace(/^\.\//, '');
-  if (PUBLIC_TRACKED_TEMPLATES.has(portable)) return false;
+  if (options.allowPublicTrackedPath !== false && PUBLIC_TRACKED_TEMPLATES.has(portable)) return false;
   return isCredentialPath(portable) || MEDUSA_SENSITIVE_PATH.test(portable);
 }
 

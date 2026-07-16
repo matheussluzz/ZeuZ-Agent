@@ -43,6 +43,19 @@ test('state repository provides exclusive create and revision CAS', async () => 
   }
 });
 
+test('one repository instance initializes safely under concurrent first use', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-state-concurrent-init-'));
+  try {
+    const repository = new StateRepository({ root, collection: 'fixtures', runtime: runtime(), validate });
+    const records = Array.from({ length: 24 }, (_, index) => fixture(`concurrent-${index}`));
+    const created = await Promise.all(records.map(async (item) => await repository.create(item)));
+    assert.equal(created.length, records.length);
+    assert.deepEqual((await repository.listDetailed()).records.map((item) => item.id).sort(), records.map((item) => item.id).sort());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('two CAS writers with the same revision cannot both win', async () => {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-state-cas-race-'));
   try {

@@ -111,6 +111,7 @@ export class StateRepository<T extends VersionedStateRecord> {
   private locksDir?: string;
   private backupsDir?: string;
   private quarantineDir?: string;
+  private initialization: Promise<void> | undefined;
   private readonly options: StateRepositoryOptions<T>;
   private readonly lockLeaseMs: number;
 
@@ -122,12 +123,26 @@ export class StateRepository<T extends VersionedStateRecord> {
   }
 
   async initialize(): Promise<void> {
-    if (this.root) return;
-    this.root = await ensureStateContainerDirectory(this.options.root);
-    this.collectionDir = await ensurePrivateStateDirectory(join(this.root, this.options.collection), this.root);
-    this.locksDir = await ensurePrivateStateDirectory(join(this.root, 'locks', this.options.collection), this.root);
-    this.backupsDir = await ensurePrivateStateDirectory(join(this.root, 'backups', this.options.collection), this.root);
-    this.quarantineDir = await ensurePrivateStateDirectory(join(this.root, 'quarantine', this.options.collection), this.root);
+    if (!this.initialization) {
+      this.initialization = this.initializeOnce().catch((error: unknown) => {
+        this.initialization = undefined;
+        throw error;
+      });
+    }
+    await this.initialization;
+  }
+
+  private async initializeOnce(): Promise<void> {
+    const root = await ensureStateContainerDirectory(this.options.root);
+    const collectionDir = await ensurePrivateStateDirectory(join(root, this.options.collection), root);
+    const locksDir = await ensurePrivateStateDirectory(join(root, 'locks', this.options.collection), root);
+    const backupsDir = await ensurePrivateStateDirectory(join(root, 'backups', this.options.collection), root);
+    const quarantineDir = await ensurePrivateStateDirectory(join(root, 'quarantine', this.options.collection), root);
+    this.root = root;
+    this.collectionDir = collectionDir;
+    this.locksDir = locksDir;
+    this.backupsDir = backupsDir;
+    this.quarantineDir = quarantineDir;
   }
 
   async create(record: T): Promise<T> {

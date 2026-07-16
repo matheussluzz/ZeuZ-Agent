@@ -222,6 +222,41 @@ test('NvidiaAdapter replays GLM fixture through injected Copilot path', async ()
   assert.ok(events.some((event) => event.type === 'tool' && event.text === 'zeuz-fixture-read_file'));
 });
 
+test('NVIDIA Copilot route preserves a bounded redacted provider failure diagnostic', async () => {
+  const fixtureToken = ['nvapi', 'fixture-token-1234567890'].join('-');
+  const runtime = createFixtureRuntime(
+    { copilot: { file: 'nvidia.jsonl', mode: 'jsonl' } },
+    {
+      runProcess: async (_command, _args, options) => {
+        options.onStdoutLine?.(JSON.stringify({
+          type: 'provider.error',
+          data: { message: `NVIDIA HTTP 429 for ${fixtureToken}` },
+        }));
+        return { exitCode: 1, stdout: '', stderr: '' };
+      },
+    },
+  );
+  const copilot = new CopilotAdapter({ provider: 'nvidia', nvidia: true, runtime });
+  const glm = MODEL_CATALOG.find((model) => model.id === 'nvidia:glm-5.2');
+  assert.ok(glm);
+
+  await assert.rejects(
+    () => new NvidiaAdapter({ runtime, copilot }).run({
+      model: glm,
+      prompt: 'synthetic provider failure',
+      cwd: FIXTURE_DIR,
+      mode: 'plan',
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /^nvidia exited with code 1: NVIDIA HTTP 429/);
+      assert.match(error.message, /<redacted:secret>/);
+      assert.equal(error.message.includes(fixtureToken), false);
+      return true;
+    },
+  );
+});
+
 test('AgyAdapter replays sanitized plain-text fixture', async () => {
   const runtime = createFixtureRuntime({ agy: { file: 'agy.txt', mode: 'text' } });
   const { result, events } = await runFixture(new AgyAdapter(runtime), testModel('agy'));
@@ -313,9 +348,23 @@ test('Codex resume reapplies the requested plan sandbox', async () => {
     resumeId: 'existing-thread',
   });
 
-  assert.deepEqual(args.slice(0, 5), ['exec', 'resume', '--json', '--skip-git-repo-check', '-m']);
+  assert.deepEqual(args.slice(0, 8), ['-s', 'read-only', 'exec', 'resume', '--ignore-user-config', '--json', '--skip-git-repo-check', '-m']);
   assert.equal(args.includes('-s'), true);
   assert.equal(args.includes('read-only'), true);
+});
+
+test('Codex new and resumed turns ignore inherited user MCP configuration', async () => {
+  for (const resumeId of [undefined, 'existing-thread']) {
+    const runtime = createFixtureRuntime({ codex: { file: 'codex.jsonl', mode: 'jsonl' } });
+    const args = await capturedArgs({
+      adapter: new CodexAdapter(runtime),
+      model: testModel('codex'),
+      runtime,
+      mode: 'agent',
+      ...(resumeId ? { resumeId } : {}),
+    });
+    assert.equal(args.filter((arg) => arg === '--ignore-user-config').length, 1);
+  }
 });
 
 test('CursorAdapter rejects fixture without final response', async () => {
