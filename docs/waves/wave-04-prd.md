@@ -140,7 +140,7 @@ The characterization commit must pass against `b3645f1` and precede all producti
 | Task policy | transitions, dependencies, retry, liveness/reclaim decisions | pure `task-state`, `task-policy`, `lease-policy` |
 | Task persistence | task snapshots, transition history, claim/cancel/terminal APIs | redesigned `task-store` |
 | Results/artifacts | bounded result bytes and validated reference manifests | `task-result-store`, `artifact-policy` |
-| Isolation | workspace identity, Git preflight/worktrees, non-Git exclusive key | `worktree-manager`, existing `workspace` |
+| Isolation | workspace identity, Git preflight/worktrees, non-Git versioned lease/CAS/heartbeat/reclaim | `worktree-manager`, `workspace-lock-store`, existing `workspace` |
 | Runtime | scheduler, worker claim/heartbeat/sweep, cross-process cancel observation, execution outcome | `task-engine`, `task-worker` |
 | Launch/CLI | detached child spawn and task subcommands/compatibility | `worker-launcher`, `cli` |
 

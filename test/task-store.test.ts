@@ -142,6 +142,26 @@ test('cancel and completion terminal intents are idempotent only when equivalent
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('concurrent cancel and completion CAS produces one terminal winner', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-terminal-cancel-complete-'));
+  try {
+    const store = new TaskStore({ root, runtime: runtime() });
+    const queued = await store.create(input('terminal race'));
+    const running = await store.claim(queued.id, queued.revision, TaskStore.localOwner('owner', 'instance'), 120_000);
+    const result = await new TaskResultStore({ root, now: () => NOW }).persist(running.id, running.attempt, 'complete');
+    const snapshot = { policy: 'wave-03-v1' as const, kind: 'git' as const, measurable: true, fingerprint: 'same' };
+    const settled = await Promise.allSettled([
+      store.requestCancel(running.id),
+      store.complete(running.id, running.revision, 'owner', running.lease!.fencingToken, running.lease!.maintenanceEpoch, { result, artifacts: [], attemptEvidence: { before: snapshot, after: snapshot, state: 'unchanged' } }),
+    ]);
+    assert.equal(settled.filter((item) => item.status === 'fulfilled').length, 1);
+    let winner = await store.load(running.id);
+    if (winner.status === 'running') winner = await store.cancelRunning(winner.id, winner.revision, 'owner', running.lease!.fencingToken, running.lease!.maintenanceEpoch);
+    assert.equal(['completed', 'cancelled'].includes(winner.status), true);
+    assert.equal(winner.transitions.filter((transition) => ['completed', 'cancelled', 'failed'].includes(transition.to)).length, 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('concurrent orphan reclaim admits one proven-dead expired owner and fences the loser', async () => {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-task-reclaim-race-'));
   try {

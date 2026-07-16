@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, symlink } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, realpath, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -7,9 +8,11 @@ import test from 'node:test';
 
 import { TaskEngine, parseGitArtifactEntries, probeOwner, type TaskExecutor, type WorkerLauncher } from '../src/task-engine.js';
 import { TaskStore } from '../src/task-store.js';
+import { TaskScheduler } from '../src/task-scheduler.js';
 import type { DurableTaskRecord } from '../src/task-schema.js';
 import type { RuntimeSeams } from '../src/runtime.js';
 import type { WorkspaceSnapshot } from '../src/workspace.js';
+import { WorkspaceLockStore } from '../src/workspace-lock-store.js';
 
 const NOW = '2026-01-02T03:04:05.000Z';
 const unchanged: WorkspaceSnapshot = { policy: 'wave-03-v1', kind: 'non_git', measurable: true, fingerprint: 'same' };
@@ -149,6 +152,33 @@ test('plan workspace mutation blocks completion and cross-process cancel reaches
   }
 });
 
+test('internal heartbeat failure aborts execution without inventing user cancellation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-engine-heartbeat-failure-'));
+  const workspace = await mkdtemp(join(tmpdir(), 'zeuz-engine-heartbeat-workspace-'));
+  try {
+    const rt = runtime();
+    const scheduler = new TaskScheduler(root, rt);
+    scheduler.heartbeat = async () => { throw Object.assign(new Error('scheduler heartbeat failed'), { code: 'STALE_SCHEDULER_OWNER' }); };
+    const started = deferred();
+    const engine = new TaskEngine({
+      root,
+      runtime: rt,
+      scheduler,
+      launcher: new RecordingLauncher(false),
+      heartbeatMs: 10,
+      leaseMs: 100,
+      executor: { execute: async (_task, _cwd, signal) => { started.resolve(); await new Promise<void>((_resolvePromise, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })); throw new Error('unreachable'); } },
+    });
+    const submitted = (await engine.submit({ modelId: 'codex:gpt-5.6-luna@high', prompt: 'heartbeat failure', cwd: workspace, mode: 'plan' })).task;
+    const worker = engine.runOne(submitted.id);
+    await started.promise;
+    const failed = await worker;
+    assert.equal(failed.status, 'failed');
+    assert.equal(failed.errorCode, 'STALE_SCHEDULER_OWNER');
+    assert.equal(failed.cancelRequestedAt, undefined);
+  } finally { await rm(root, { recursive: true, force: true }); await rm(workspace, { recursive: true, force: true }); }
+});
+
 test('retry succeeds after typed transient failure while non-retryable errors settle failed', async () => {
   const workspace = await mkdtemp(join(tmpdir(), 'zeuz-engine-retry-workspace-'));
   const retryRoot = await mkdtemp(join(tmpdir(), 'zeuz-engine-retry-'));
@@ -200,6 +230,22 @@ test('startup recovery reclaims only expired proven-dead owners and fences the o
   } finally { await rm(root, { recursive: true, force: true }); await rm(workspace, { recursive: true, force: true }); }
 });
 
+test('automatic migration failure stays fenced and the next recovery resumes the same operation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-engine-maintenance-resume-'));
+  try {
+    const rt = runtime();
+    const store = new TaskStore({ root, runtime: rt });
+    const migrate = store.migrateRecordsInMaintenance.bind(store);
+    let failures = 1;
+    store.migrateRecordsInMaintenance = async () => { if (failures-- > 0) throw new Error('injected migration failure'); return await migrate(); };
+    const engine = new TaskEngine({ root, runtime: rt, store, launcher: new RecordingLauncher(false) });
+    await assert.rejects(() => engine.recover(), /injected migration failure/);
+    await assert.rejects(() => store.create({ modelId: 'codex:gpt-5.6-luna@high', prompt: 'paused', cwd: root, mode: 'plan' }), (error: unknown) => Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'MAINTENANCE_ACTIVE'));
+    assert.deepEqual(await engine.recover(), { launched: 0, reclaimed: 0, blocked: 0 });
+    assert.equal((await store.create({ modelId: 'codex:gpt-5.6-luna@high', prompt: 'resumed', cwd: root, mode: 'plan' })).status, 'queued');
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('owner probe maps injected alive, EPERM, ESRCH, and remote-host evidence conservatively', () => {
   const localHost = 'local';
   assert.equal(probeOwner(localHost, 1, { localHost, signal: () => undefined }), 'alive');
@@ -246,6 +292,31 @@ test('non-Git editing serializes canonical workspace aliases', async () => {
     assert.equal((await firstWorker).status, 'completed');
     assert.equal((await engine.runOne(second.id)).status, 'completed');
   } finally { await rm(root, { recursive: true, force: true }); await rm(workspace, { recursive: true, force: true }); await rm(aliasRoot, { recursive: true, force: true }); }
+});
+
+test('non-Git worker restart reclaims a dead expired lock and blocks ambiguous ownership', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'zeuz-engine-nongit-recovery-'));
+  const workspace = await mkdtemp(join(tmpdir(), 'zeuz-engine-nongit-recovery-workspace-'));
+  try {
+    const clock = mutableRuntime();
+    const canonical = await realpath(workspace);
+    const key = createHash('sha256').update(canonical).digest('hex');
+    const staleStore = new WorkspaceLockStore(root, clock.runtime, () => 'dead');
+    assert.equal((await staleStore.acquire(key, canonical, 'crashed-task', { ownerId: 'dead-owner', ownerPid: 42, hostId: 'local' }, 100)).status, 'acquired');
+    clock.advance(101);
+    const recoveredEngine = new TaskEngine({ root, runtime: clock.runtime, launcher: new RecordingLauncher(false), ownerProbe: () => 'dead', heartbeatMs: 10, leaseMs: 100, executor: { execute: async (task) => ({ response: 'recovered', modelId: task.modelId, changedWorkspace: false }) } });
+    const recovered = (await recoveredEngine.submit({ modelId: 'codex:gpt-5.6-luna@high', prompt: 'recover lock', cwd: workspace, mode: 'agent' })).task;
+    assert.equal((await recoveredEngine.runOne(recovered.id)).status, 'completed');
+
+    const ambiguousStore = new WorkspaceLockStore(root, clock.runtime, () => 'unknown');
+    assert.equal((await ambiguousStore.acquire(key, canonical, 'remote-task', { ownerId: 'remote-owner', ownerPid: 77, hostId: 'remote' }, 100)).status, 'acquired');
+    clock.advance(101);
+    const ambiguousEngine = new TaskEngine({ root, runtime: clock.runtime, launcher: new RecordingLauncher(false), ownerProbe: () => 'unknown', heartbeatMs: 10, leaseMs: 100 });
+    const ambiguous = (await ambiguousEngine.submit({ modelId: 'codex:gpt-5.6-luna@high', prompt: 'ambiguous lock', cwd: workspace, mode: 'agent' })).task;
+    const blocked = await ambiguousEngine.runOne(ambiguous.id);
+    assert.equal(blocked.status, 'blocked');
+    assert.equal(blocked.blockedCode, 'WORKSPACE_EDIT_LOCK_AMBIGUOUS');
+  } finally { await rm(root, { recursive: true, force: true }); await rm(workspace, { recursive: true, force: true }); }
 });
 
 test('Git editing tasks use distinct managed branches and worktrees', async () => {

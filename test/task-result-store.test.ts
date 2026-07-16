@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, stat, symlink, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -58,6 +58,9 @@ test('artifact policy rejects traversal, private paths, credentials, and escapin
     await assert.rejects(() => validateArtifact(workspace, { path: 'escape-link', kind: 'created', status: 'captured' }), /escapes/);
     await symlink(join(workspace, 'safe.txt'), join(workspace, 'internal-link'));
     assert.equal((await validateArtifact(workspace, { path: 'internal-link', kind: 'modified', status: 'captured' })).status, 'captured');
+    await writeFile(join(workspace, 'oversized.bin'), '');
+    await truncate(join(workspace, 'oversized.bin'), 32 * 1024 * 1024 + 1);
+    await assert.rejects(() => validateArtifact(workspace, { path: 'oversized.bin', kind: 'created', status: 'captured' }), (error: unknown) => error instanceof TaskResultError && error.code === 'ARTIFACT_TOO_LARGE');
   } finally {
     await rm(workspace, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });

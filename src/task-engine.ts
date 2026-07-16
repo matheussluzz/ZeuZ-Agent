@@ -1,8 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
-import { open, realpath, rm } from 'node:fs/promises';
+import { realpath } from 'node:fs/promises';
 import { hostname } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
 import { ZeuzController } from './controller.js';
@@ -10,7 +9,6 @@ import { sanitizedChildEnvironment, installRoot } from './env.js';
 import { systemRuntime, runtimeWorkspaceSnapshot, type RuntimeSeams } from './runtime.js';
 import { SessionStore } from './session-store.js';
 import { stateDirectory } from './state-root.js';
-import { ensurePrivateStateDirectory, ensureStateContainerDirectory } from './state-policy.js';
 import { TaskResultStore, validateArtifact } from './task-result-store.js';
 import { TaskScheduler } from './task-scheduler.js';
 import { DEFAULT_LEASE_POLICY, dependencyReadiness, reclaimDecision, retryDelayMs, validateLeasePolicy, type OwnerProbeState } from './task-policy.js';
@@ -19,6 +17,7 @@ import type { DurableTaskRecord, TaskArtifact } from './task-schema.js';
 import type { TurnOutcome } from './types.js';
 import { classifyWorkspaceChange } from './workspace.js';
 import { WorktreeManager, sanitizedGitRunner } from './worktree-manager.js';
+import { WorkspaceLockStore } from './workspace-lock-store.js';
 
 export interface TaskExecutor {
   execute(task: DurableTaskRecord, cwd: string, signal: AbortSignal): Promise<TurnOutcome>;
@@ -44,6 +43,12 @@ export interface TaskEngineOptions {
 export class TaskEngineError extends Error {
   readonly code: string;
   constructor(code: string, message: string) { super(message); this.name = 'TaskEngineError'; this.code = code; }
+}
+
+interface PreparedWorkspace {
+  record: Pick<DurableTaskRecord, 'executionWorkspace' | 'repositoryIdentity' | 'baseCommit'>;
+  release?: () => Promise<void>;
+  heartbeat?: () => Promise<void>;
 }
 
 class ControllerTaskExecutor implements TaskExecutor {
@@ -120,12 +125,14 @@ export class TaskEngine {
     const ownerId = randomUUID();
     if (!await this.scheduler.acquire(task.id, ownerId, this.leaseMs)) return task;
     let releaseWorkspace: (() => Promise<void>) | undefined;
-    let preIsolation: { record: Pick<DurableTaskRecord, 'executionWorkspace' | 'repositoryIdentity' | 'baseCommit'>; release?: () => Promise<void> } | undefined;
+    let heartbeatWorkspace: (() => Promise<void>) | undefined;
+    let preIsolation: PreparedWorkspace | undefined;
     if (task.mode !== 'plan' && !isTaskGitRepository(task.requestedWorkspace)) {
       try { preIsolation = await this.prepareNonGitWorkspace(task, ownerId); releaseWorkspace = preIsolation.release; }
       catch (error) {
         await this.scheduler.release(task.id, ownerId).catch(() => undefined);
         if (error instanceof TaskEngineError && error.code === 'WORKSPACE_EDIT_LOCKED') return task;
+        if (error instanceof TaskEngineError && error.code === 'WORKSPACE_EDIT_LOCK_AMBIGUOUS') return await this.store.block(task.id, task.revision, 'ownership', error.code);
         throw error;
       }
     }
@@ -134,6 +141,7 @@ export class TaskEngine {
     let attemptBefore: ReturnType<typeof runtimeWorkspaceSnapshot> | undefined;
     let executionWorkspace: string | undefined;
     let pulsing = false;
+    let pulseError: unknown;
     try {
       task = await this.store.claim(task.id, task.revision, { ownerId, ownerPid: process.pid, hostId: hostname(), instanceId: randomUUID() }, this.leaseMs);
       const fence = task.lease?.fencingToken;
@@ -141,6 +149,7 @@ export class TaskEngine {
       if (fence === undefined || epoch === undefined) throw new TaskEngineError('LEASE_NOT_ESTABLISHED', 'Task claim did not establish a lease.');
       const isolation = preIsolation ?? await this.prepareWorkspace(task, ownerId);
       releaseWorkspace = isolation.release;
+      heartbeatWorkspace = isolation.heartbeat;
       task = await this.store.setExecutionIsolation(task.id, task.revision, ownerId, fence, epoch, isolation.record);
       const pulse = async (): Promise<void> => {
         if (pulsing || abort.signal.aborted) return;
@@ -151,7 +160,8 @@ export class TaskEngine {
           if (current.cancelRequestedAt) { abort.abort(); return; }
           task = await this.store.heartbeat(current.id, current.revision, ownerId, fence, epoch, this.leaseMs);
           await this.scheduler.heartbeat(current.id, ownerId, this.leaseMs);
-        } catch { abort.abort(); }
+          await heartbeatWorkspace?.();
+        } catch (error) { pulseError = error; abort.abort(); }
         finally { pulsing = false; }
       };
       executionWorkspace = task.executionWorkspace ?? task.requestedWorkspace;
@@ -164,7 +174,8 @@ export class TaskEngine {
       if (pulseTimer) clearInterval(pulseTimer);
       while (pulsing) await new Promise((resolvePromise) => setImmediate(resolvePromise));
       task = await this.store.load(task.id);
-      if (task.cancelRequestedAt || abort.signal.aborted) return await this.store.cancelRunning(task.id, task.revision, ownerId, fence, epoch);
+      if (task.cancelRequestedAt) return await this.store.cancelRunning(task.id, task.revision, ownerId, fence, epoch);
+      if (abort.signal.aborted) throw pulseError ?? new TaskEngineError('WORKER_HEARTBEAT_FAILED', 'Worker heartbeat failed without a cancellation request.');
       const after = runtimeWorkspaceSnapshot(this.runtime, executionWorkspace);
       const change = classifyWorkspaceChange(before, after);
       const result = await this.results.persist(task.id, task.attempt, outcome.response);
@@ -210,10 +221,11 @@ export class TaskEngine {
       }
       if (task.status === 'blocked' && taskErrorCode(error) === 'STALE_MAINTENANCE_EPOCH') return task;
       if (task.status === 'running' && task.lease?.ownerId === ownerId) {
-        if (task.cancelRequestedAt || abort.signal.aborted) {
+        if (task.cancelRequestedAt) {
           return await this.store.cancelRunning(task.id, task.revision, ownerId, task.lease.fencingToken, task.lease.maintenanceEpoch);
         }
-        const code = taskErrorCode(error);
+        const executionError = pulseError ?? error;
+        const code = taskErrorCode(executionError);
         if (attemptBefore && executionWorkspace) {
           const after = runtimeWorkspaceSnapshot(this.runtime, executionWorkspace);
           const change = classifyWorkspaceChange(attemptBefore, after);
@@ -224,7 +236,7 @@ export class TaskEngine {
             if (taskErrorCode(retryError) !== 'RETRY_NOT_ELIGIBLE') throw retryError;
           }
         }
-        return await this.store.fail(task.id, task.revision, ownerId, task.lease.fencingToken, task.lease.maintenanceEpoch, code, error instanceof Error ? error.message : String(error));
+        return await this.store.fail(task.id, task.revision, ownerId, task.lease.fencingToken, task.lease.maintenanceEpoch, code, executionError instanceof Error ? executionError.message : String(executionError));
       }
       throw error;
     } finally {
@@ -308,7 +320,7 @@ export class TaskEngine {
     return { launched: await this.launchQueued(), reclaimed, blocked };
   }
 
-  private async prepareWorkspace(task: DurableTaskRecord, ownerId: string): Promise<{ record: Pick<DurableTaskRecord, 'executionWorkspace' | 'repositoryIdentity' | 'baseCommit'>; release?: () => Promise<void> }> {
+  private async prepareWorkspace(task: DurableTaskRecord, ownerId: string): Promise<PreparedWorkspace> {
     if (task.mode === 'plan') return { record: { executionWorkspace: await realpath(task.requestedWorkspace) } };
     if (isTaskGitRepository(task.requestedWorkspace)) {
       const manager = new WorktreeManager(this.root);
@@ -323,25 +335,18 @@ export class TaskEngine {
     return await this.prepareNonGitWorkspace(task, ownerId);
   }
 
-  private async prepareNonGitWorkspace(task: DurableTaskRecord, ownerId: string): Promise<{ record: Pick<DurableTaskRecord, 'executionWorkspace' | 'repositoryIdentity' | 'baseCommit'>; release: () => Promise<void> }> {
+  private async prepareNonGitWorkspace(task: DurableTaskRecord, ownerId: string): Promise<PreparedWorkspace> {
     const workspace = await realpath(task.requestedWorkspace);
-    const root = await ensureStateContainerDirectory(this.root);
-    const locks = await ensurePrivateStateDirectory(join(root, 'workspace-locks'), root);
     const key = createHash('sha256').update(workspace).digest('hex');
-    const path = join(locks, `${key}.lock`);
-    let handle;
-    try {
-      handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
-      await handle.writeFile(`${ownerId}\n${task.id}\n`, 'utf8');
-      await handle.sync();
-      await handle.close();
-      handle = undefined;
-    } catch (error) {
-      await handle?.close().catch(() => undefined);
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new TaskEngineError('WORKSPACE_EDIT_LOCKED', 'Non-Git workspace already has an editing owner.');
-      throw error;
-    }
-    return { record: { executionWorkspace: workspace, repositoryIdentity: `non-git:${key}` }, release: async () => await rm(path, { force: true }) };
+    const locks = new WorkspaceLockStore(this.root, this.runtime, this.ownerProbe);
+    const acquired = await locks.acquire(key, workspace, task.id, { ownerId, ownerPid: process.pid, hostId: hostname() }, this.leaseMs);
+    if (acquired.status === 'locked') throw new TaskEngineError('WORKSPACE_EDIT_LOCKED', 'Non-Git workspace already has an editing owner.');
+    if (acquired.status === 'ambiguous') throw new TaskEngineError('WORKSPACE_EDIT_LOCK_AMBIGUOUS', 'Non-Git workspace ownership is ambiguous.');
+    return {
+      record: { executionWorkspace: workspace, repositoryIdentity: `non-git:${key}` },
+      release: async () => await acquired.handle.release(),
+      heartbeat: async () => await acquired.handle.heartbeat(this.leaseMs),
+    };
   }
 
   private async artifacts(task: DurableTaskRecord, cwd: string, state: 'changed' | 'unchanged'): Promise<TaskArtifact[]> {

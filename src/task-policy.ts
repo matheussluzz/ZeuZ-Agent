@@ -125,7 +125,7 @@ export function retryDelayMs(attempt: number, baseDelayMs: number, maxDelayMs: n
 
 const NON_RETRYABLE = new Set([
   'CANCELLED', 'REVIEW_BLOCKED', 'PERMISSION_DENIED', 'UNSAFE_STATE', 'UNSUPPORTED_STATE_VERSION', 'STATE_QUARANTINED',
-  'STALE_TASK_OWNER', 'STALE_MAINTENANCE_EPOCH', 'PLAN_WRITE_VIOLATION', 'WORKSPACE_UNMEASURABLE',
+  'STALE_TASK_OWNER', 'STALE_MAINTENANCE_EPOCH', 'STALE_WORKSPACE_LOCK_OWNER', 'WORKSPACE_EDIT_LOCK_AMBIGUOUS', 'PLAN_WRITE_VIOLATION', 'WORKSPACE_UNMEASURABLE',
 ]);
 
 export function retryEligible(input: { task: DurableTaskRecord; errorCode: string; workspaceState: WorkspaceChangeState }): boolean {
