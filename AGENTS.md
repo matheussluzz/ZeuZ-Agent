@@ -117,7 +117,8 @@ Public third-party skills, including the NVIDIA catalog, may be imported wholesa
 ## Delegation rules
 
 - Delegate only concrete, bounded, independently useful work.
-- Explicit syntax: `zeuz delegate --model <id> --task '<task>' --mode plan --cwd '<path>'`.
+- Explicit syntax: `zeuz delegate --model <id> --task '<task>' --mode plan --cwd '<path>'`; it returns a durable task ID asynchronously. Add `--wait` only when the caller must block on the same engine record/result.
+- Observe and control tasks with `zeuz task list`, `zeuz task status <id>`, `zeuz task result <id>`, `zeuz task cancel <id>`, `zeuz task wait <id>`, and `zeuz task recover`.
 - Maximum delegation depth is one; maximum concurrency is three.
 - A delegate may edit only the active workspace. Use `plan` for research/review, `agent` for scoped edits, and `yolo` only when the user selected it.
 - Do not let two agents edit the same files concurrently. Use Git branches/worktrees for parallel editing.

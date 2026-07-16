@@ -229,6 +229,26 @@ It does **not** include arbitrary S3 reads, DDL/DML, crawlers, jobs, role assump
 
 Switching `/model` compacts the provider-neutral transcript before the handoff. Provider-native session IDs are stored separately, so returning to a model does not require replaying the full conversation.
 
+### Durable delegated tasks
+
+`zeuz delegate` now persists a versioned task and returns its ID after launching a detached worker or proving the task remains durably queued. Use `--wait` for the previous blocking experience; it observes the same task record and full result rather than running a legacy path.
+
+```bash
+zeuz delegate --model codex:gpt-5.6-luna@high --task "Inspect the parser" --mode plan --cwd "$PWD"
+zeuz delegate --model codex:gpt-5.6-terra@high --task "Refactor the parser" --mode agent --cwd "$PWD" --wait
+
+zeuz task list
+zeuz task status <id-or-unique-prefix>
+zeuz task result <id-or-unique-prefix>
+zeuz task cancel <id-or-unique-prefix>
+zeuz task wait <id-or-unique-prefix>
+zeuz task recover
+```
+
+Tasks use six states: `queued`, `running`, `blocked`, `completed`, `failed`, and `cancelled`. Results are stored separately with a byte count and SHA-256 check. Three read-only tasks may run concurrently. Git editing tasks receive task-specific branches/worktrees after a fail-closed preflight; non-Git editing is serialized by canonical workspace identity. ZeuZ never merges, rebases, pushes, commits, stashes, resets, or deletes a dirty/ambiguous worktree automatically.
+
+Task and session records are versioned under the private ZeuZ state root (`ZEUZ_STATE_DIR`, otherwise `~/.agents`). `zeuz task recover` performs startup recovery and v0 migration behind a root maintenance fence: valid legacy records receive content-addressed backups and manifests, corrupt records move to owner-only quarantine with safe reason metadata, and future versions remain untouched. Migration is fail-closed and idempotent. For rollback, stop ZeuZ workers, verify the manifest SHA-256 against its `.v0.json` backup, restore only that matching record, and restart with a runtime that understands v0; never reinterpret quarantine, incomplete migration, stale ownership, review failure, or ambiguous workspace evidence as success.
+
 ### Slash commands
 
 | Command | Purpose |
@@ -280,7 +300,7 @@ No forced defect count exists: inventing findings is not adversarial rigor.
 
 Producer, adversarial-review, and remediation phases have independent deadlines. Defaults are 60 minutes, 30 minutes, and 60 minutes; validated maxima are 120 minutes, 60 minutes, and 120 minutes. Configure milliseconds with `ZEUZ_PRODUCER_DEADLINE_MS`, `ZEUZ_REVIEW_DEADLINE_MS`, and `ZEUZ_REMEDIATION_DEADLINE_MS`. Zero means immediate timeout; negative, non-finite, or above-maximum values fail configuration.
 
-The shared adapter runner signals only its direct child: `SIGINT`, a 1.5-second grace period, then `SIGKILL`, followed by a 500-millisecond close watchdog. ZeuZ does not claim descendant-tree termination. The default byte budgets are 8 MiB stdout, 2 MiB stderr, 256 KiB per incomplete line, 1 MiB for retained raw protocol events, 256 KiB per provider-neutral text event, 1 MiB per downstream event queue, and 8 MiB per direct NVIDIA HTTP response body. UTF-8 boundaries are preserved. Overflow emits metadata only and unsafe protocol completion fails instead of returning partial success.
+The shared adapter runner signals only its direct child: `SIGINT`, a 1.5-second grace period, then `SIGKILL`, followed by a 500-millisecond close watchdog. ZeuZ does not claim descendant-tree termination. The default byte budgets are 8 MiB stdout, 2 MiB stderr, 256 KiB per incomplete line, 1 MiB for retained raw protocol events, 256 KiB per provider-neutral text event, 1 MiB per downstream event queue, and 8 MiB per direct NVIDIA HTTP response body. UTF-8 boundaries are preserved. Overflow emits metadata only and unsafe protocol completion fails instead of returning partial success. Copilot-backed routes decode every JSONL line but retain only final, result, error, and start events in `rawEvents`; repetitive deltas and tool payloads remain subject to the line/stdout budgets and are not duplicated into the audit-event budget.
 
 For one release, `ZEUZ_PROCESS_RUNNER=legacy` selects the previous signaling lifecycle while retaining Wave 03 byte bounds and controller deadlines. The supervised runner remains the default; remove the legacy path after one bounded-runner release.
 
@@ -290,11 +310,10 @@ Hefesto's offline-basic mode produces a dependency-free SVG/HTML dashboard. High
 
 ## Privacy and security
 
-- sessions live in `~/.agents/sessions` with owner-only directory/file permissions;
-- delegated metadata lives in owner-only `~/.agents/tasks` and `~/.agents/runtime` roots;
+- versioned sessions, tasks, scheduler/lease state, migrations, backups, quarantine diagnostics, full results, and managed worktrees live below owner-only `~/.agents` roots;
 - credentials, auth databases, raw provider logs, and real profiles/vaults are Git-ignored;
 - child environments are secret-sanitized; `lamine.yaml`, `.env`, credential filenames, shell composition in `plan`, escaping paths, and unsafe symlinks are explicitly denied to the direct NVIDIA tool loop;
-- delegation depth is one and concurrency is three;
+- durable delegation depth is one and scheduler concurrency is three; `ZEUZ_DELEGATION_DEPTH` remains defense in depth rather than the ownership authority;
 - every publish path runs a tracked-file secret scan.
 
 Before a commit or push:

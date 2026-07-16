@@ -191,7 +191,7 @@ function helpText(): string {
 /model [id]          Pick or switch model (compacts context first)
 /ask <model> <task>  Explicitly delegate to a subagent
 /subagents           Show the evidence-based routing policy
-/tasks               Show recent delegated tasks
+/tasks               Show durable delegated task status
 /plan [task]         Enter plan mode; optionally run a task
 /permissions [mode]  Show/set plan, agent, or yolo
 /status              Session, model, workspace, Git, and context state
@@ -278,9 +278,15 @@ export function App({ controller }: AppProps): React.JSX.Element {
       return;
     }
     if (lower === 'tasks') {
-      const tasks = await new TaskStore().list();
-      const content = tasks.length === 0 ? 'No delegated tasks yet.' : tasks.map((task) => `${task.status.toUpperCase().padEnd(9)} ${task.modelId} · ${task.id.slice(0, 8)}\n${task.prompt.slice(0, 160)}`).join('\n\n');
-      return addItem('system', 'Tasks', content);
+      const store = new TaskStore();
+      const result = await store.listDetailed();
+      const tasks = result.records.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, 30);
+      const content = tasks.length === 0 ? 'No delegated tasks yet.' : tasks.map((task) => {
+        const detail = [`attempt ${task.attempt}/${task.retry.maxAttempts}`, `${task.dependencyIds.length} dependencies`, task.result ? 'result ready' : 'no result'].join(' · ');
+        return `${task.status.toUpperCase().padEnd(9)} ${task.modelId} · ${task.id.slice(0, 8)}\n${detail}\n${task.prompt.slice(0, 160)}`;
+      }).join('\n\n');
+      const diagnostics = result.diagnostics.length > 0 ? `\n\nState diagnostics:\n${result.diagnostics.map((item) => `${item.code} · ${item.record}${item.quarantined ? ' · quarantined' : ''}`).join('\n')}` : '';
+      return addItem('system', 'Tasks', `${content}${diagnostics}`);
     }
     if (lower === 'model') return addItem('system', 'Model', await controller.switchModel(argument, eventSink));
     if (lower === 'compact') return addItem('system', 'Shared context compacted', await controller.compact(eventSink));

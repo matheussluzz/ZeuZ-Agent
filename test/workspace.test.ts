@@ -146,3 +146,23 @@ test('Git sensitive tracked paths and escaping symlinks fail closed', async () =
   git(linked, 'add', 'escape');
   assert.equal(measureWorkspace(linked).reason, 'unsafe_symlink');
 });
+
+test('Git measurement permits only the tracked public secret scanner path', async () => {
+  const cwd = await gitRoot();
+  await mkdir(join(cwd, 'scripts'));
+  await writeFile(join(cwd, 'scripts/check-secrets.mjs'), 'console.log("fixture");\n');
+  assert.equal(measureWorkspace(cwd).reason, 'sensitive_path');
+
+  git(cwd, 'add', 'scripts/check-secrets.mjs');
+  assert.equal(measureWorkspace(cwd).measurable, true);
+
+  await writeFile(join(cwd, 'scripts/check-secrets-copy.mjs'), 'console.log("unsafe alias");\n');
+  assert.equal(measureWorkspace(cwd).reason, 'sensitive_path');
+});
+
+test('non-Git workspaces cannot claim the tracked public scanner exception', async () => {
+  const cwd = await root('zeuz-workspace-public-scanner-nongit-');
+  await mkdir(join(cwd, 'scripts'));
+  await writeFile(join(cwd, 'scripts/check-secrets.mjs'), 'console.log("fixture");\n');
+  assert.equal(measureWorkspace(cwd).reason, 'sensitive_path');
+});

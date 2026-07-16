@@ -68,6 +68,8 @@ export interface SessionMessage {
 }
 
 export interface ZeuzSession {
+  schemaVersion: 1;
+  revision: number;
   id: string;
   title: string;
   cwd: string;
@@ -131,16 +133,4 @@ export interface TurnOutcome {
   review?: ReviewResult;
 }
 
-export interface TaskRecord {
-  id: string;
-  parentSessionId?: string;
-  modelId: string;
-  prompt: string;
-  cwd: string;
-  mode: PermissionMode;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-  resultPreview?: string;
-  error?: string;
-}
+export type { DurableTaskRecord as TaskRecord } from './task-schema.js';

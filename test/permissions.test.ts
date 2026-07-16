@@ -85,8 +85,16 @@ for (const provider of ['codex', 'cursor', 'claude', 'copilot', 'agy', 'nvidia']
         assert.equal(fixture.calls.length, 0);
         return;
       }
-      await fixture.adapter.run(request);
+      const result = await fixture.adapter.run(request);
+      assert.ok(result.text.length > 0, `${provider} must deliver a final response on a resumed fixture turn`);
+      assert.equal(fixture.calls[0]?.includes('existing-session'), true, `${provider} must pass the native session ID to its resume mechanism`);
       assert.equal(containsSequence(fixture.calls[0] ?? [], permissionCapability(provider, mode).nativeArguments), true);
+      if (provider === 'codex') {
+        const args = fixture.calls[0] ?? [];
+        const execIndex = args.indexOf('exec');
+        const permissionIndex = args.findIndex((arg) => permissionCapability(provider, mode).nativeArguments.includes(arg));
+        assert.equal(permissionIndex >= 0 && permissionIndex < execIndex, true, 'Codex resume permissions must use the top-level CLI position');
+      }
     });
   }
 }

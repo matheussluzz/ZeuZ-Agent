@@ -1,5 +1,6 @@
 import { configuredSecretNames } from '../env.js';
 import { permissionArguments } from '../permissions.js';
+import { redactSecrets } from '../redact.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, HealthResult, ProviderId, RunRequest, RunResult } from '../types.js';
 import { assertProcessNotCancelled, assertSafeProcessCompletion, JsonlProtocolState, withBoundedEvents } from './protocol.js';
@@ -12,6 +13,34 @@ function record(value: unknown): JsonRecord | undefined {
 
 function string(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function boundedDiagnostic(value: string | undefined): string | undefined {
+  const diagnostic = value ? redactSecrets(value).replace(/\s+/g, ' ').trim().slice(0, 2_000) : '';
+  return diagnostic || undefined;
+}
+
+function providerFailureDiagnostic(event: JsonRecord, type: string | undefined): string | undefined {
+  if (!type?.toLowerCase().includes('error') && type !== 'result') return undefined;
+  const data = record(event.data);
+  const nestedError = record(data?.error) ?? record(event.error);
+  return boundedDiagnostic(
+    string(data?.message)
+    ?? string(data?.error)
+    ?? string(data?.reason)
+    ?? string(event.message)
+    ?? string(event.error)
+    ?? string(event.reason)
+    ?? string(nestedError?.message)
+    ?? string(nestedError?.detail),
+  );
+}
+
+function retainAuditEvent(type: string | undefined): boolean {
+  return type === 'assistant.message'
+    || type === 'result'
+    || Boolean(type?.toLowerCase().includes('error'))
+    || Boolean(type?.endsWith('start'));
 }
 
 interface CopilotAdapterOptions {
@@ -57,6 +86,7 @@ export class CopilotAdapter implements AgentAdapter {
     let streamedText = '';
     let finalText = '';
     let usage: Record<string, unknown> | undefined;
+    let failureDiagnostic: string | undefined;
     const protocol = new JsonlProtocolState<JsonRecord>();
     const env = this.environment(request);
 
@@ -66,9 +96,11 @@ export class CopilotAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        const event = protocol.parse(line);
+        const event = protocol.decode(line);
         const type = string(event.type);
         const data = record(event.data);
+        if (retainAuditEvent(type)) protocol.retain(event);
+        failureDiagnostic = providerFailureDiagnostic(event, type) ?? failureDiagnostic;
 
         if (type === 'assistant.message_delta') {
           const chunk = string(data?.deltaContent);
@@ -88,13 +120,17 @@ export class CopilotAdapter implements AgentAdapter {
         }
       },
       onStderrLine: (line) => {
-        if (line.trim()) request.onEvent?.({ type: 'status', text: line.trim() });
+        const diagnostic = boundedDiagnostic(line);
+        if (diagnostic) request.onEvent?.({ type: 'status', text: diagnostic });
       },
     });
 
     assertSafeProcessCompletion(result);
     assertProcessNotCancelled(result, { nativeSessionId });
-    if (result.exitCode !== 0) throw new Error(result.stderr.trim() || `copilot exited with code ${result.exitCode}`);
+    if (result.exitCode !== 0) {
+      const detail = boundedDiagnostic(result.stderr) ?? failureDiagnostic;
+      throw new Error(`${this.provider} exited with code ${result.exitCode}${detail ? `: ${detail}` : ''}`);
+    }
     const text = finalText || streamedText;
     if (!text) throw new Error(`${this.provider} completed without a final response.`);
     if (!streamedText) request.onEvent?.({ type: 'delta', text });

@@ -125,7 +125,10 @@ function measureGit(cwd: string, options: WorkspaceMeasurementOptions): Workspac
 
   const trackedPaths = tracked.stdout.split('\0').filter(Boolean).filter((path) => !isReviewArtifact(path));
   const untrackedPaths = untracked.stdout.split('\0').filter(Boolean).filter((path) => !isReviewArtifact(path));
-  if ([...trackedPaths, ...untrackedPaths].some(isSensitiveWorkspacePath)) return failed('git', 'sensitive_path');
+  if (trackedPaths.some((path) => isSensitiveWorkspacePath(path, { allowPublicTrackedPath: true }))
+    || untrackedPaths.some((path) => isSensitiveWorkspacePath(path, { allowPublicTrackedPath: false }))) {
+    return failed('git', 'sensitive_path');
+  }
 
   const symlinks = trackedStages.stdout.split('\0').filter(Boolean).flatMap((entry) => {
     const match = entry.match(/^120000 [0-9a-f]+ \d+\t(.+)$/);
@@ -211,7 +214,7 @@ function measureNonGit(cwd: string, options: WorkspaceMeasurementOptions): Works
       const absolute = resolve(directory, entry.name);
       const path = portable(relative(cwd, absolute));
       if (isStableNonGitExclusion(path, entry.isDirectory())) continue;
-      if (isSensitiveWorkspacePath(path)) return failed('non_git', 'sensitive_path');
+      if (isSensitiveWorkspacePath(path, { allowPublicTrackedPath: false })) return failed('non_git', 'sensitive_path');
       let info;
       try {
         info = lstatSync(absolute);

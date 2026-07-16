@@ -6,9 +6,17 @@ export class JsonlProtocolState<T extends object> {
   private readonly events = new RawEventCollector();
 
   parse(line: string): T {
-    const event = parseJsonEvent<T>(line);
-    this.events.push(event);
+    const event = this.decode(line);
+    this.retain(event);
     return event;
+  }
+
+  decode(line: string): T {
+    return parseJsonEvent<T>(line);
+  }
+
+  retain(event: T): void {
+    this.events.push(event);
   }
 
   rawEvents(): unknown[] {
