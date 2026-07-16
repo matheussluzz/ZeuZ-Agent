@@ -36,6 +36,13 @@ function providerFailureDiagnostic(event: JsonRecord, type: string | undefined):
   );
 }
 
+function retainAuditEvent(type: string | undefined): boolean {
+  return type === 'assistant.message'
+    || type === 'result'
+    || Boolean(type?.toLowerCase().includes('error'))
+    || Boolean(type?.endsWith('start'));
+}
+
 interface CopilotAdapterOptions {
   provider?: ProviderId;
   nvidia?: boolean;
@@ -89,9 +96,10 @@ export class CopilotAdapter implements AgentAdapter {
       ...(request.signal ? { signal: request.signal } : {}),
       onStdoutLine: (line) => {
         if (!line.trim()) return;
-        const event = protocol.parse(line);
+        const event = protocol.decode(line);
         const type = string(event.type);
         const data = record(event.data);
+        if (retainAuditEvent(type)) protocol.retain(event);
         failureDiagnostic = providerFailureDiagnostic(event, type) ?? failureDiagnostic;
 
         if (type === 'assistant.message_delta') {

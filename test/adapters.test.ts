@@ -257,6 +257,30 @@ test('NVIDIA Copilot route preserves a bounded redacted provider failure diagnos
   );
 });
 
+test('Copilot high-volume deltas do not consume the retained raw-event audit budget', async () => {
+  const runtime = createFixtureRuntime(
+    { copilot: { file: 'copilot.jsonl', mode: 'jsonl' } },
+    {
+      runProcess: async (_command, _args, options) => {
+        for (let index = 0; index < 3_000; index += 1) {
+          options.onStdoutLine?.(JSON.stringify({
+            type: 'assistant.message_delta',
+            data: { deltaContent: 'x', operationalPayload: 'p'.repeat(400) },
+          }));
+        }
+        options.onStdoutLine?.(JSON.stringify({ type: 'assistant.message', data: { content: 'complete response' } }));
+        options.onStdoutLine?.(JSON.stringify({ type: 'result', usage: { total_tokens: 3_000 } }));
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    },
+  );
+
+  const { result, events } = await runFixture(new CopilotAdapter({ runtime }), testModel('copilot'));
+  assert.equal(result.text, 'complete response');
+  assert.equal(events.filter((event) => event.type === 'delta').length, 3_000);
+  assert.equal(result.rawEvents?.length, 2);
+});
+
 test('AgyAdapter replays sanitized plain-text fixture', async () => {
   const runtime = createFixtureRuntime({ agy: { file: 'agy.txt', mode: 'text' } });
   const { result, events } = await runFixture(new AgyAdapter(runtime), testModel('agy'));
