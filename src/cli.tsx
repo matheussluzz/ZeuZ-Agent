@@ -9,6 +9,9 @@ import { render } from 'ink';
 import { MODEL_CATALOG, DEFAULT_MODEL_ID, requireModel } from './catalog.js';
 import { ZeuzController } from './controller.js';
 import { installRoot, loadZeuZEnvironment } from './env.js';
+import { TaskEngine } from './task-engine.js';
+import { TaskResultStore } from './task-result-store.js';
+import { stateDirectory } from './state-root.js';
 import { TaskStore } from './task-store.js';
 import type { PermissionMode } from './types.js';
 import { App } from './ui.js';
@@ -47,7 +50,8 @@ function printCliHelp(): void {
   process.stdout.write('  zeuz models                       List configured model routes\n');
   process.stdout.write('  zeuz health [--deep]              Check provider health\n');
   process.stdout.write('  zeuz run --model ID --prompt TEXT Run one non-interactive turn\n');
-  process.stdout.write('  zeuz delegate --model ID --task TEXT [--mode plan|agent|yolo]\n');
+  process.stdout.write('  zeuz delegate --model ID --task TEXT [--mode plan|agent|yolo] [--wait]\n');
+  process.stdout.write('  zeuz task list|status|result|cancel|wait|recover [ID]\n');
   process.stdout.write('  zeuz version                      Print version\n');
 }
 
@@ -61,51 +65,82 @@ async function runNonInteractive(command: 'run' | 'delegate', args: string[]): P
   if (!task) throw new Error(`${command} requires --task or --prompt.`);
   requireModel(modelId);
 
-  const taskStore = new TaskStore();
-  let release: (() => Promise<void>) | undefined;
-  let taskRecord;
-
   if (command === 'delegate') {
     const depth = Number.parseInt(process.env.ZEUZ_DELEGATION_DEPTH ?? '0', 10);
     if (depth >= 1) throw new Error('Delegation depth limit reached (maximum: 1).');
-    process.env.ZEUZ_DELEGATION_DEPTH = String(depth + 1);
-    release = await taskStore.acquireSlot();
-    taskRecord = await taskStore.create({
+    const engine = new TaskEngine();
+    const submitted = await engine.submit({
+      ...(process.env.ZEUZ_PARENT_TASK_ID ? { parentTaskId: process.env.ZEUZ_PARENT_TASK_ID } : {}),
       ...(process.env.ZEUZ_PARENT_SESSION_ID ? { parentSessionId: process.env.ZEUZ_PARENT_SESSION_ID } : {}),
       modelId,
       prompt: task,
       cwd,
       mode,
     });
-    taskRecord.status = 'running';
-    await taskStore.save(taskRecord);
+    if (!flags.has('--wait')) {
+      const payload = { taskId: submitted.task.id, status: submitted.task.status, workerLaunched: submitted.launched };
+      process.stdout.write(json ? `${JSON.stringify(payload)}\n` : `${submitted.task.id}\n`);
+      return;
+    }
+    if (!submitted.launched) await engine.runOne(submitted.task.id);
+    const settled = await engine.wait(submitted.task.id);
+    if (settled.status !== 'completed' || !settled.result) throw new Error(`Task ${settled.id} settled as ${settled.status}${settled.errorCode ? ` (${settled.errorCode})` : ''}.`);
+    const text = await new TaskResultStore({ root: stateDirectory(), now: () => new Date().toISOString() }).retrieve(settled.result);
+    process.stdout.write(json ? `${JSON.stringify({ taskId: settled.id, status: settled.status, result: text })}\n` : `${text}\n`);
+    return;
   }
 
-  try {
-    const controller = await ZeuzController.create(cwd, { modelId, mode });
-    process.env.ZEUZ_PARENT_SESSION_ID = controller.session.id;
-    const outcome = await controller.ask(modelId, task, json ? undefined : (event) => {
-      if (event.type === 'status' || event.type === 'tool') process.stderr.write(`[${event.type}] ${event.text}\n`);
-    }, mode);
+  const controller = await ZeuzController.create(cwd, { modelId, mode });
+  process.env.ZEUZ_PARENT_SESSION_ID = controller.session.id;
+  const outcome = await controller.ask(modelId, task, json ? undefined : (event) => {
+    if (event.type === 'status' || event.type === 'tool') process.stderr.write(`[${event.type}] ${event.text}\n`);
+  }, mode);
+  if (json) process.stdout.write(`${JSON.stringify(outcome)}\n`);
+  else process.stdout.write(`${outcome.response}\n`);
+}
 
-    if (taskRecord) {
-      taskRecord.status = 'completed';
-      taskRecord.resultPreview = outcome.response.slice(0, 500);
-      await taskStore.save(taskRecord);
-    }
-
-    if (json) process.stdout.write(`${JSON.stringify(outcome)}\n`);
-    else process.stdout.write(`${outcome.response}\n`);
-  } catch (error) {
-    if (taskRecord) {
-      taskRecord.status = 'failed';
-      taskRecord.error = error instanceof Error ? error.message : String(error);
-      await taskStore.save(taskRecord);
-    }
-    throw error;
-  } finally {
-    await release?.();
+async function runTaskCommand(args: string[]): Promise<void> {
+  const [subcommand, id] = args;
+  const store = new TaskStore();
+  const engine = new TaskEngine();
+  if (subcommand === 'recover') {
+    process.stdout.write(`${JSON.stringify(await engine.recover(), null, 2)}\n`);
+    return;
   }
+  if (subcommand === 'list') {
+    const result = await store.listDetailed();
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'worker') {
+    if (process.env.ZEUZ_INTERNAL_WORKER !== '1' || !id) throw new Error('Internal task worker invocation is denied.');
+    const task = await store.load(id);
+    process.env.ZEUZ_PARENT_TASK_ID = task.id;
+    process.env.ZEUZ_DELEGATION_DEPTH = String(task.depth + 1);
+    await engine.runOne(task.id);
+    return;
+  }
+  if (!id) throw new Error(`task ${subcommand ?? ''} requires an ID.`);
+  if (subcommand === 'status') {
+    process.stdout.write(`${JSON.stringify(await store.load(id), null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'cancel') {
+    const task = await store.requestCancel(id);
+    process.stdout.write(`${JSON.stringify({ taskId: task.id, status: task.status, cancelRequestedAt: task.cancelRequestedAt }, null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'wait') {
+    process.stdout.write(`${JSON.stringify(await engine.wait(id), null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'result') {
+    const task = await store.load(id);
+    if (!task.result) throw new Error(`Task result is unavailable: ${task.status}.`);
+    process.stdout.write(`${await new TaskResultStore({ root: stateDirectory(), now: () => new Date().toISOString() }).retrieve(task.result)}\n`);
+    return;
+  }
+  throw new Error(`Unknown task command: ${subcommand ?? ''}. Use list, status, result, cancel, wait, or recover.`);
 }
 
 async function main(): Promise<void> {
@@ -125,6 +160,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'run' || command === 'delegate') return await runNonInteractive(command, args);
+  if (command === 'task') return await runTaskCommand(args);
   if (command === 'health') {
     const controller = await ZeuzController.create(root);
     process.stdout.write(`${await controller.health(args.includes('--deep'))}\n`);
@@ -133,6 +169,7 @@ async function main(): Promise<void> {
   if (command) throw new Error(`Unknown command: ${command}`);
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive mode requires a TTY. Use `zeuz run --prompt ...`.');
 
+  await new TaskEngine().recover();
   const controller = await ZeuzController.create(root);
   const instance = render(<App controller={controller} />, { exitOnCtrlC: false, patchConsole: true });
   await instance.waitUntilExit();

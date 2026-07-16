@@ -1,6 +1,6 @@
 # Wave 04 task list — Durable task engine and editing isolation
 
-Status: in progress
+Status: independent review
 
 Branch: `agent/wave-04-durable-task-engine`
 
@@ -27,63 +27,64 @@ Branch: `agent/wave-04-durable-task-engine`
 - [x] Characterize three lock filenames, mtime stale reclamation, broad lock-inspection catch, and blocking delegate execution.
 - [x] Characterize env-based depth, 500-character preview/error-only persistence, and flat `/tasks` behavior.
 - [x] Run 9 focused characterization cases, `pnpm secrets:check`, full `pnpm check` (239 TypeScript tests), and `git diff --check`.
-- [ ] Commit the green characterization checkpoint separately.
-- [ ] Open the Wave 04 draft PR from that first revisable commit.
+- [x] Commit the green characterization checkpoint separately (`799e076`).
+- [x] Open the Wave 04 draft PR from the first revisable commits (PR #5).
 
 ## Engineering — schemas and repository
 
-- [ ] Define current versioned schemas and validators for sessions, tasks, leases, results, artifacts, transitions, and migration manifests.
-- [ ] Implement named safe errors and structured diagnostics.
-- [ ] Add strict read-only v0 importers for sessions/tasks.
-- [ ] Implement verified unique backups, migration manifests/lock/fencing, idempotent recovery, and quarantine.
-- [ ] Add root maintenance epoch/fence, claim pause, worker drain, and old-epoch write rejection around migration.
-- [ ] Upgrade state writes to canonical-root capability, quotas, exclusive create, expected-revision CAS, injected failure seams, proportional flush, and safe temp recovery.
-- [ ] Integrate SessionStore snapshot/CAS migration and diagnostics without breaking healthy load/list/fork semantics.
-- [ ] Cover v0 valid/invalid, current/future, truncated/mismatch, collision/interruption/concurrency, permissions, and symlinks.
+- [x] Define current versioned schemas and validators for sessions, tasks, leases, results, artifacts, transitions, scheduler, and migration manifests.
+- [x] Implement named safe errors and structured diagnostics.
+- [x] Add strict read-only v0 importers for sessions/tasks.
+- [x] Implement content-addressed backups, migration manifests/record locks, concurrent/idempotent recovery, future-version preservation, and quarantine.
+- [x] Add root maintenance epoch/fence, claim pause, worker drain, and old-epoch write rejection around task migration.
+- [x] Upgrade state writes to canonical-root capability, quotas, exclusive create, expected-revision CAS, injected failure seams, proportional file/directory flush, and safe temp recovery.
+- [x] Integrate SessionStore snapshot/CAS migration and diagnostics without breaking healthy load/list/fork semantics.
+- [x] Cover v0/current/future, malformed/mismatch, collision/failure/concurrency, permissions, quota, and symlinks in temporary roots.
 
 ## Engineering — task policy and ownership
 
-- [ ] Implement exact six-state transition policy, bounded redacted history, idempotent terminal intent, and typed blocked reasons.
-- [ ] Implement durable correlation/depth, immutable dependency DAG validation, readiness propagation, and permanent dependency blocks.
-- [ ] Implement opt-in maximum-three retry policy, typed retryability, injected backoff, and writable-workspace replay gate.
-- [ ] Implement versioned lease policy, owner probe semantics, heartbeat validation, reclaim, fencing, and max-three scheduler contract.
-- [ ] Cover all valid/invalid transitions, cancel races, dependency shapes, retry boundaries, liveness states, reclaim races, and stale-fence writes.
+- [x] Implement exact six-state transition policy, bounded redacted history, idempotent terminal intent, and typed blocked reasons.
+- [x] Implement durable correlation/depth, immutable post-claim dependency DAG, readiness propagation, and permanent dependency blocks.
+- [x] Implement opt-in maximum-three retry policy, typed retryability, bounded backoff, and writable-workspace replay gate.
+- [x] Implement versioned lease policy, conservative owner probe semantics, heartbeat validation, reclaim, fencing, maintenance epoch, and max-three scheduler contract.
+- [x] Cover valid/invalid transitions, cancel/completion ordering, dependency chain/fan-in/cycle, retry boundaries, liveness states, reclaim, and stale-fence writes.
 
 ## Engineering — results, artifacts, and isolation
 
-- [ ] Implement private bounded result store with redaction, hash/size verification, restart retrieval, and tamper detection.
-- [ ] Implement safe artifact manifests and derivation from workspace evidence.
-- [ ] Reject absolute/traversal/external symlink/credential/private/out-of-root artifacts and oversize/unsafe completion.
-- [ ] Implement canonical workspace/repository identity.
-- [ ] Implement pure Git preflight classification for clean/dirty/ahead/behind/diverged/detached/unborn/no-upstream/collisions/existing worktrees.
-- [ ] Implement a narrow sanitized/hook-disabled Git runner, owner-only managed worktrees/branches, requested/execution workspace separation, and exclusive leases for non-Git editing.
-- [ ] Implement non-destructive preservation/cleanup policy and cancel/retry/recovery reuse.
-- [ ] Cover artifact create/modify/remove, symlinks/private paths, Git matrix, aliases, two repositories, non-Git serialization, and cleanup refusal.
+- [x] Implement private bounded idempotent result store with redaction, hash/size verification, restart retrieval, and tamper detection.
+- [x] Implement safe artifact manifests and Git status/evidence derivation.
+- [x] Reject absolute/traversal/external symlink/credential/private/out-of-root artifacts and oversize/unsafe completion.
+- [x] Implement canonical workspace/repository identity.
+- [x] Implement pure Git preflight classification for clean/dirty/ahead/behind/diverged/detached/unborn/no-upstream/collisions/existing worktrees.
+- [x] Implement a narrow sanitized/hook-disabled Git runner, owner-only managed worktrees/branches, requested/execution workspace separation, and exclusive canonical leases for non-Git editing.
+- [x] Preserve managed worktrees after success/failure/cancel or ambiguous state; no destructive cleanup command is exposed by this wave.
+- [x] Cover artifact create/remove/modified references, internal/external symlinks/private paths, Git matrix, aliases, parallel Git worktrees, non-Git serialization, and preservation.
 
 ## Engineering — asynchronous engine and CLI
 
-- [ ] Implement scheduler/engine claim, heartbeat, persisted cross-process cancel observation, maintenance-epoch checks, startup/sweep, worker lifecycle, and handle cleanup.
-- [ ] Add internal `TaskExecutionOutcome` and make fenced `TaskStore.complete(...)` the sole completion path.
-- [ ] Implement sanitized detached launcher and internal worker entry point that survive caller exit.
-- [ ] Make `delegate` asynchronous and add `--wait` through the same engine.
-- [ ] Add `task list|status|result|cancel|wait` with exact/unique prefix resolution and named failures.
-- [ ] Update `/tasks`, help, command metadata/autocomplete, README, and AGENTS operational syntax if changed.
-- [ ] Cover launch failure/crash boundaries, restart recovery, three plan tasks + queued fourth, plan-write violation, caller exit, CLI paths, and handle leaks.
+- [x] Implement scheduler/engine claim, heartbeat, persisted cross-process cancel observation, maintenance-epoch checks, startup recovery/sweep, worker lifecycle, and timer/slot/lock cleanup.
+- [x] Add internal execution outcome and make fenced `TaskStore.complete(...)` the sole completion path with final workspace/review matching.
+- [x] Implement sanitized detached launcher and guarded internal worker entry point.
+- [x] Make `delegate` asynchronous and add `--wait` through the same record/result path.
+- [x] Add `task list|status|result|cancel|wait|recover` with exact/unique prefix resolution and named failures.
+- [x] Update `/tasks`, CLI help, README, and AGENTS operational syntax.
+- [x] Cover launch degradation, execution crash/retry, restart/orphan recovery, three plan tasks + queued fourth, plan-write violation, cross-process cancel polling, canonical non-Git serialization, Git isolation, and compiled CLI paths.
 
 ## Reviewer
 
-- [ ] Run focused state/migration/restore/quarantine validators and temporary-repository macOS integration tests.
-- [ ] Run `pnpm secrets:check`, `pnpm check`, `pnpm build`, `node bin/zeuz health`, and `git diff --check`.
+- [x] Run focused state/migration/restore/quarantine validators and temporary-repository macOS integration tests.
+- [x] Run `pnpm secrets:check`, `pnpm check`, `pnpm build`, `node bin/zeuz health`, and `git diff --check`.
 - [ ] Inspect staged, unstaged, and untracked scope before every commit/push.
 - [ ] Keep draft PR description/commits/checks current and confirm GitHub Actions green.
 - [ ] Create a fresh Medusa request/criteria/delivery/verification packet over the final artifact.
-- [ ] Obtain read-only fresh-context cross-family review from Composer 2.5; use GLM 5.2 only if healthy and independently effective.
+- [ ] Obtain read-only fresh-context cross-family reviews from Composer 2.5 and GLM 5.2 as selected for this session.
 - [ ] Remediate every valid `CHANGES_REQUIRED` finding and repeat independent review until `PASS`; treat unavailable/stale/invalid review as `REVIEW_BLOCKED`.
 
 ## Optimizer and delivery
 
-- [ ] Reinspect module boundaries, duplicated state mutation, unnecessary public surface, budgets, error metadata, and portability after correctness is proven.
-- [ ] Any optimizer change triggers focused verification and a fresh Medusa packet/report.
+- [x] Reinspect module boundaries, duplicated state mutation, unnecessary public surface, budgets, error metadata, and portability after correctness is proven (Luna High optimizer audit: `CHANGES_REQUIRED`).
+- [x] Remediate valid optimizer findings around atomic maintenance fencing, current-attempt recovery evidence, result/artifact verification, worktree preflight, stale record-lock leases, scheduler release, queued wait recovery, and exact schemas; repeat focused and full verification.
+- [x] Any optimizer change triggers focused verification and a fresh Medusa packet/report.
 - [ ] Record characterization and implementation commits, migration/rollback instructions, concurrency/isolation evidence, restart/cancel/retry/dependency/result evidence, reviewer verdict/fingerprint, and remaining risks.
 - [ ] Compact/rewrite private `handoff.md` under the configured bounds.
 - [ ] Deliver branch and draft PR link without merging.

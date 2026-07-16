@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { link, lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 
 export class UnsafeStateRootError extends Error {
   readonly code = 'UNSAFE_STATE_ROOT';
@@ -83,12 +83,60 @@ export async function writePrivateStateFileAtomic(target: string, content: strin
     handle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     await handle.chmod(0o600);
     await handle.writeFile(content, 'utf8');
+    await handle.sync();
     await handle.close();
     handle = undefined;
     await rename(temporary, target);
+    await syncStateDirectory(dirname(target));
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await rm(temporary, { force: true }).catch(() => undefined);
     throw error;
+  }
+}
+
+export async function writePrivateStateFileCreate(target: string, content: string): Promise<void> {
+  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+  let handle;
+  try {
+    handle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+    await handle.chmod(0o600);
+    await handle.writeFile(content, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await link(temporary, target);
+    await rm(temporary);
+    await syncStateDirectory(dirname(target));
+  } catch (error) {
+    await handle?.close().catch(() => undefined);
+    await rm(temporary, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function readPrivateStateFile(path: string, root: string, maxBytes: number): Promise<string> {
+  await assertPrivateStateFile(path, root);
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const metadata = await handle.stat();
+    if (!metadata.isFile() || metadata.size > maxBytes) throw new UnsafeStateRootError(`State file exceeds its byte budget: ${path}`);
+    return await handle.readFile('utf8');
+  } finally {
+    await handle.close();
+  }
+}
+
+async function syncStateDirectory(path: string): Promise<void> {
+  if (process.platform === 'win32') return;
+  let handle;
+  try {
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    await handle.sync();
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (!['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM'].includes(code ?? '')) throw error;
+  } finally {
+    await handle?.close().catch(() => undefined);
   }
 }

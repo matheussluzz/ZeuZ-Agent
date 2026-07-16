@@ -105,7 +105,7 @@ test('stores reject symlinked persisted state files', async () => {
     await store.initialize();
     await writeFile(target, '{}\n', { mode: 0o600 });
     await symlink(target, join(root, 'tasks', 'linked.json'));
-    await assert.rejects(() => store.list(), /regular non-symlink file/);
+    await assert.rejects(() => store.list(), /(?:regular non-symlink file|found a symlink)/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

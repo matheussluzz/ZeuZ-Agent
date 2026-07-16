@@ -1,6 +1,6 @@
 # Wave 04 PRD — Versioned durable task engine and editing isolation
 
-Status: planning
+Status: implementation complete; independent review pending
 
 Branch: `agent/wave-04-durable-task-engine`
 
@@ -18,7 +18,7 @@ The baseline couples task persistence, concurrency, provider execution, and CLI 
 
 - make schemas and transition policy pure and independently testable;
 - make the filesystem repository the only writer of versioned snapshots and revisions;
-- make leases separate fenced records whose current token is required for every owner write;
+- embed a versioned lease snapshot in each task so claim, heartbeat, cancellation, and terminal CAS share one fence;
 - keep scheduling and execution orchestration outside stores;
 - reuse the existing controller for provider work, Wave 03 cancellation/deadlines, workspace evidence, and Medusa gating;
 - isolate Git editing before provider launch, and serialize non-Git editing;
@@ -61,7 +61,7 @@ The characterization commit must pass against `b3645f1` and precede all producti
 - Owner writes additionally require the current lease owner ID and fencing token.
 - Temporary files are unique, private, no-follow, flushed at file level, renamed through a documented platform contract, and cleaned conservatively. Parent-directory flush is attempted where supported and reported honestly rather than advertised as guaranteed crash durability.
 - Partial write, rename failure, leftover temporary, stale revision, duplicate create, and stale-fence behavior have deterministic injected tests.
-- Existing state-root realpath, owner, `0700` directory, `0600` file, and symlink defenses remain fail-closed.
+- The state container remains realpath/owner checked and rejects group/world writes; every engine-owned collection is `0700`, every state file is `0600`, and symlink boundaries fail closed.
 - Opening the repository yields one canonical realpath-backed `StateRoot` capability; every derived path stays under it and the low-level atomic writer is not a public bypass around CAS.
 - Current records have explicit per-record budgets and the state root has a configurable bounded quota. Oversize current writes fail with `STATE_QUOTA_EXCEEDED`; oversize legacy records remain intact/read-only with diagnostics rather than being truncated or destroyed.
 - Session mutation moves from mutable-object overwrite to snapshot-returning `create`/`replace(expectedRevision)` APIs; controller session writes participate in the same lost-update protection as tasks.
