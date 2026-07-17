@@ -8,31 +8,31 @@ Branch: `agent/wave-05-portable-skill-registry`
 - [x] Create branch `agent/wave-05-portable-skill-registry`
 - [x] Write `docs/waves/wave-05-prd.md`
 - [x] Write `docs/waves/wave-05-tasks.md`
-- [ ] Commit characterization checkpoint (`test/wave-05-characterization.test.ts`)
+- [x] Commit characterization checkpoint (`test/wave-05-characterization.test.ts`)
 
 ## Registry core
 
-- [ ] `src/skill-registry/` types, parser, identity, digest, inventory
-- [ ] Generated catalog index + pantheon `zeuz.manifest.yaml` migration
-- [ ] Validator, trust lifecycle, resolver, progressive loader
-- [ ] `SkillRegistry` compatibility adapter (no controller rewrite)
+- [x] `src/skill-registry/` types, parser, identity, digest, inventory
+- [x] Generated catalog index + pantheon `zeuz.manifest.yaml` migration
+- [x] Validator, trust lifecycle, resolver, progressive loader
+- [x] `SkillRegistry` compatibility adapter (no controller rewrite)
 
 ## Provenance and bundles
 
-- [ ] Pin and document BMAD `717479bc…` and NVIDIA `8543c134…`
-- [ ] Import tooling + locks + ledger with exclusion reasons
-- [ ] Materialize `catalog/bundles/bmad` and `catalog/bundles/nvidia`
-- [ ] Reconciliation tests vs pinned inventories
+- [x] Pin and document BMAD `717479bc…` and NVIDIA `8543c134…`
+- [x] Import tooling + locks + ledger with exclusion reasons
+- [x] Materialize `catalog/bundles/bmad` (53) and `catalog/bundles/nvidia` (230)
+- [x] Reconciliation tests vs pinned inventories
 
 ## CLI and docs
 
-- [ ] `zeuz skill list|status|validate|install|update|remove|sync|check`
-- [ ] README, help text, command-dispatch metadata
-- [ ] Package `files` allowlist excludes private/runtime paths
+- [x] `zeuz skill list|status|validate|install|update|remove|sync|check`
+- [x] README, help text, command metadata
+- [x] Package `files` allowlist excludes bundle trees from npm core
 
 ## Verification and review
 
-- [ ] Full test matrix from PRD
-- [ ] `pnpm secrets:check`, `pnpm check`, `pnpm build`, health, `npm pack --dry-run`
-- [ ] Draft PR (gh auth permitting)
-- [ ] DeepSeek Medusa adversarial review (schema-valid JSON)
+- [x] Full test matrix from PRD (core)
+- [x] `pnpm secrets:check`, `pnpm check`, `pnpm build`, health, `npm pack --dry-run`
+- [x] Draft PR https://github.com/matheussluzz/ZeuZ-Agent/pull/6
+- [ ] DeepSeek Medusa adversarial review (schema-valid JSON) — in progress
