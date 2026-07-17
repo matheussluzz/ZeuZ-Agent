@@ -10,7 +10,7 @@ const tracked = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '
 
 const signatures = [
   { name: 'NVIDIA API key', pattern: /nvapi-[A-Za-z0-9_-]{16,}/g },
-  { name: 'OpenAI API key', pattern: /sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g },
+  { name: 'OpenAI API key', pattern: /(?<![a-z])sk-(?:proj-)?[A-Za-z0-9_-]{20,}/g },
   { name: 'Anthropic API key', pattern: /sk-ant-[A-Za-z0-9_-]{20,}/g },
   { name: 'GitHub token', pattern: /gh[opusr]_[A-Za-z0-9]{20,}/g },
   { name: 'AWS access key', pattern: /AKIA[0-9A-Z]{16}/g },

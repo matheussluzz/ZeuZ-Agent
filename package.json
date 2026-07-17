@@ -28,6 +28,8 @@
     "assets",
     "docs",
     "skills",
+    "catalog/index",
+    "scripts/sync-skill-bundle.mjs",
     "templates/aws-athena-mcp/.env.example",
     "templates/aws-athena-mcp/README.md",
     "templates/aws-athena-mcp/iam-policy.example.json",

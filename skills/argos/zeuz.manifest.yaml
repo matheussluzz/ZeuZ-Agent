@@ -1,0 +1,9 @@
+namespace: zeuz/pantheon
+version: "0.1.0"
+trust: enabled
+enablement: enabled
+networkPolicy: offline
+contextBudgetBytes: 65536
+triggers:
+  - (?:\bargos\b|machine learning|\bml\b|forecast|chronos|timegpt|patchtst|lightgbm|monte carlo|\bvar\b|vecm|rede neural)
+dependencies: []

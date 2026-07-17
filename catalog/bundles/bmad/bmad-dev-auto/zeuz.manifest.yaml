@@ -1,0 +1,8 @@
+namespace: import/bmad
+version: "0.0.0"
+trust: quarantined
+enablement: disabled
+networkPolicy: explicit-sync-only
+contextBudgetBytes: 32768
+triggers: []
+dependencies: []
