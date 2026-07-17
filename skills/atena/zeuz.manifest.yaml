@@ -1,0 +1,11 @@
+namespace: zeuz/pantheon
+version: "0.1.0"
+trust: enabled
+enablement: enabled
+networkPolicy: offline
+contextBudgetBytes: 65536
+triggers:
+  - (?:\batena\b|aws athena|amazon athena|glue catalog)
+dependencies:
+  - prometeu
+  - clio

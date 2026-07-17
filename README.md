@@ -196,7 +196,19 @@ The adaptive protocol teaches while delivering when the user is unfamiliar and s
 | **Argos** | Designs and evaluates forecasting/ML work with temporal leakage defenses and honest baselines |
 | **Metis** | Deep research, source hierarchy, claim ledger, and unsupported-claim control; always paired with Medusa |
 
-Skills are selected just in time from the request. Atena also activates Prometeu and Clio; Metis always activates Medusa. Their instructions, references, validators, and generators live in [`skills/`](skills/).
+Skills are selected just in time from the request. Atena also activates Prometeu and Clio; Metis always activates Medusa. Their instructions, references, validators, and generators live in [`skills/`](skills/). Third-party BMAD and NVIDIA catalogs are imported into [`catalog/bundles/`](catalog/bundles/) as quarantined, disabled snapshots with pinned locks under [`catalog/locks/`](catalog/locks/); they are discoverable offline but never auto-enabled.
+
+### Skill catalog CLI
+
+```bash
+zeuz skill list                 # metadata index (no SKILL.md bodies)
+zeuz skill status               # pantheon + bundle revisions/trust
+zeuz skill validate             # rebuild/validate the local catalog index
+zeuz skill sync bmad|nvidia     # explicit network sync to pinned upstream revision
+zeuz skill check bmad|nvidia    # read-only sync diff against pinned revision
+```
+
+Imported bundles remain `quarantined`/`disabled` until provenance, license, integrity, and explicit reviewed enablement pass. `zeuz skill sync` is the only normal path that touches the network for catalog refresh.
 
 The workflow design adopts selected public ideas from [BMAD Method](https://github.com/bmad-code-org/bmad-method): lean project context, progressive step loading, consequential-action checkpoints, layered adversarial lenses, and verification-gap tracing. ZeuZ does not vendor BMAD code or branding, and deliberately rejects mandatory finding quotas. See the [adaptation record](docs/research/bmad-adaptation.md).
 
@@ -268,6 +280,7 @@ Task and session records are versioned under the private ZeuZ state root (`ZEUZ_
 | `/cd [path]` | Change the sole active workspace |
 | `/user [name]`, `/onboard`, `/bootstrap` | Manage local user context |
 | `/skills` | List the skill pantheon |
+| `zeuz skill …` | Inspect, validate, sync, install, update, or remove catalog skills (see below) |
 | `/help`, `/exit` | Show help or exit |
 
 ### Permission modes
@@ -356,9 +369,12 @@ Real smokes recheck provider health, run in `plan` mode, may consume quota, and 
 src/adapters/          provider-specific CLI/API bridges
 src/controller.ts      sessions, fallback, handoff, review, remediation
 src/context.ts         onboarding, user profile, and vault bootstrap
-src/skills.ts          just-in-time skill selection
+src/skills.ts          SkillRegistry adapter over portable catalog index
+src/skill-registry/    metadata index, provenance, resolver, loader, CLI
 src/ui.tsx             Ink terminal and slash commands
 skills/                pantheon instructions, references, scripts, assets
+catalog/bundles/       quarantined BMAD/NVIDIA snapshots (excluded from npm core)
+catalog/locks/         pinned upstream revisions and inventory digests
 templates/aws-athena-mcp/ narrow MCP server template
 ```
 
