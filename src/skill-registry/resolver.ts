@@ -1,8 +1,10 @@
+import { installRoot } from '../env.js';
 import type { ActivationResult, CatalogIndex, CatalogSkillRecord, RoutingReason } from './types.js';
 import { DEFAULT_ACTIVATION_BUDGET_BYTES } from './types.js';
 import { activationError } from './errors.js';
 import { readBoundedFile, skillDirectoryName } from './inventory.js';
 import { parseSkillMarkdown } from './parser.js';
+import { resolveSkillPaths, validateSkillPaths } from './paths.js';
 
 function findByName(index: CatalogIndex, name: string): CatalogSkillRecord | undefined {
   return index.skills.find((skill) => skill.name === name || skill.id === name || skill.id.endsWith(`/${name}@`));
@@ -101,13 +103,14 @@ export function resolveActivation(index: CatalogIndex, task: string, budgetBytes
   return { ordered, reasons };
 }
 
-export async function loadActivationContext(index: CatalogIndex, task: string, budgetBytes = DEFAULT_ACTIVATION_BUDGET_BYTES): Promise<ActivationResult> {
+export async function loadActivationContext(index: CatalogIndex, task: string, budgetBytes = DEFAULT_ACTIVATION_BUDGET_BYTES, root = installRoot()): Promise<ActivationResult> {
   const { ordered, reasons } = resolveActivation(index, task, budgetBytes);
   const selected = [];
   let consumedBudgetBytes = 0;
   for (const skill of ordered) {
-    const raw = await readBoundedFile(skill.skillMdPath);
-    const instruction = parseSkillMarkdown(raw, skillDirectoryName(skill.rootPath)).body;
+    const { skillMdPath, rootPath } = await validateSkillPaths(root, skill);
+    const raw = await readBoundedFile(skillMdPath);
+    const instruction = parseSkillMarkdown(raw, skillDirectoryName(rootPath)).body;
     consumedBudgetBytes += Buffer.byteLength(instruction, 'utf8');
     selected.push({
       skillId: skill.id,
@@ -117,7 +120,7 @@ export async function loadActivationContext(index: CatalogIndex, task: string, b
       enablement: skill.zeuz.enablement,
       reasons: reasons.filter((reason) => reason.skillId === skill.id),
       instruction,
-      path: skill.skillMdPath,
+      path: skillMdPath,
     });
   }
   return { selected, reasons, contextBudgetBytes: budgetBytes, consumedBudgetBytes };

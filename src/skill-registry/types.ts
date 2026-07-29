@@ -53,8 +53,8 @@ export interface CatalogSkillRecord {
   id: string;
   name: string;
   description: string;
-  rootPath: string;
-  skillMdPath: string;
+  rootRel: string;
+  skillMdRel: string;
   source: SkillSourceRef;
   portable: PortableSkillMetadata;
   zeuz: ZeuzSkillExtension;
@@ -71,7 +71,6 @@ export interface CatalogSkillRecord {
 export interface CatalogIndex {
   schemaVersion: number;
   generatedAt: string;
-  installRoot: string;
   skills: CatalogSkillRecord[];
   bundles: BundleLockSummary[];
 }

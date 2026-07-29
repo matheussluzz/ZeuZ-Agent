@@ -47,6 +47,9 @@ async function walk(root: string, current: string, relativePrefix: string, depth
     if (normalized.startsWith('..') || resolve(absolute) !== resolve(root, normalized)) {
       throw new SkillRegistryError('PATH_TRAVERSAL', `Path escapes skill root: ${relativePath}`);
     }
+    if (files.length >= options.maxFiles) {
+      throw new SkillRegistryError('INVENTORY_FILE_COUNT_EXCEEDED', `Skill tree exceeds ${options.maxFiles} files.`);
+    }
     files.push({
       path: normalized,
       size: metadata.size,

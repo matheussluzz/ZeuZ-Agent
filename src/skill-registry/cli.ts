@@ -1,8 +1,9 @@
-import { installRoot } from '../env.js';
-import { buildCatalogIndex, catalogPaths, loadCatalogIndex, reconcileBundleLock, writeCatalogIndex } from './index.js';
+import { execFileSync } from 'node:child_process';
+import { installRoot, sanitizedChildEnvironment } from '../env.js';
+import { buildCatalogIndex, collectBundleIntegrityMismatches, loadCatalogIndex, writeCatalogIndex } from './index.js';
+import { effectiveCatalogIndex, installSkill, removeSkill, updateSkill } from './installer.js';
 import { applyValidation } from './validator.js';
 import { SkillRegistryError } from './errors.js';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export interface SkillCommandResult {
@@ -10,7 +11,11 @@ export interface SkillCommandResult {
   exitCode: number;
 }
 
-export async function runSkillCommand(argv: string[], root = installRoot()): Promise<SkillCommandResult> {
+export interface SkillCommandRuntime {
+  execFileSync?: typeof execFileSync;
+}
+
+export async function runSkillCommand(argv: string[], root = installRoot(), runtime: SkillCommandRuntime = {}): Promise<SkillCommandResult> {
   const [command, ...rest] = argv;
   if (!command) {
     return { exitCode: 1, output: 'Usage: zeuz skill list|status|validate|install|update|remove|sync|check [args]' };
@@ -19,12 +24,12 @@ export async function runSkillCommand(argv: string[], root = installRoot()): Pro
   try {
     switch (command) {
       case 'list': {
-        const index = await loadCatalogIndex(root);
+        const index = await effectiveCatalogIndex(root);
         const lines = index.skills.map((skill) => `${skill.name.padEnd(16)} ${skill.id.padEnd(40)} trust=${skill.zeuz.trust} enabled=${skill.zeuz.enablement}`);
         return { exitCode: 0, output: lines.join('\n') || 'No skills indexed.' };
       }
       case 'status': {
-        const index = await loadCatalogIndex(root);
+        const index = await effectiveCatalogIndex(root);
         const lines = [`skills=${index.skills.length}`, `bundles=${index.bundles.length}`];
         for (const bundle of index.bundles) {
           lines.push(`${bundle.bundleId}: revision=${bundle.revision} skills=${bundle.skillCount} excluded=${bundle.excludedCount} digest=${bundle.inventoryDigest.slice(0, 12)}`);
@@ -32,44 +37,45 @@ export async function runSkillCommand(argv: string[], root = installRoot()): Pro
         return { exitCode: 0, output: lines.join('\n') };
       }
       case 'validate': {
+        const writeIndex = rest.includes('--write-index');
         const index = applyValidation(await buildCatalogIndex(root));
-        await writeCatalogIndex(index, root);
         const errors = index.skills.flatMap((skill) => skill.validation?.errors ?? []);
-        return { exitCode: errors.length === 0 ? 0 : 1, output: errors.length === 0 ? 'Catalog validation passed.' : errors.join('\n') };
+        if (writeIndex) await writeCatalogIndex(index, root);
+        const suffix = writeIndex ? ' Index written.' : ' Index not written (pass --write-index to persist).';
+        return { exitCode: errors.length === 0 ? 0 : 1, output: (errors.length === 0 ? 'Catalog validation passed.' : errors.join('\n')) + suffix };
       }
       case 'sync':
       case 'check': {
         const bundleId = rest[0];
         if (!bundleId) return { exitCode: 1, output: `${command} requires bundle id (bmad|nvidia).` };
-        const { execFileSync } = await import('node:child_process');
-        const output = execFileSync('node', [join(root, 'scripts/sync-skill-bundle.mjs'), bundleId, command === 'check' ? 'check' : 'apply'], { cwd: root, encoding: 'utf8' });
+        const execute = runtime.execFileSync ?? execFileSync;
+        const output = execute('node', [join(root, 'scripts/sync-skill-bundle.mjs'), bundleId, command === 'check' ? 'check' : 'apply'], {
+          cwd: root,
+          encoding: 'utf8',
+          env: sanitizedChildEnvironment(),
+        });
         if (command === 'sync') {
-          const index = applyValidation(await buildCatalogIndex(root));
+          const index = applyValidation(await buildCatalogIndex(root, new Date().toISOString()));
           await writeCatalogIndex(index, root);
         }
         return { exitCode: 0, output: output.trim() };
       }
-      case 'install':
+      case 'install': {
+        const skillId = rest.find((arg) => !arg.startsWith('--'));
+        const enable = rest.includes('--enable');
+        if (!skillId) return { exitCode: 1, output: 'install requires a catalog skill id.' };
+        return { exitCode: 0, output: await installSkill(root, skillId, { enable }) };
+      }
       case 'update': {
         const skillId = rest[0];
-        if (!skillId) return { exitCode: 1, output: `${command} requires a catalog skill id.` };
-        const index = await loadCatalogIndex(root);
-        const skill = index.skills.find((candidate) => candidate.id === skillId || candidate.name === skillId);
-        if (!skill) return { exitCode: 1, output: `Unknown skill id: ${skillId}` };
-        if (skill.zeuz.trust === 'quarantined') {
-          return { exitCode: 1, output: `Skill ${skill.id} remains quarantined until explicit reviewed enablement.` };
-        }
-        return { exitCode: 0, output: `${command} verified metadata for ${skill.id}; no filesystem mutation required in local snapshot mode.` };
+        if (!skillId) return { exitCode: 1, output: 'update requires a catalog skill id.' };
+        return { exitCode: 0, output: await updateSkill(root, skillId) };
       }
       case 'remove': {
-        const skillId = rest[0];
+        const skillId = rest.find((arg) => !arg.startsWith('--'));
+        const force = rest.includes('--force');
         if (!skillId) return { exitCode: 1, output: 'remove requires a catalog skill id.' };
-        const index = await loadCatalogIndex(root);
-        const dependents = index.skills.filter((skill) => (skill.zeuz.dependencies ?? []).includes(skillId) || (skill.zeuz.dependencies ?? []).some((dep) => skillId.endsWith(dep)));
-        if (dependents.length > 0) {
-          return { exitCode: 1, output: `Remove blocked by dependents: ${dependents.map((skill) => skill.id).join(', ')}` };
-        }
-        return { exitCode: 0, output: `Remove preflight passed for ${skillId}. Bundle snapshots remain restorable via lock rollback.` };
+        return { exitCode: 0, output: await removeSkill(root, skillId, { force }) };
       }
       default:
         return { exitCode: 1, output: `Unknown skill command: ${command}` };
@@ -81,19 +87,5 @@ export async function runSkillCommand(argv: string[], root = installRoot()): Pro
 }
 
 export async function reconcileInstalledBundles(root = installRoot()): Promise<string[]> {
-  const { lockRoot, bundleRoot } = catalogPaths(root);
-  const mismatches: string[] = [];
-  for (const bundleId of ['bmad', 'nvidia']) {
-    const lockPath = join(lockRoot, `${bundleId}.lock.json`);
-    try {
-      const lock = JSON.parse(await readFile(lockPath, 'utf8'));
-      const index = await loadCatalogIndex(root);
-      const discovered = index.skills.filter((skill) => skill.source.bundleId === bundleId).map((skill) => skill.id).sort();
-      mismatches.push(...reconcileBundleLock(lock, discovered).map((item) => `${bundleId}:${item}`));
-      if (!discovered.length && lock.importedSkillTotal > 0) mismatches.push(`${bundleId}:bundle-missing`);
-    } catch {
-      mismatches.push(`${bundleId}:lock-missing`);
-    }
-  }
-  return mismatches;
+  return collectBundleIntegrityMismatches(root);
 }

@@ -1,12 +1,13 @@
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 import { installRoot } from '../env.js';
-import { digestInventory } from './digest.js';
+import { digestInventory, sha256Hex } from './digest.js';
 import { SkillRegistryError } from './errors.js';
-import { buildSkillInventory, skillDirectoryName } from './inventory.js';
+import { buildSkillInventory, skillDirectoryName, type SkillInventory } from './inventory.js';
 import { normalizeSkillId, readZeuzManifest } from './identity.js';
 import { readSkillMetadata } from './parser.js';
+import { assertPathComponentsNotSymlinks, assertPortableRelative, hydrateCatalogIndex, serializeSkillRecord, toInstallRelative } from './paths.js';
 import type { BundleLockFile, BundleLockSummary, CatalogIndex, CatalogSkillRecord, SkillSourceRef } from './types.js';
 import { MAX_INDEX_BYTES, SKILL_REGISTRY_SCHEMA_VERSION } from './types.js';
 
@@ -14,18 +15,22 @@ const PANTHEON_ROOT = 'skills';
 const BUNDLE_ROOT = 'catalog/bundles';
 const LOCK_ROOT = 'catalog/locks';
 const INDEX_ROOT = 'catalog/index';
+const MAX_BUNDLE_INVENTORY_FILES = 10_000;
+const MAX_BUNDLE_INVENTORY_DEPTH = 32;
 
 export function catalogPaths(root = installRoot()): {
   pantheonRoot: string;
   bundleRoot: string;
   lockRoot: string;
   indexPath: string;
+  stateRoot: string;
 } {
   return {
     pantheonRoot: resolve(root, PANTHEON_ROOT),
     bundleRoot: resolve(root, BUNDLE_ROOT),
     lockRoot: resolve(root, LOCK_ROOT),
     indexPath: resolve(root, INDEX_ROOT, 'catalog.index.json'),
+    stateRoot: resolve(root, 'catalog', 'state'),
   };
 }
 
@@ -54,43 +59,33 @@ async function discoverSkillRoots(base: string): Promise<string[]> {
   }
 }
 
-function pantheonDefaults(skillName: string): Partial<import('./types.js').ZeuzSkillExtension> {
+function pantheonManifestDefaults(): Partial<import('./types.js').ZeuzSkillExtension> {
   return {
     namespace: 'zeuz/pantheon',
     version: '0.1.0',
     trust: 'enabled',
     enablement: 'enabled',
     networkPolicy: 'offline',
-    dependencies: skillName === 'metis' ? ['medusa'] : skillName === 'atena' ? ['prometeu', 'clio'] : [],
-    triggers: PANTHEON_TRIGGERS[skillName] ?? [],
     contextBudgetBytes: 64 * 1024,
   };
 }
 
-const PANTHEON_TRIGGERS: Record<string, string[]> = {
-  medusa: ['(?:\\bmedusa\\b|adversarial|review|revis(?:ar|ão|ao))'],
-  hermes: ['(?:\\bhermes\\b|linguagem simples|comercial|executiv|explic(?:ar|ação|acao))'],
-  hefesto: ['(?:\\bhefesto\\b|dashboard|highcharts|gr[aá]fico)'],
-  atena: ['(?:\\batena\\b|aws athena|amazon athena|glue catalog)'],
-  clio: ['(?:\\bclio\\b|obsidian|vault|cofre|gloss[aá]rio|wikilink)'],
-  prometeu: ['(?:\\bprometeu\\b|\\bsql\\b|\\bquery\\b|consulta.+(?:custo|scan)|bytes scanned)'],
-  argos: ['(?:\\bargos\\b|machine learning|\\bml\\b|forecast|chronos|timegpt|patchtst|lightgbm|monte carlo|\\bvar\\b|vecm|rede neural)'],
-  metis: ['(?:\\bmetis\\b|deep research|pesquisa profunda|checagem de fontes|verificar fontes|source ledger)'],
-};
-
-async function loadSkillRecord(skillRoot: string, source: SkillSourceRef): Promise<CatalogSkillRecord> {
+async function loadSkillRecord(root: string, skillRoot: string, source: SkillSourceRef, verifiedInventory?: SkillInventory): Promise<CatalogSkillRecord> {
   const directoryName = skillDirectoryName(skillRoot);
   const skillMdPath = join(skillRoot, 'SKILL.md');
-  const inventory = await buildSkillInventory(skillRoot);
+  const inventory = verifiedInventory ?? await buildSkillInventory(skillRoot);
   let portable: import('./types.js').PortableSkillMetadata;
   let zeuz: import('./types.js').ZeuzSkillExtension;
   const validationErrors: string[] = [];
   try {
     portable = await readSkillMetadata(skillMdPath, directoryName);
     const manifestPath = join(skillRoot, 'zeuz.manifest.yaml');
+    if (!(await pathExists(manifestPath)) && source.kind === 'pantheon') {
+      throw new SkillRegistryError('ZEUZ_MANIFEST_MISSING', `Pantheon skill ${directoryName} is missing zeuz.manifest.yaml.`);
+    }
     zeuz = await pathExists(manifestPath)
-      ? await readZeuzManifest(manifestPath, pantheonDefaults(directoryName))
-      : readZeuzManifestFromDefaults(directoryName, source);
+      ? await readZeuzManifest(manifestPath, source.kind === 'pantheon' ? pantheonManifestDefaults() : undefined)
+      : readBundleDefaults(source);
   } catch (error) {
     portable = { name: directoryName, description: `Invalid imported skill (${directoryName})` };
     zeuz = {
@@ -108,13 +103,13 @@ async function loadSkillRecord(skillRoot: string, source: SkillSourceRef): Promi
     validationErrors.push(error instanceof Error ? error.message : String(error));
   }
   const id = normalizeSkillId(zeuz.namespace, portable.name, zeuz.version);
-  return {
+  const record: CatalogSkillRecord = {
     schemaVersion: SKILL_REGISTRY_SCHEMA_VERSION,
     id,
     name: portable.name,
     description: portable.description,
-    rootPath: skillRoot,
-    skillMdPath,
+    rootRel: toInstallRelative(root, skillRoot),
+    skillMdRel: toInstallRelative(root, skillMdPath),
     source,
     portable,
     zeuz,
@@ -123,53 +118,54 @@ async function loadSkillRecord(skillRoot: string, source: SkillSourceRef): Promi
     totalBytes: inventory.totalBytes,
     validation: { errors: validationErrors, warnings: [] },
   };
+  return serializeSkillRecord(root, record);
 }
 
-function readZeuzManifestFromDefaults(directoryName: string, source: SkillSourceRef): import('./types.js').ZeuzSkillExtension {
-  const defaults = pantheonDefaults(directoryName);
-  if (source.kind === 'bundle') {
-    return {
-      namespace: source.namespace,
-      version: '0.0.0',
-      trust: 'quarantined',
-      enablement: 'disabled',
-      networkPolicy: 'explicit-sync-only',
-      triggers: [],
-      dependencies: [],
-      conflicts: [],
-      capabilityTags: [],
-      allowedTools: [],
-      contextBudgetBytes: 32 * 1024,
-    };
-  }
+function readBundleDefaults(source: SkillSourceRef): import('./types.js').ZeuzSkillExtension {
   return {
-    namespace: defaults.namespace!,
-    version: defaults.version!,
-    trust: defaults.trust!,
-    enablement: defaults.enablement!,
-    networkPolicy: defaults.networkPolicy!,
-    triggers: defaults.triggers ?? [],
-    dependencies: defaults.dependencies ?? [],
+    namespace: source.namespace,
+    version: '0.0.0',
+    trust: 'quarantined',
+    enablement: 'disabled',
+    networkPolicy: 'explicit-sync-only',
+    triggers: [],
+    dependencies: [],
     conflicts: [],
     capabilityTags: [],
     allowedTools: [],
-    ...(defaults.contextBudgetBytes !== undefined ? { contextBudgetBytes: defaults.contextBudgetBytes } : {}),
+    contextBudgetBytes: 32 * 1024,
   };
 }
 
-async function readBundleLock(lockRoot: string, bundleId: string): Promise<BundleLockFile | undefined> {
+async function readBundleLock(root: string, lockRoot: string, bundleId: string): Promise<BundleLockFile | undefined> {
   const lockPath = join(lockRoot, `${bundleId}.lock.json`);
   if (!(await pathExists(lockPath))) return undefined;
+  await assertPathComponentsNotSymlinks(root, lockPath);
   return JSON.parse(await readFile(lockPath, 'utf8')) as BundleLockFile;
 }
 
-export async function buildCatalogIndex(root = installRoot(), now = new Date().toISOString()): Promise<CatalogIndex> {
+function skillInventoryFromVerifiedBundle(bundleInventory: SkillInventory, skillRoot: string): SkillInventory {
+  const prefix = `${skillDirectoryName(skillRoot)}/`;
+  const files = bundleInventory.files
+    .filter((file) => file.path.startsWith(prefix))
+    .map((file) => ({ ...file, path: file.path.slice(prefix.length) }));
+  return {
+    root: resolve(skillRoot),
+    files,
+    digest: digestInventory(files),
+    totalBytes: files.reduce((sum, file) => sum + file.size, 0),
+  };
+}
+
+export async function buildCatalogIndex(root = installRoot(), generatedAt?: string): Promise<CatalogIndex> {
+  const verifiedBundleInventories = await assertInstalledBundlesVerified(root);
   const paths = catalogPaths(root);
+  await assertPathComponentsNotSymlinks(root, paths.pantheonRoot, { allowMissingTail: true });
   const skills: CatalogSkillRecord[] = [];
   const bundles: BundleLockSummary[] = [];
 
   for (const skillRoot of await discoverSkillRoots(paths.pantheonRoot)) {
-    skills.push(await loadSkillRecord(skillRoot, {
+    skills.push(await loadSkillRecord(root, skillRoot, {
       kind: 'pantheon',
       namespace: 'zeuz/pantheon',
       canonicalUrl: 'local:pantheon',
@@ -179,7 +175,7 @@ export async function buildCatalogIndex(root = installRoot(), now = new Date().t
 
   for (const bundleId of ['bmad', 'nvidia']) {
     const bundleRoot = join(paths.bundleRoot, bundleId);
-    const lock = await readBundleLock(paths.lockRoot, bundleId);
+    const lock = await readBundleLock(root, paths.lockRoot, bundleId);
     if (lock) {
       bundles.push({
         bundleId,
@@ -194,20 +190,21 @@ export async function buildCatalogIndex(root = installRoot(), now = new Date().t
     }
     if (!(await pathExists(bundleRoot))) continue;
     for (const skillRoot of await discoverSkillRoots(bundleRoot)) {
-      skills.push(await loadSkillRecord(skillRoot, {
+      skills.push(await loadSkillRecord(root, skillRoot, {
         kind: 'bundle',
         namespace: `import/${bundleId}`,
         canonicalUrl: lock?.sourceUrl ?? `bundle:${bundleId}`,
         revision: lock?.revision ?? 'unknown',
         bundleId,
-      }));
+      }, verifiedBundleInventories.has(bundleId)
+        ? skillInventoryFromVerifiedBundle(verifiedBundleInventories.get(bundleId)!, skillRoot)
+        : undefined));
     }
   }
 
   const index: CatalogIndex = {
     schemaVersion: SKILL_REGISTRY_SCHEMA_VERSION,
-    generatedAt: now,
-    installRoot: root,
+    generatedAt: generatedAt ?? new Date().toISOString(),
     skills: skills.sort((left, right) => left.id.localeCompare(right.id)),
     bundles,
   };
@@ -220,16 +217,22 @@ export async function buildCatalogIndex(root = installRoot(), now = new Date().t
 
 export async function writeCatalogIndex(index: CatalogIndex, root = installRoot()): Promise<string> {
   const { indexPath } = catalogPaths(root);
+  await assertPathComponentsNotSymlinks(root, indexPath, { allowMissingTail: true });
   await mkdir(dirname(indexPath), { recursive: true });
-  const serialized = `${JSON.stringify(index, null, 2)}\n`;
-  await writeFile(indexPath, serialized, 'utf8');
+  await assertPathComponentsNotSymlinks(root, indexPath, { allowMissingTail: true });
+  const hydrated = hydrateCatalogIndex(root, index);
+  const serialized = `${JSON.stringify(hydrated, null, 2)}\n`;
+  const temp = `${indexPath}.tmp-${process.pid}-${Date.now()}`;
+  await writeFile(temp, serialized, { encoding: 'utf8', mode: 0o600 });
+  await rename(temp, indexPath);
   return indexPath;
 }
 
 export async function loadCatalogIndex(root = installRoot()): Promise<CatalogIndex> {
-  const { indexPath } = catalogPaths(root);
-  if (!(await pathExists(indexPath))) return buildCatalogIndex(root);
-  return JSON.parse(await readFile(indexPath, 'utf8')) as CatalogIndex;
+  // The generated index is an inspectable cache/output, never a trust root. Rebuild
+  // runtime state from the manifests and bundle locks so a writable cache cannot
+  // change routing, trust, identity, or paths.
+  return buildCatalogIndex(root);
 }
 
 export function indexMetadataBytes(index: CatalogIndex): number {
@@ -250,7 +253,89 @@ export function reconcileBundleLock(lock: BundleLockFile, discoveredSkillIds: st
   for (let index = 0; index < Math.max(expected.length, actual.length); index += 1) {
     if (expected[index] !== actual[index]) mismatches.push(`skill-id:${actual[index] ?? expected[index]}`);
   }
-  const digest = digestInventory(lock.files.map((file) => ({ path: file.path, size: file.size, sha256: file.sha256 })));
-  if (digest !== lock.inventoryDigest) mismatches.push('inventory-digest');
   return mismatches;
+}
+
+async function inspectInstalledBundleBytes(root: string, bundleId: string, lock: BundleLockFile): Promise<{ mismatches: string[]; inventory?: SkillInventory }> {
+  const bundleRoot = join(catalogPaths(root).bundleRoot, bundleId);
+  const mismatches: string[] = [];
+  let current: Awaited<ReturnType<typeof buildSkillInventory>>;
+  try {
+    current = await buildSkillInventory(bundleRoot, {
+      maxFiles: MAX_BUNDLE_INVENTORY_FILES,
+      maxDepth: MAX_BUNDLE_INVENTORY_DEPTH,
+    });
+  } catch (error) {
+    const code = error instanceof SkillRegistryError ? error.code : 'INVENTORY_READ_FAILED';
+    return { mismatches: [`inventory:${code}`] };
+  }
+
+  const expected = new Map<string, { path: string; size: number; sha256: string }>();
+  for (const file of lock.files) {
+    try {
+      const path = assertPortableRelative(file.path, 'bundle lock file path');
+      if (expected.has(path)) mismatches.push(`duplicate:${path}`);
+      else expected.set(path, { ...file, path });
+    } catch {
+      mismatches.push(`invalid-path:${file.path}`);
+    }
+  }
+
+  const actual = new Map(current.files.map((file) => [file.path, file] as const));
+  for (const [path, file] of expected) {
+    const observed = actual.get(path);
+    if (!observed) {
+      mismatches.push(`missing:${path}`);
+      continue;
+    }
+    if (observed.size !== file.size) mismatches.push(`size:${path}`);
+    if (observed.sha256 !== file.sha256) mismatches.push(`sha256:${path}`);
+  }
+  for (const path of actual.keys()) {
+    if (!expected.has(path)) mismatches.push(`unexpected:${path}`);
+  }
+  if (current.digest !== lock.inventoryDigest) mismatches.push('inventory-digest');
+  return { mismatches, inventory: current };
+}
+
+export async function verifyInstalledBundleBytes(root: string, bundleId: string, lock: BundleLockFile): Promise<string[]> {
+  return (await inspectInstalledBundleBytes(root, bundleId, lock)).mismatches;
+}
+
+async function inspectInstalledBundles(root = installRoot()): Promise<{ mismatches: string[]; inventories: Map<string, SkillInventory> }> {
+  const paths = catalogPaths(root);
+  await assertPathComponentsNotSymlinks(root, paths.lockRoot, { allowMissingTail: true });
+  await assertPathComponentsNotSymlinks(root, paths.bundleRoot, { allowMissingTail: true });
+  const mismatches: string[] = [];
+  const inventories = new Map<string, SkillInventory>();
+  for (const bundleId of ['bmad', 'nvidia'] as const) {
+    const lock = await readBundleLock(root, paths.lockRoot, bundleId);
+    if (!lock) continue;
+    const bundleRoot = join(paths.bundleRoot, bundleId);
+    if (!(await pathExists(bundleRoot))) {
+      if (lock.importedSkillTotal > 0) mismatches.push(`${bundleId}:bundle-missing`);
+      continue;
+    }
+    const inspection = await inspectInstalledBundleBytes(root, bundleId, lock);
+    mismatches.push(...inspection.mismatches.map((item) => `${bundleId}:${item}`));
+    if (inspection.inventory) inventories.set(bundleId, inspection.inventory);
+    const discovered: string[] = [];
+    for (const skillRoot of await discoverSkillRoots(bundleRoot)) {
+      discovered.push(`import/${bundleId}/${skillDirectoryName(skillRoot)}@0.0.0`);
+    }
+    mismatches.push(...reconcileBundleLock(lock, discovered).map((item) => `${bundleId}:${item}`));
+  }
+  return { mismatches, inventories };
+}
+
+export async function collectBundleIntegrityMismatches(root = installRoot()): Promise<string[]> {
+  return (await inspectInstalledBundles(root)).mismatches;
+}
+
+export async function assertInstalledBundlesVerified(root = installRoot()): Promise<Map<string, SkillInventory>> {
+  const { mismatches, inventories } = await inspectInstalledBundles(root);
+  if (mismatches.length > 0) {
+    throw new SkillRegistryError('BUNDLE_INTEGRITY_MISMATCH', mismatches.join(', '));
+  }
+  return inventories;
 }

@@ -204,6 +204,9 @@ Skills are selected just in time from the request. Atena also activates Prometeu
 zeuz skill list                 # metadata index (no SKILL.md bodies)
 zeuz skill status               # pantheon + bundle revisions/trust
 zeuz skill validate             # rebuild/validate the local catalog index
+zeuz skill install <id> [--enable]   # record install state; --enable requires trust=enabled
+zeuz skill update <id>          # refresh installed revision from catalog
+zeuz skill remove <id> [--force]     # drop install record (bundle files remain restorable)
 zeuz skill sync bmad|nvidia     # explicit network sync to pinned upstream revision
 zeuz skill check bmad|nvidia    # read-only sync diff against pinned revision
 ```

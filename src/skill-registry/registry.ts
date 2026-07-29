@@ -1,5 +1,7 @@
 import { installRoot } from '../env.js';
 import { buildCatalogIndex, loadCatalogIndex, writeCatalogIndex } from './index.js';
+import { effectiveCatalogIndex } from './installer.js';
+import { resolveSkillPaths } from './paths.js';
 import { formatActivationXml, loadActivationContext } from './resolver.js';
 import { applyValidation } from './validator.js';
 import type { SkillListItem } from './types.js';
@@ -17,15 +19,15 @@ export class PortableSkillRegistry {
   }
 
   async list(): Promise<SkillListItem[]> {
-    let index = await loadCatalogIndex(this.root);
+    let index = await effectiveCatalogIndex(this.root);
     if (index.skills.length === 0) {
       await this.ensureIndex();
-      index = await loadCatalogIndex(this.root);
+      index = await effectiveCatalogIndex(this.root);
     }
     return index.skills.map((skill) => ({
       id: skill.id,
       name: skill.name,
-      path: skill.skillMdPath,
+      path: resolveSkillPaths(this.root, skill).skillMdPath,
       trust: skill.zeuz.trust,
       enablement: skill.zeuz.enablement,
       source: skill.source.canonicalUrl,
@@ -42,12 +44,12 @@ export class PortableSkillRegistry {
   }
 
   async contextFor(task: string): Promise<string | undefined> {
-    let index = await loadCatalogIndex(this.root);
+    let index = await effectiveCatalogIndex(this.root);
     if (index.skills.length === 0) {
       await this.ensureIndex();
-      index = await loadCatalogIndex(this.root);
+      index = await effectiveCatalogIndex(this.root);
     }
-    const activation = await loadActivationContext(index, task);
+    const activation = await loadActivationContext(index, task, undefined, this.root);
     if (activation.selected.length === 0) return undefined;
     const names = new Map(index.skills.map((skill) => [skill.id, skill.name] as const));
     return formatActivationXml(activation, names);
