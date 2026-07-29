@@ -3,7 +3,7 @@
  * Source-structure assertions read the frozen baseline; runtime assertions describe pre-registry behavior.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -14,7 +14,24 @@ import { SkillRegistry } from '../src/skills.js';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = 'c6396f3efb3184d4952068f6da80759a2f3bff05';
-const skillsSource = execFileSync('git', ['show', `${BASELINE}:src/skills.ts`], { cwd: repositoryRoot, encoding: 'utf8' });
+const skillsSource = readFileSync(join(repositoryRoot, 'test', 'fixtures', 'wave-05-baseline-skills.ts.txt'), 'utf8');
+const historicalSource = spawnSync('git', ['show', `${BASELINE}:src/skills.ts`], {
+  cwd: repositoryRoot,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'ignore'],
+});
+
+if (historicalSource.status === 0) {
+  assert.equal(skillsSource, historicalSource.stdout, 'the portable fixture must match the frozen Wave 05 baseline');
+} else {
+  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  assert.equal(shallow.status, 0, 'the frozen Wave 05 baseline is unavailable and Git cannot classify the checkout');
+  assert.equal(shallow.stdout.trim(), 'true', 'the frozen Wave 05 baseline may be unavailable only in a shallow checkout');
+}
 
 test('[wave05 characterization] hard-coded SKILL_TRIGGERS regex map exists for eight pantheon skills', () => {
   assert.match(skillsSource, /const SKILL_TRIGGERS: Record<string, RegExp>/);
