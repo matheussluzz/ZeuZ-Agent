@@ -64,3 +64,11 @@ Each entry starts with a UTC UTID in this exact form:
 - Commit: `fcbdb0ac0d063c74e04dd15410bc1e1edd0ae899` contains the specialist lifecycle, skill command surface, durable messaging/capability routing, tests, and documentation.
 - Verification: `pnpm check`, `pnpm build`, `node bin/zeuz health`, targeted tests, `pnpm secrets:check`, `pnpm progress:check`, and `git diff --check` passed. The independent Cursor reviewer remained unavailable and returned no final verdict.
 - Next: obtain a healthy independent reviewer verdict before changing Wave 06 from `REVIEW_BLOCKED` to `verified`.
+
+## 20260826212130004 - 00002 - 6ab1900d34547a3053bc7bb88628a72be4ac4463
+
+- Status: blocked
+- Task: publish the Wave 06 branch and open its review draft.
+- Completed: pushed `agent/wave-06-specialist-agent-lifecycle` to `origin` and opened draft PR #7 against `main`.
+- Verification: GitHub reports PR #7 as open and draft; the only remaining local change is the pre-existing `docs/roadmap_candidate.md` edit. The review state remains `REVIEW_BLOCKED`.
+- Next: obtain a fresh independent reviewer verdict, then update PR #7 and the Wave 06 status if it passes.
