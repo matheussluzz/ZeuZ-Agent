@@ -20,6 +20,7 @@ import {
   type TaskBlockedReason,
   type TaskLease,
   type TaskRetryPolicy,
+  type TaskSpecialistMetadata,
 } from './task-schema.js';
 import { TaskPolicyError, assertCurrentOwner, dependencyReadiness, reclaimDecision, retryEligible, transitionTask, validateDependencyGraph, type OwnerProbeState } from './task-policy.js';
 import type { PermissionMode, ReviewResult } from './types.js';
@@ -40,6 +41,7 @@ export interface CreateTaskInput {
   cwd: string;
   mode: PermissionMode;
   retry?: Partial<TaskRetryPolicy>;
+  specialist?: TaskSpecialistMetadata;
 }
 
 export interface TaskOwner {
@@ -168,6 +170,7 @@ export class TaskStore {
       status: 'queued',
       attempt: 0,
       retry,
+      ...(input.specialist ? { specialist: structuredClone(input.specialist) } : {}),
       artifacts: [],
       attempts: [],
       transitions: [],

@@ -32,4 +32,5 @@ test('Agy prompts include routed skill context', () => {
   assert.match(prompt, /ACTIVE SKILLS/);
   assert.match(prompt, /diagnosing-bugs/);
   assert.match(prompt, /untrusted reference material/);
+  assert.match(prompt, /PROGRESS\.md/);
 });

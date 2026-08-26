@@ -1,7 +1,7 @@
 import { installRoot } from '../env.js';
+import { SkillRegistryError, activationError } from './errors.js';
 import type { ActivationResult, CatalogIndex, CatalogSkillRecord, RoutingReason } from './types.js';
 import { DEFAULT_ACTIVATION_BUDGET_BYTES } from './types.js';
-import { activationError } from './errors.js';
 import { readBoundedFile, skillDirectoryName } from './inventory.js';
 import { parseSkillMarkdown } from './parser.js';
 import { resolveSkillPaths, validateSkillPaths } from './paths.js';
@@ -37,16 +37,20 @@ function rejectReason(skill: CatalogSkillRecord, code: RoutingReason['code'], de
   return reason;
 }
 
-export function resolveActivation(index: CatalogIndex, task: string, budgetBytes = DEFAULT_ACTIVATION_BUDGET_BYTES): {
+export function resolveActivation(index: CatalogIndex, task: string, budgetBytes = DEFAULT_ACTIVATION_BUDGET_BYTES, explicitSkillIds: readonly string[] = []): {
   ordered: CatalogSkillRecord[];
   reasons: RoutingReason[];
 } {
   const reasons: RoutingReason[] = [];
   const selected = new Map<string, CatalogSkillRecord>();
   const queue: CatalogSkillRecord[] = [];
+  const explicit = new Set(explicitSkillIds);
 
   for (const skill of index.skills) {
-    if (canEvaluateTrigger(skill) && shouldActivate(skill, task)) {
+    if (explicit.has(skill.id)) {
+      reasons.push({ code: 'explicit', skillId: skill.id });
+      queue.push(skill);
+    } else if (canEvaluateTrigger(skill) && shouldActivate(skill, task)) {
       reasons.push({ code: 'trigger', skillId: skill.id });
       queue.push(skill);
     }
@@ -139,6 +143,56 @@ export async function loadActivationContext(index: CatalogIndex, task: string, b
     });
   }
   return { selected, reasons, contextBudgetBytes: budgetBytes, consumedBudgetBytes };
+}
+
+function findExplicitSkill(index: CatalogIndex, query: string, scope: 'all' | 'pantheon' | 'non-pantheon' = 'all'): CatalogSkillRecord {
+  const wanted = query.trim();
+  const normalizedWanted = wanted.toLocaleLowerCase('pt-BR');
+  const inScope = (skill: CatalogSkillRecord): boolean => scope === 'all'
+    || (scope === 'pantheon' ? skill.zeuz.namespace === 'zeuz/pantheon' : skill.zeuz.namespace !== 'zeuz/pantheon');
+  const exactId = index.skills.find((skill) => inScope(skill) && skill.id.toLocaleLowerCase('pt-BR') === normalizedWanted);
+  if (exactId) return exactId;
+  const matches = index.skills.filter((skill) => inScope(skill) && skill.name.toLocaleLowerCase('pt-BR') === normalizedWanted);
+  if (matches.length === 1 && matches[0]) return matches[0];
+  if (matches.length > 1) throw new SkillRegistryError('SKILL_ID_AMBIGUOUS', `Skill name is ambiguous: ${wanted}`);
+  throw new SkillRegistryError('SKILL_NOT_FOUND', `Unknown skill id: ${wanted}`);
+}
+
+export async function loadExplicitSkillContext(
+  index: CatalogIndex,
+  skillQuery: string,
+  task = '',
+  budgetBytes = DEFAULT_ACTIVATION_BUDGET_BYTES,
+  root = installRoot(),
+  scope: 'all' | 'pantheon' | 'non-pantheon' = 'all',
+): Promise<ActivationResult> {
+  const target = findExplicitSkill(index, skillQuery, scope);
+  // Explicit catalog invocation activates the selected skill and its declared
+  // dependency closure only; unrelated semantic triggers must not widen it.
+  const activation = resolveActivation(index, '', budgetBytes, [target.id]);
+  if (!activation.ordered.some((skill) => skill.id === target.id)) {
+    throw new SkillRegistryError('SKILL_ACTIVATION_BLOCKED', `Skill ${target.id} is not enabled for activation.`, activation.reasons);
+  }
+  const selected = [];
+  let consumedBudgetBytes = 0;
+  for (const skill of activation.ordered) {
+    const { skillMdPath, rootPath } = await validateSkillPaths(root, skill);
+    const raw = await readBoundedFile(skillMdPath);
+    const instruction = parseSkillMarkdown(raw, skillDirectoryName(rootPath)).body;
+    consumedBudgetBytes += Buffer.byteLength(instruction, 'utf8');
+    selected.push({
+      skillId: skill.id,
+      canonicalId: skill.id,
+      revision: skill.source.revision,
+      trust: skill.zeuz.trust,
+      enablement: skill.zeuz.enablement,
+      networkPolicy: skill.zeuz.networkPolicy ?? 'offline',
+      reasons: activation.reasons.filter((reason) => reason.skillId === skill.id),
+      instruction,
+      path: skillMdPath,
+    });
+  }
+  return { selected, reasons: activation.reasons, contextBudgetBytes: budgetBytes, consumedBudgetBytes };
 }
 
 export function formatActivationXml(result: ActivationResult, nameById: Map<string, string>): string {

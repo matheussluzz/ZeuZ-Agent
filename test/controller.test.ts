@@ -105,6 +105,8 @@ async function harness(input: {
   runWithProvider?: (provider: ProviderId, request: RunRequest) => Promise<RunResult>;
   health?: Partial<Record<ProviderId, boolean>>;
   deadlines?: PartialDeadlineConfig;
+  taskEngine?: ControllerDependencies['taskEngine'];
+  skills?: ControllerDependencies['skills'];
 }): Promise<{ controller: ZeuzController; root: string }> {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-controller-'));
   const runtime = deterministicRuntime(input.fingerprints);
@@ -115,9 +117,10 @@ async function harness(input: {
     initialize: async () => BOOTSTRAP,
     updateHandoff: async () => undefined,
   };
-  const skills: ControllerDependencies['skills'] = {
+  const defaultSkills: ControllerDependencies['skills'] = {
     contextFor: async () => undefined,
     list: async () => [],
+    contextForPantheonSkill: async (skillId) => `<skill name="${skillId}" id="zeuz/pantheon/${skillId}@0.1.0">fixture</skill>`,
   };
   const controller = await ZeuzController.create(input.workspace ?? '/fixture-workspace', {
     ...(input.modelId ? { modelId: input.modelId } : {}),
@@ -127,12 +130,13 @@ async function harness(input: {
     runtime,
     sessions,
     contexts,
-    skills,
+    skills: input.skills ?? defaultSkills,
     registry: fakeRegistry({
       run: input.run,
       ...(input.runWithProvider ? { runWithProvider: input.runWithProvider } : {}),
       ...(input.health ? { health: input.health } : {}),
     }),
+    ...(input.taskEngine ? { taskEngine: input.taskEngine } : {}),
   });
   return { controller, root };
 }
@@ -248,6 +252,93 @@ test('controller defaults to primary Sol and honors explicit session model selec
     assert.equal(second.controller.session.activeModelId, 'copilot:claude-sonnet-5');
   } finally {
     await Promise.all([first.root, second.root].map(async (root) => await rm(root, { recursive: true, force: true })));
+  }
+});
+
+test('controller reports automatic specialist routing and keeps short plan work in-process', async () => {
+  const calls: RunRequest[] = [];
+  const { controller, root } = await harness({
+    mode: 'plan',
+    run: async (request) => { calls.push(request); return { text: 'forecast plan' }; },
+  });
+  try {
+    const outcome = await controller.send('Please produce a forecast for the next period.');
+    assert.equal(outcome.routing?.personaId, 'argos');
+    assert.equal(outcome.routing?.source, 'automatic');
+    assert.equal(outcome.routing?.execution, 'in-process');
+    assert.equal(calls.length, 1);
+    assert.match(calls[0]?.prompt ?? '', /Pantheon specialist persona Argos/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('controller sends explicit persona work to the injected root task engine', async () => {
+  const previousDepth = process.env.ZEUZ_DELEGATION_DEPTH;
+  const previousWorker = process.env.ZEUZ_INTERNAL_WORKER;
+  process.env.ZEUZ_DELEGATION_DEPTH = '0';
+  delete process.env.ZEUZ_INTERNAL_WORKER;
+  const submissions: Array<{ prompt: string; personaId: string }> = [];
+  const taskEngine: ControllerDependencies['taskEngine'] = {
+    async submitSpecialist(input) {
+      submissions.push({ prompt: input.prompt, personaId: input.specialist.personaId });
+      return { task: { id: 'task-specialist-1' } as never, launched: false };
+    },
+  };
+  const { controller, root } = await harness({ mode: 'plan', run: async () => ({ text: 'must not run in-process' }), taskEngine });
+  try {
+    const outcome = await controller.invokePersona('metis', 'Research the current primary sources.');
+    assert.equal(outcome.routing?.source, 'explicit');
+    assert.equal(outcome.routing?.execution, 'spawn');
+    assert.deepEqual(submissions.map((item) => item.personaId), ['metis']);
+    assert.match(submissions[0]?.prompt ?? '', /root ZeuZ orchestrator owns/i);
+    assert.match(outcome.response, /task-specialist-1/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    if (previousDepth === undefined) delete process.env.ZEUZ_DELEGATION_DEPTH;
+    else process.env.ZEUZ_DELEGATION_DEPTH = previousDepth;
+    if (previousWorker === undefined) delete process.env.ZEUZ_INTERNAL_WORKER;
+    else process.env.ZEUZ_INTERNAL_WORKER = previousWorker;
+  }
+});
+
+test('controller reports ambiguous automatic routing and continues with the primary model', async () => {
+  const events: AgentEvent[] = [];
+  const calls: RunRequest[] = [];
+  const { controller, root } = await harness({
+    mode: 'plan',
+    run: async (request) => { calls.push(request); return { text: 'primary continuation' }; },
+  });
+  try {
+    const outcome = await controller.send('Run a query for the dashboard data.', (event) => events.push(event));
+    assert.equal(outcome.response, 'primary continuation');
+    assert.equal(calls.length, 1);
+    assert.ok(events.some((event) => event.type === 'warning' && /ambiguous/i.test(event.text)));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('controller fails closed when explicit non-Pantheon skill activation is blocked', async () => {
+  for (const state of ['disabled', 'quarantined'] as const) {
+    const { controller, root } = await harness({
+      mode: 'plan',
+      run: async () => ({ text: 'must not run' }),
+      skills: {
+        contextFor: async () => undefined,
+        list: async () => [],
+        searchCatalog: async () => [],
+        resolveCatalogSkill: async () => ({
+          id: 'local/code-review@1.0.0', name: 'code-review', description: 'fixture', namespace: 'local', path: '/fixture/SKILL.md', trust: state, enablement: 'disabled', source: 'local', sourceKind: 'local', revision: '1',
+        }),
+        contextForSkill: async () => { throw new Error(`SKILL_ACTIVATION_BLOCKED: ${state}`); },
+      },
+    });
+    try {
+      await assert.rejects(() => controller.invokeSkill('code-review', 'Review the parser.'), new RegExp(`SKILL_ACTIVATION_BLOCKED: ${state}`));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }
 });
 

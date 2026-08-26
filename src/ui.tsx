@@ -8,9 +8,11 @@ import chalk from 'chalk';
 import { MODEL_CATALOG, isConfigured } from './catalog.js';
 import { dispatchCommand } from './command-dispatch.js';
 import { ROUTING_GUIDE } from './orchestration.js';
+import { isPantheonPersonaId } from './specialists.js';
 import { TaskStore } from './task-store.js';
 import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ReviewResult, ZeuzSession, ZeuzUseCase } from './types.js';
 import type { ZeuzController } from './controller.js';
+import type { SkillListItem } from './skill-registry/types.js';
 
 interface TranscriptItem {
   id: string;
@@ -21,7 +23,8 @@ interface TranscriptItem {
 
 type PickerState =
   | { kind: 'models'; query: string; index: number }
-  | { kind: 'sessions'; query: string; index: number; sessions: ZeuzSession[] };
+  | { kind: 'sessions'; query: string; index: number; sessions: ZeuzSession[] }
+  | { kind: 'skills'; query: string; index: number; skills: SkillListItem[] };
 
 interface AppProps {
   controller: ZeuzController;
@@ -175,6 +178,24 @@ function SessionPicker({ state }: { state: Extract<PickerState, { kind: 'session
   );
 }
 
+function SkillPicker({ state }: { state: Extract<PickerState, { kind: 'skills' }> }): React.JSX.Element {
+  const options = useMemo(() => {
+    const query = state.query.trim().toLowerCase();
+    return state.skills.filter((skill) => !query || `${skill.id} ${skill.name} ${skill.description} ${skill.namespace} ${skill.sourceKind}`.toLowerCase().includes(query));
+  }, [state.query, state.skills]);
+  const start = Math.max(0, Math.min(state.index - 5, Math.max(0, options.length - 11)));
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Text bold>Select catalog skill <Text dimColor>filter: {state.query || '—'}</Text></Text>
+      {options.slice(start, start + 11).map((skill, offset) => {
+        const active = start + offset === state.index;
+        return <Text key={skill.id} {...(active ? { color: 'cyan' as const } : {})}>{active ? '❯' : ' '} {skill.name} <Text dimColor>{skill.id} · {skill.namespace} · {skill.trust}/{skill.enablement}</Text></Text>;
+      })}
+      <Text dimColor>{options.length} matches · type to filter · Enter selects · Esc</Text>
+    </Box>
+  );
+}
+
 function reviewText(review: ReviewResult): string {
   const lines = [`VERDICT: ${review.verdict}`, `Reviewer: ${review.reviewerModelId}`, review.summary];
   for (const finding of review.findings) {
@@ -210,6 +231,8 @@ function helpText(): string {
 /onboard             Restart onboarding for the active workspace
 /bootstrap           Show files loaded before every model turn
 /skills              List the repository skill pantheon
+/skill [id] [task]   Search or explicitly invoke a non-Pantheon catalog skill
+/<persona> <task>    Invoke a Pantheon specialist: /argos, /hefesto, /metis, /medusa, /atena, /clio, /prometeu, /hermes
 /help                Show this help
 /exit                Exit ZeuZ-Agent
 `.trim();
@@ -231,6 +254,7 @@ export function App({ controller }: AppProps): React.JSX.Element {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [picker, setPicker] = useState<PickerState>();
+  const [pendingSkill, setPendingSkill] = useState<SkillListItem | undefined>();
   const [renderTick, setRenderTick] = useState(0);
   const [onboarding, setOnboarding] = useState<OnboardingState | undefined>(() => controller.onboardingRequired() ? { step: 0, values: [] } : undefined);
   const lastAssistant = useRef('');
@@ -259,6 +283,35 @@ export function App({ controller }: AppProps): React.JSX.Element {
     if (lower === 'status') return addItem('system', 'Status', controller.status());
     if (lower === 'bootstrap') return addItem('system', 'Bootstrap', controller.bootstrapStatus());
     if (lower === 'skills') return addItem('system', 'Skills', await controller.skillStatus());
+    if (lower === 'skill') {
+      const separator = argument.search(/\s/);
+      const query = separator < 0 ? argument : argument.slice(0, separator);
+      const task = separator < 0 ? '' : argument.slice(separator).trim();
+      if (!query) {
+        const skills = await controller.searchSkills();
+        if (skills.length === 0) return addItem('system', 'Skills', 'No non-Pantheon catalog skills are available.');
+        setPicker({ kind: 'skills', query: '', index: 0, skills });
+        return;
+      }
+      const selected = await controller.resolveSkill(query);
+      if (!task) {
+        setPendingSkill(selected);
+        return addItem('system', 'Skill selected', `${selected.name} (${selected.id}). Type the task to invoke it, or use /skill ${selected.id} <task>.`);
+      }
+      const outcome = await controller.invokeSkill(selected.id, task, eventSink);
+      lastAssistant.current = outcome.response;
+      addItem('assistant', `Skill · ${outcome.modelId}`, outcome.response);
+      if (outcome.review) addItem('review', 'Adversarial review', reviewText(outcome.review));
+      return;
+    }
+    if (isPantheonPersonaId(lower)) {
+      const outcome = await controller.invokePersona(lower, argument, eventSink);
+      lastAssistant.current = outcome.response;
+      addItem('assistant', `Persona · ${outcome.routing?.personaId ?? lower}`, outcome.response);
+      if (outcome.routing) addItem('system', 'Specialist routing', `source=${outcome.routing.source} · execution=${outcome.routing.execution} · model=${outcome.routing.modelId} · reviewer=${outcome.routing.reviewerFamily}\nreason=${outcome.routing.reason}`);
+      if (outcome.review) addItem('review', 'Adversarial review', reviewText(outcome.review));
+      return;
+    }
     if (lower === 'diff') return addItem('system', 'Git diff', controller.diff());
     if (lower === 'cd' && !argument) return addItem('system', 'Workspace', controller.session.cwd);
     if (lower === 'branch' && !argument) return addItem('system', 'Branches', controller.branches());
@@ -393,6 +446,13 @@ export function App({ controller }: AppProps): React.JSX.Element {
           setOnboarding(undefined);
           addItem('system', 'Onboarding complete', message);
         }
+      } else if (pendingSkill) {
+        const selected = pendingSkill;
+        setPendingSkill(undefined);
+        const outcome = await controller.invokeSkill(selected.id, trimmed, eventSink);
+        lastAssistant.current = outcome.response;
+        addItem('assistant', `Skill · ${outcome.modelId}`, outcome.response);
+        if (outcome.review) addItem('review', 'Adversarial review', reviewText(outcome.review));
       } else {
         const outcome = await controller.send(trimmed, eventSink);
         lastAssistant.current = outcome.response;
@@ -407,13 +467,14 @@ export function App({ controller }: AppProps): React.JSX.Element {
       setBusy(false);
       setRenderTick((tick) => tick + 1);
     }
-  }, [addItem, busy, controller, eventSink, onboarding, runCommand]);
+  }, [addItem, busy, controller, eventSink, onboarding, pendingSkill, runCommand]);
 
   const pickerOptions = useMemo(() => {
     if (!picker) return [];
     const query = picker.query.trim().toLowerCase();
     if (picker.kind === 'models') return MODEL_CATALOG.filter((profile) => !query || `${profile.id} ${profile.label} ${profile.aliases.join(' ')}`.toLowerCase().includes(query));
-    return picker.sessions.filter((session) => !query || `${session.id} ${session.title} ${session.cwd}`.toLowerCase().includes(query));
+    if (picker.kind === 'sessions') return picker.sessions.filter((session) => !query || `${session.id} ${session.title} ${session.cwd}`.toLowerCase().includes(query));
+    return picker.skills.filter((skill) => !query || `${skill.id} ${skill.name} ${skill.description} ${skill.namespace} ${skill.sourceKind}`.toLowerCase().includes(query));
   }, [picker]);
 
   useInput((input, key) => {
@@ -425,6 +486,13 @@ export function App({ controller }: AppProps): React.JSX.Element {
       if (key.return) {
         const selected = pickerOptions[picker.index];
         if (!selected) return;
+        if (picker.kind === 'skills') {
+          setPicker(undefined);
+          const skill = selected as SkillListItem;
+          setPendingSkill(skill);
+          addItem('system', 'Skill selected', `${skill.name} (${skill.id}). Type the task to invoke it, or use /skill ${skill.id} <task>.`);
+          return;
+        }
         setPicker(undefined);
         setBusy(true);
         setActivity(picker.kind === 'models' ? 'Switching model and compacting context' : 'Resuming session');
@@ -521,6 +589,7 @@ export function App({ controller }: AppProps): React.JSX.Element {
       {busy ? <Spinner label={activity} /> : null}
       {picker?.kind === 'models' ? <ModelPicker state={picker} /> : null}
       {picker?.kind === 'sessions' ? <SessionPicker state={picker} /> : null}
+      {picker?.kind === 'skills' ? <SkillPicker state={picker} /> : null}
       {!busy && !picker ? <Composer value={value} cursor={cursor} model={model} cwd={controller.session.cwd} mode={controller.session.permissionMode} /> : null}
     </Box>
   );

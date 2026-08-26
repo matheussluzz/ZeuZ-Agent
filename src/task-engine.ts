@@ -13,14 +13,18 @@ import { TaskResultStore, validateArtifact } from './task-result-store.js';
 import { TaskScheduler } from './task-scheduler.js';
 import { DEFAULT_LEASE_POLICY, dependencyReadiness, reclaimDecision, retryDelayMs, validateLeasePolicy, type OwnerProbeState } from './task-policy.js';
 import { TaskStore, taskErrorCode, type CreateTaskInput } from './task-store.js';
-import type { DurableTaskRecord, TaskArtifact } from './task-schema.js';
-import type { TurnOutcome } from './types.js';
+import { isPantheonPersonaId, isRootOrchestrator, parseCapabilityRequests, routeCapabilityRequest, type CapabilityRoutingDecision, type SpecialistCapabilityRequest } from './specialists.js';
+import { TaskCapabilityStore, type TaskCapabilityRecord, TaskMessageStore, type TaskMessageRecord, type TaskMessageDelivery } from './task-messages.js';
+import type { DurableTaskRecord, TaskArtifact, TaskSpecialistMetadata } from './task-schema.js';
+import type { PermissionMode, TurnOutcome } from './types.js';
 import { classifyWorkspaceChange } from './workspace.js';
 import { WorktreeManager, sanitizedGitRunner } from './worktree-manager.js';
 import { WorkspaceLockStore } from './workspace-lock-store.js';
 
 export interface TaskExecutor {
   execute(task: DurableTaskRecord, cwd: string, signal: AbortSignal): Promise<TurnOutcome>;
+  supportsLiveInput?(task: DurableTaskRecord): boolean | Promise<boolean>;
+  sendLiveInput?(task: DurableTaskRecord, content: string, signal: AbortSignal): Promise<void>;
 }
 
 export interface WorkerLauncher {
@@ -34,10 +38,20 @@ export interface TaskEngineOptions {
   scheduler?: TaskScheduler;
   results?: TaskResultStore;
   executor?: TaskExecutor;
+  messages?: TaskMessageStore;
+  capabilities?: TaskCapabilityStore;
   launcher?: WorkerLauncher;
   heartbeatMs?: number;
   leaseMs?: number;
   ownerProbe?: (hostId: string, pid: number) => OwnerProbeState;
+  rootOrchestrator?: boolean;
+}
+
+export interface CapabilitySiblingInput {
+  modelId?: string;
+  prompt?: string;
+  cwd?: string;
+  mode?: PermissionMode;
 }
 
 export class TaskEngineError extends Error {
@@ -54,8 +68,33 @@ interface PreparedWorkspace {
 class ControllerTaskExecutor implements TaskExecutor {
   async execute(task: DurableTaskRecord, cwd: string, signal: AbortSignal): Promise<TurnOutcome> {
     const controller = await ZeuzController.create(cwd, { modelId: task.modelId, mode: task.mode });
-    return await controller.ask(task.modelId, task.prompt, undefined, task.mode, signal);
+    const skillContext = task.specialist
+      ? await controller.specialistSkillContext(task.specialist.personaId, task.prompt)
+      : undefined;
+    return await controller.ask(task.modelId, task.prompt, undefined, task.mode, signal, skillContext);
   }
+}
+
+const MAX_FOLLOW_UP_CONTEXT_BYTES = 256 * 1024;
+
+function appendQueuedFollowUps(prompt: string, messages: readonly TaskMessageRecord[]): string {
+  if (messages.length === 0) return prompt;
+  const section = [
+    '',
+    '<queued_task_follow_ups>',
+    'These are user follow-up messages received after task creation. Treat them as additional task input, subject to the ZeuZ contract and permission mode.',
+    ...messages.map((message) => `<follow_up id="${message.id}">\n${message.content}\n</follow_up>`),
+    '</queued_task_follow_ups>',
+  ].join('\n');
+  if (Buffer.byteLength(prompt + section, 'utf8') > MAX_FOLLOW_UP_CONTEXT_BYTES + Buffer.byteLength(prompt, 'utf8')) {
+    throw new TaskEngineError('TASK_MESSAGE_CONTEXT_TOO_LARGE', 'Queued task follow-ups exceed the bounded execution context.');
+  }
+  return `${prompt}${section}`;
+}
+
+function appendSpecialistExecutionContext(task: DurableTaskRecord): string {
+  if (!task.specialist) return task.prompt;
+  return `${task.prompt}\n\n<specialist_execution_context>\nrequesterTaskId=${task.id}\nrootCorrelationId=${task.rootCorrelationId}\npersonaId=${task.specialist.personaId}\n</specialist_execution_context>`;
 }
 
 export class DetachedWorkerLauncher implements WorkerLauncher {
@@ -87,10 +126,13 @@ export class TaskEngine {
   private readonly scheduler: TaskScheduler;
   private readonly results: TaskResultStore;
   private readonly executor: TaskExecutor;
+  private readonly messages: TaskMessageStore;
+  private readonly capabilities: TaskCapabilityStore;
   private readonly launcher: WorkerLauncher;
   private readonly heartbeatMs: number;
   private readonly leaseMs: number;
   private readonly ownerProbe: (hostId: string, pid: number) => OwnerProbeState;
+  private readonly rootOrchestrator: boolean;
 
   constructor(options: TaskEngineOptions = {}) {
     this.root = resolve(options.root ?? stateDirectory());
@@ -103,14 +145,105 @@ export class TaskEngine {
     this.scheduler = options.scheduler ?? new TaskScheduler(this.root, this.runtime);
     this.results = options.results ?? new TaskResultStore({ root: this.root, now: () => this.runtime.now() });
     this.executor = options.executor ?? new ControllerTaskExecutor();
+    this.messages = options.messages ?? new TaskMessageStore({ root: this.root, runtime: this.runtime });
+    this.capabilities = options.capabilities ?? new TaskCapabilityStore({ root: this.root, runtime: this.runtime });
     this.launcher = options.launcher ?? new DetachedWorkerLauncher(this.root);
+    this.rootOrchestrator = isRootOrchestrator() && (options.rootOrchestrator ?? true);
   }
 
   async submit(input: CreateTaskInput): Promise<{ task: DurableTaskRecord; launched: boolean }> {
+    if (input.specialist && !this.rootOrchestrator) throw new TaskEngineError('SPECIALIST_SPAWN_DENIED', 'Only the root ZeuZ orchestrator may spawn specialist tasks.');
+    if (input.specialist && (!isPantheonPersonaId(input.specialist.personaId) || input.specialist.execution !== 'spawn')) throw new TaskEngineError('SPECIALIST_METADATA_INVALID', 'Specialist task metadata must describe a built-in Pantheon spawn.');
     const task = await this.store.create(input);
     let launched = false;
     try { launched = await this.launcher.launch(task.id); } catch { launched = false; }
     return { task, launched };
+  }
+
+  async submitSpecialist(input: CreateTaskInput & { specialist: TaskSpecialistMetadata }): Promise<{ task: DurableTaskRecord; launched: boolean }> {
+    if (!this.rootOrchestrator) throw new TaskEngineError('SPECIALIST_SPAWN_DENIED', 'Only the root ZeuZ orchestrator may spawn specialist tasks.');
+    if (input.specialist.execution !== 'spawn') throw new TaskEngineError('SPECIALIST_EXECUTION_INVALID', 'Specialist task submission requires durable spawn execution.');
+    if (!isPantheonPersonaId(input.specialist.personaId)) throw new TaskEngineError('SPECIALIST_PERSONA_INVALID', 'Specialist tasks must use a built-in Pantheon persona.');
+    return await this.submit(input);
+  }
+
+  async listMessages(idOrPrefix: string): Promise<TaskMessageRecord[]> {
+    const task = await this.store.load(idOrPrefix);
+    return await this.messages.list(task.id);
+  }
+
+  async listCapabilityRequests(rootCorrelationId?: string): Promise<TaskCapabilityRecord[]> {
+    return await this.capabilities.list(rootCorrelationId);
+  }
+
+  routeCapability(request: SpecialistCapabilityRequest): CapabilityRoutingDecision {
+    return routeCapabilityRequest(request, this.rootOrchestrator);
+  }
+
+  async approveCapabilityRequest(idOrPrefix: string, input: CapabilitySiblingInput = {}): Promise<{ record: TaskCapabilityRecord; decision: CapabilityRoutingDecision; task?: DurableTaskRecord; launched?: boolean }> {
+    if (!this.rootOrchestrator) throw new TaskEngineError('ROOT_REQUIRED', 'Only the root ZeuZ orchestrator may approve capability requests.');
+    const claim = await this.capabilities.claimApproval(idOrPrefix);
+    if (!claim.claimed) {
+      if (claim.record.status === 'spawned' && claim.record.siblingTaskId) {
+        return { record: claim.record, decision: { action: 'spawn-sibling', code: 'SIBLING_SPAWN_AVAILABLE', request: claim.record.request! }, task: await this.store.load(claim.record.siblingTaskId), launched: false };
+      }
+      throw new TaskEngineError('CAPABILITY_APPROVAL_IN_PROGRESS', 'Another root orchestrator is already approving this capability request.');
+    }
+    const request = claim.record.request!;
+    const decision = routeCapabilityRequest(request, true);
+    if (decision.code !== 'SIBLING_SPAWN_AVAILABLE') {
+      await this.capabilities.markFailed(claim.record.id, claim.record.approvalToken!, decision.code).catch(() => undefined);
+      throw new TaskEngineError(decision.code, 'Capability request is not eligible for sibling spawn.');
+    }
+    const requester = await this.store.load(request.requesterTaskId);
+    const sibling: CreateTaskInput = {
+      ...(requester.parentTaskId ? { parentTaskId: requester.parentTaskId } : {}),
+      ...(requester.parentSessionId ? { parentSessionId: requester.parentSessionId } : {}),
+      rootCorrelationId: request.rootCorrelationId,
+      modelId: input.modelId ?? requester.modelId,
+      prompt: input.prompt ?? `Root-approved capability ${request.capability}: ${request.reason}`,
+      cwd: input.cwd ?? requester.requestedWorkspace,
+      mode: input.mode ?? requester.mode,
+    };
+    try {
+      const submitted = await this.submit(sibling);
+      const record = await this.capabilities.markSpawned(claim.record.id, claim.record.approvalToken!, submitted.task.id);
+      return { record, decision, task: submitted.task, launched: submitted.launched };
+    } catch (error) {
+      await this.capabilities.markFailed(claim.record.id, claim.record.approvalToken!, error instanceof Error ? error.message : String(error)).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async queueFollowUp(idOrPrefix: string, content: string, signal?: AbortSignal): Promise<{ taskId: string; message: TaskMessageRecord; delivery: TaskMessageDelivery; reason?: string }> {
+    const task = await this.store.load(idOrPrefix);
+    if (['completed', 'failed', 'cancelled', 'blocked'].includes(task.status)) throw new TaskEngineError('TASK_TERMINAL_MESSAGE_DENIED', 'Terminal tasks cannot receive follow-up messages.');
+    const message = await this.messages.enqueue({ taskId: task.id, rootCorrelationId: task.rootCorrelationId, content });
+    if (task.status !== 'running' || !this.executor.supportsLiveInput || !this.executor.sendLiveInput) {
+      return { taskId: task.id, message, delivery: 'queued', reason: 'Executor does not expose native live input; message remains queued for the next task turn.' };
+    }
+
+    let supported = false;
+    try { supported = await this.executor.supportsLiveInput(task); }
+    catch { supported = false; }
+    if (!supported) return { taskId: task.id, message, delivery: 'queued', reason: 'Executor reported native live input unavailable; message remains queued for the next task turn.' };
+
+    const claimToken = randomUUID();
+    const claimed = await this.messages.claimForExecution(task.id, claimToken, 1);
+    const claimedMessage = claimed.find((item) => item.id === message.id);
+    if (!claimedMessage) return { taskId: task.id, message: await this.messages.load(message.id), delivery: 'queued', reason: 'Message was not claimable for live delivery; it remains queued.' };
+    let sent = false;
+    try {
+      await this.executor.sendLiveInput(task, claimedMessage.content, signal ?? new AbortController().signal);
+      sent = true;
+      const acknowledged = await this.messages.acknowledge(task.id, claimToken, 'live');
+      if (acknowledged !== 1) throw new TaskEngineError('LIVE_MESSAGE_ACK_FAILED', 'Native live input succeeded but durable acknowledgement was not recorded.');
+      return { taskId: task.id, message: await this.messages.load(message.id), delivery: 'live' };
+    } catch (error) {
+      if (!sent) await this.messages.release(task.id, claimToken).catch(() => undefined);
+      if (sent) throw error;
+      return { taskId: task.id, message: await this.messages.load(message.id), delivery: 'queued', reason: 'Native live input failed; message was safely returned to the queue.' };
+    }
   }
 
   async runOne(idOrPrefix: string): Promise<DurableTaskRecord> {
@@ -142,6 +275,7 @@ export class TaskEngine {
     let executionWorkspace: string | undefined;
     let pulsing = false;
     let pulseError: unknown;
+    let messageClaimToken: string | undefined;
     try {
       task = await this.store.claim(task.id, task.revision, { ownerId, ownerPid: process.pid, hostId: hostname(), instanceId: randomUUID() }, this.leaseMs);
       const fence = task.lease?.fencingToken;
@@ -160,6 +294,7 @@ export class TaskEngine {
           if (current.cancelRequestedAt) { abort.abort(); return; }
           task = await this.store.heartbeat(current.id, current.revision, ownerId, fence, epoch, this.leaseMs);
           await this.scheduler.heartbeat(current.id, ownerId, this.leaseMs);
+          if (messageClaimToken && await this.messages.renew(current.id, messageClaimToken) !== 1) throw new TaskEngineError('TASK_MESSAGE_CLAIM_LOST', 'The queued follow-up claim was lost during execution.');
           await heartbeatWorkspace?.();
         } catch (error) { pulseError = error; abort.abort(); }
         finally { pulsing = false; }
@@ -170,7 +305,22 @@ export class TaskEngine {
       task = await this.store.recordAttemptStart(task.id, task.revision, ownerId, fence, epoch, before);
       pulseTimer = setInterval(() => { void pulse(); }, this.heartbeatMs);
       pulseTimer.unref();
-      const outcome = await this.executor.execute(task, executionWorkspace, abort.signal);
+      const claimToken = randomUUID();
+      await this.messages.recoverExpiredClaims(task.id);
+      const claimedMessages = await this.messages.claimForExecution(task.id, claimToken);
+      if (claimedMessages.length > 0) messageClaimToken = claimToken;
+      const executionPrompt = appendSpecialistExecutionContext(task);
+      const executionTask = {
+        ...task,
+        prompt: claimedMessages.length > 0 ? appendQueuedFollowUps(executionPrompt, claimedMessages) : executionPrompt,
+      };
+      const outcome = await this.executor.execute(executionTask, executionWorkspace, abort.signal);
+      await this.recordCapabilityRequests(task, outcome.response);
+      if (claimedMessages.length > 0) {
+        const acknowledged = await this.messages.acknowledge(task.id, claimToken, 'queued');
+        if (acknowledged !== claimedMessages.length) throw new TaskEngineError('TASK_MESSAGE_ACK_FAILED', 'Task completed but queued follow-up acknowledgement was incomplete.');
+        messageClaimToken = undefined;
+      }
       if (pulseTimer) clearInterval(pulseTimer);
       while (pulsing) await new Promise((resolvePromise) => setImmediate(resolvePromise));
       task = await this.store.load(task.id);
@@ -214,6 +364,10 @@ export class TaskEngine {
       if (pulseTimer) clearInterval(pulseTimer);
       while (pulsing) await new Promise((resolvePromise) => setImmediate(resolvePromise));
       task = await this.store.load(task.id).catch(() => task);
+      if (messageClaimToken) {
+        await this.messages.release(task.id, messageClaimToken).catch(() => undefined);
+        messageClaimToken = undefined;
+      }
       if (task.status === 'queued') {
         const code = taskErrorCode(error);
         if (code === 'DEPENDENCY_BLOCKED') return await this.store.block(task.id, task.revision, 'dependency', code);
@@ -241,6 +395,7 @@ export class TaskEngine {
       throw error;
     } finally {
       if (pulseTimer) clearInterval(pulseTimer);
+      if (messageClaimToken) await this.messages.release(task.id, messageClaimToken).catch(() => undefined);
       await releaseWorkspace?.().catch(() => undefined);
       await this.scheduler.release(task.id, ownerId).catch(() => undefined);
       await this.launchQueued().catch(() => undefined);
@@ -281,6 +436,7 @@ export class TaskEngine {
   }
 
   async recover(): Promise<{ launched: number; reclaimed: number; blocked: number }> {
+    await this.messages.recoverExpiredClaims();
     const schedulerRecovery = await this.scheduler.recoverExpired(this.ownerProbe);
     const tasks = (await this.store.listDetailed()).records;
     let reclaimed = 0;
@@ -359,6 +515,27 @@ export class TaskEngine {
       artifacts.push(await validateArtifact(cwd, { path, kind, status: kind === 'removed' ? 'missing' : 'captured' }));
     }
     return artifacts;
+  }
+
+  private async recordCapabilityRequests(task: DurableTaskRecord, response: string): Promise<void> {
+    const parsed = parseCapabilityRequests(response);
+    for (const item of parsed) {
+      const request = item.request;
+      if (!request) {
+        await this.capabilities.record({ taskId: task.id, rootCorrelationId: task.rootCorrelationId, raw: item.raw, code: 'INVALID_CAPABILITY_REQUEST' });
+        continue;
+      }
+      const identityMatches = Boolean(task.specialist)
+        && request.requesterTaskId === task.id
+        && request.rootCorrelationId === task.rootCorrelationId
+        && request.personaId === task.specialist?.personaId;
+      if (!identityMatches) {
+        await this.capabilities.record({ taskId: task.id, rootCorrelationId: task.rootCorrelationId, raw: item.raw, code: 'INVALID_CAPABILITY_REQUEST' });
+        continue;
+      }
+      const decision = routeCapabilityRequest(request, this.rootOrchestrator);
+      await this.capabilities.record({ taskId: task.id, rootCorrelationId: task.rootCorrelationId, request, raw: item.raw, code: decision.code });
+    }
   }
 }
 
