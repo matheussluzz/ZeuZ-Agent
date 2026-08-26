@@ -24,3 +24,11 @@ Each entry starts with a UTC UTID in this exact form:
 - Completed: synchronized `main` at `fc4f2c7`, created `agent/wave-06-specialist-agent-lifecycle`, added `PROGRESS.md` validation and runtime handoff behavior, and removed all seven stale merged local branches.
 - Verification: `pnpm check`, `pnpm build`, `node bin/zeuz health`, `pnpm progress:check`, and `git diff --check` passed.
 - Next: resume Wave 06 specialist-agent lifecycle work from this branch; consult this ledger on demand.
+
+## 20260826184723696 - 00001 - 867f006
+
+- Status: blocked
+- Task: complete the mandatory independent adversarial review for task `00001`.
+- Evidence: Cursor Fable 5 hit the account usage limit; Claude Code could not refresh its expired OAuth session; Cursor Composer 2.5 produced no report after more than nine minutes and was interrupted. No reviewer PASS was inferred.
+- Workspace: review-created temporary files were removed; only the pre-existing unstaged `docs/roadmap_candidate.md` remains.
+- Next: rerun the independent review when a healthy reviewer surface is available, then append a `verified` checkpoint for task `00001` if it passes.
