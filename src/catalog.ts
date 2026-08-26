@@ -132,17 +132,50 @@ const nvidiaEntries = [
   ['qwen-3.5', 'Qwen 3.5 397B', 'qwen/qwen3.5-397b-a17b', 'NVIDIA_API_KEY_QWEN', 'NVIDIA_MODEL_QWEN', 'Documentation synthesis, tests, boilerplate, and architectural brainstorming.'],
 ] as const;
 
-const nvidiaModels: ModelProfile[] = nvidiaEntries.map(([slug, label, model, apiKeyEnv, modelEnv, description]) => ({
-  id: `nvidia:${slug}`,
-  provider: 'nvidia',
+const nvidiaModels: ModelProfile[] = [
+  ...nvidiaEntries.map(([slug, label, model, apiKeyEnv, modelEnv, description]) => ({
+    id: `nvidia:${slug}`,
+    provider: 'nvidia' as const,
+    model,
+    label,
+    family: label,
+    description,
+    apiKeyEnv,
+    modelEnv,
+    defaultApiModel: model,
+    aliases: [slug, label.toLowerCase(), slug.split('-')[0] ?? slug],
+  })),
+  {
+    id: 'nvidia:deepseek-v4-flash',
+    provider: 'nvidia',
+    model: 'deepseek-ai/deepseek-v4-flash-0731',
+    label: 'DeepSeek V4 Flash · NVIDIA',
+    family: 'DeepSeek V4 Flash',
+    description: 'Reasoning, long-context, and agentic coding through NVIDIA Integrate.',
+    reasoningEffort: 'high',
+    apiKeyEnv: 'NVIDIA_API_KEY_DEEPSEEK_V4_FLASH',
+    modelEnv: 'NVIDIA_MODEL_DEEPSEEK_V4_FLASH',
+    defaultApiModel: 'deepseek-ai/deepseek-v4-flash-0731',
+    aliases: ['deepseek-v4-flash', 'deepseek-flash', 'deepseek-v4-flash-0731'],
+  },
+];
+
+const openRouterEntries = [
+  ['ox-alpha', 'Ox Alpha · OpenRouter', 'stealth/ox-alpha', 'OPENROUTER_MODEL_OX_ALPHA', 'Reasoning model for coding, sustained agentic work, and long-horizon engineering.'],
+  ['gpt-4o', 'GPT-4o · OpenRouter', 'openai/gpt-4o', 'OPENROUTER_MODEL_GPT_4O', 'OpenAI GPT-4o through the OpenRouter-compatible chat completions API.'],
+] as const;
+
+const openRouterModels: ModelProfile[] = openRouterEntries.map(([slug, label, model, modelEnv, description]) => ({
+  id: `openrouter:${model}`,
+  provider: 'openrouter',
   model,
   label,
-  family: label,
+  family: label.split(' · ')[0] ?? label,
   description,
-  apiKeyEnv,
+  apiKeyEnv: 'OPENROUTER_API_KEY',
   modelEnv,
   defaultApiModel: model,
-  aliases: [slug, label.toLowerCase(), slug.split('-')[0] ?? slug],
+  aliases: [slug, model, ...(slug === 'ox-alpha' ? ['ox', 'oxalpha'] : ['openrouter-gpt-4o'])],
 }));
 
 export const MODEL_CATALOG: readonly ModelProfile[] = [
@@ -152,6 +185,7 @@ export const MODEL_CATALOG: readonly ModelProfile[] = [
   ...copilotModels,
   ...agyModels,
   ...nvidiaModels,
+  ...openRouterModels,
 ];
 
 function normalize(value: string): string {
@@ -188,8 +222,8 @@ export function modelsByProvider(): Map<ProviderId, ModelProfile[]> {
 }
 
 export function isConfigured(profile: ModelProfile): boolean {
-  if (profile.provider !== 'nvidia') return true;
+  if (profile.provider !== 'nvidia' && profile.provider !== 'openrouter') return true;
   if (!profile.apiKeyEnv) return false;
   const value = process.env[profile.apiKeyEnv];
-  return Boolean(value && !value.startsWith('nvapi-your-'));
+  return Boolean(value && !/^(?:nvapi-your-|sk-or-your-|your-|replace-|example|<)/i.test(value.trim()));
 }

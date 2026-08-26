@@ -69,8 +69,14 @@ network, opt in deliberately with `ZEUZ_FORWARD_NETWORK_ENV=1` after reviewing
 those values and the downloaded vendor source.
 
 NVIDIA models do not require a separate NVIDIA CLI. ZeuZ talks to the configured
-NVIDIA endpoints using the ignored local `lamine.yaml`; follow the credential
-instructions in the main README and never paste keys into the installer.
+NVIDIA endpoints using the ignored local `lamine.yaml`; this includes the direct
+DeepSeek V4 Flash 0731 route. Follow the credential instructions in the main
+README and never paste keys into the installer.
+
+OpenRouter also does not require a separate CLI. Configure its ignored local
+`.env` route as described in the [OpenRouter setup section](../README.md#openrouter-setup).
+The Ox Alpha route is tool-capable, uses ZeuZ's bounded local tool loop, and has
+no native session resume, so subsequent turns use the provider-neutral transcript.
 
 ## Validate the installation
 

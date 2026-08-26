@@ -52,6 +52,11 @@ const NATIVE_ARGUMENTS: Record<ProviderId, Record<PermissionMode, readonly strin
     agent: ['--disable-builtin-mcps', '--disallow-temp-dir', '--allow-all-tools'],
     yolo: ['--yolo'],
   },
+  openrouter: {
+    plan: [],
+    agent: [],
+    yolo: [],
+  },
 };
 
 export function permissionCapability(provider: ProviderId, mode: PermissionMode): PermissionCapability {
@@ -62,9 +67,9 @@ export function permissionCapability(provider: ProviderId, mode: PermissionMode)
     mode,
     filesystem: mode === 'plan' ? 'read-only' : mode === 'agent' ? 'workspace-write' : 'unrestricted',
     approvalsBypassed: mode === 'yolo',
-    secretEnvironment: provider === 'nvidia' ? 'selected-route-only' : 'sanitized',
+    secretEnvironment: provider === 'nvidia' || provider === 'openrouter' ? 'selected-route-only' : 'sanitized',
     nativeArguments,
-    resume: provider === 'agy' ? 'unsupported' : 'supported',
+    resume: provider === 'agy' || provider === 'openrouter' ? 'unsupported' : 'supported',
   };
 }
 

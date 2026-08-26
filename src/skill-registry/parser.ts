@@ -21,6 +21,12 @@ function asString(value: unknown, field: string): string | undefined {
   return value;
 }
 
+function asBoolean(value: unknown, field: string): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'boolean') throw new SkillRegistryError('SKILL_FRONTMATTER_INVALID', `${field} must be a boolean.`);
+  return value;
+}
+
 function asMetadataMap(value: unknown): Record<string, string> | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'object' || Array.isArray(value)) {
@@ -62,6 +68,8 @@ export function parseSkillMarkdown(content: string, directoryName: string): Pars
     name,
     description: description.trim(),
   };
+  const disableModelInvocation = asBoolean(frontmatter['disable-model-invocation'], 'disable-model-invocation');
+  if (disableModelInvocation !== undefined) portable.disableModelInvocation = disableModelInvocation;
   const license = asString(frontmatter.license, 'license');
   if (license) portable.license = license;
   if (compatibility) portable.compatibility = compatibility;

@@ -79,12 +79,13 @@ function deterministicRuntime(fingerprints: Array<string | undefined> = ['clean'
 
 function fakeRegistry(input: {
   run(request: RunRequest): Promise<RunResult>;
+  runWithProvider?: (provider: ProviderId, request: RunRequest) => Promise<RunResult>;
   health?: Partial<Record<ProviderId, boolean>>;
 }): AdapterRegistry {
   return new AdapterRegistry({
     factory: (provider): AgentAdapter => ({
       provider,
-      run: input.run,
+      run: async (request) => await (input.runWithProvider ? input.runWithProvider(provider, request) : input.run(request)),
       health: async (): Promise<HealthResult> => ({
         provider,
         ok: input.health?.[provider] ?? true,
@@ -101,6 +102,7 @@ async function harness(input: {
   modelId?: string;
   mode?: 'plan' | 'agent' | 'yolo';
   run(request: RunRequest): Promise<RunResult>;
+  runWithProvider?: (provider: ProviderId, request: RunRequest) => Promise<RunResult>;
   health?: Partial<Record<ProviderId, boolean>>;
   deadlines?: PartialDeadlineConfig;
 }): Promise<{ controller: ZeuzController; root: string }> {
@@ -126,7 +128,11 @@ async function harness(input: {
     sessions,
     contexts,
     skills,
-    registry: fakeRegistry({ run: input.run, ...(input.health ? { health: input.health } : {}) }),
+    registry: fakeRegistry({
+      run: input.run,
+      ...(input.runWithProvider ? { runWithProvider: input.runWithProvider } : {}),
+      ...(input.health ? { health: input.health } : {}),
+    }),
   });
   return { controller, root };
 }
@@ -157,12 +163,50 @@ test('controller delivers an unchanged response when the tracked public secret s
   }
 });
 
+test('deep health routes API model probes through each model provider', async () => {
+  const openRouterKeyName = 'OPENROUTER_API_KEY';
+  const priorOpenRouterKey = process.env[openRouterKeyName];
+  const nvidiaKeyNames = [
+    'NVIDIA_API_KEY_GLM_52',
+    'NVIDIA_API_KEY_DEEPSEEK_V4',
+    'NVIDIA_API_KEY_DEEPSEEK_V4_FLASH',
+    'NVIDIA_API_KEY_KIMI_26',
+    'NVIDIA_API_KEY_MINIMAX_M3',
+    'NVIDIA_API_KEY_QWEN',
+  ];
+  const priorNvidiaKeys = nvidiaKeyNames.map((name) => [name, process.env[name]] as const);
+  process.env[openRouterKeyName] = 'fixture-key';
+  for (const name of nvidiaKeyNames) delete process.env[name];
+  const providers: ProviderId[] = [];
+  const { controller, root } = await harness({
+    run: async () => ({ text: 'unused' }),
+    runWithProvider: async (provider) => {
+      providers.push(provider);
+      return { text: 'ok' };
+    },
+  });
+  try {
+    const result = await controller.health(true);
+    assert.match(result, /API deep checks:/);
+    assert.deepEqual(providers, ['openrouter', 'openrouter']);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    if (priorOpenRouterKey === undefined) delete process.env[openRouterKeyName];
+    else process.env[openRouterKeyName] = priorOpenRouterKey;
+    for (const [name, value] of priorNvidiaKeys) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
 for (const route of [
   { modelId: 'codex:gpt-5.6-sol@medium', continuity: 'native' },
   { modelId: 'cursor:composer-2.5', continuity: 'native' },
   { modelId: 'claude:fable', continuity: 'native' },
   { modelId: 'copilot:claude-sonnet-5', continuity: 'native' },
   { modelId: 'nvidia:glm-5.2', continuity: 'native' },
+  { modelId: 'openrouter:stealth/ox-alpha', continuity: 'transcript' },
   { modelId: 'agy:gemini-3.5-flash@medium', continuity: 'transcript' },
   { modelId: 'nvidia:qwen-3.5', continuity: 'transcript' },
 ] as const) {

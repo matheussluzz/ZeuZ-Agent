@@ -125,3 +125,13 @@ test('NVIDIA Copilot route receives only its selected synthetic provider key', a
   assert.equal(calls[0]?.NVIDIA_API_KEY_GLM_52, undefined);
   assert.equal(calls[0]?.AWS_SECRET_ACCESS_KEY, undefined);
 });
+
+test('OpenRouter is stateless but applies the requested bounded filesystem capability', () => {
+  for (const mode of ['plan', 'agent', 'yolo'] as const) {
+    const capability = permissionCapability('openrouter', mode);
+    assert.deepEqual(capability.nativeArguments, []);
+    assert.equal(capability.filesystem, mode === 'plan' ? 'read-only' : mode === 'agent' ? 'workspace-write' : 'unrestricted');
+    assert.equal(capability.secretEnvironment, 'selected-route-only');
+    assert.equal(capability.resume, 'unsupported');
+  }
+});

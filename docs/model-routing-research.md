@@ -1,7 +1,7 @@
 # Model-routing research
 
-Date: 2026-07-14
-Environment: Matheus's authenticated local CLIs and configured NVIDIA Integrate endpoints
+Date: 2026-08-26
+Environment: Matheus's authenticated local CLIs and configured NVIDIA Integrate/OpenRouter endpoints
 
 ## Why this exists
 
@@ -20,7 +20,8 @@ Consulted routes:
 - Claude Code: current official headless/model-alias documentation was inspected. The installed `2.1.159` CLI initialized correctly, but it is below the documented Fable requirement and a real Haiku request returned `401`; direct routes are implemented but non-operational in this baseline.
 - Copilot: Claude Sonnet 5, Sonnet 4.6, Sonnet 4.5, and Haiku 4.5.
 - Antigravity: Gemini 3.5 Flash Low, Medium, and High.
-- NVIDIA: GLM 5.2, DeepSeek V4 Pro, Kimi K2.6, MiniMax M3, and Qwen 3.5 397B.
+- NVIDIA: GLM 5.2, DeepSeek V4 Pro, DeepSeek V4 Flash 0731, Kimi K2.6, MiniMax M3, and Qwen 3.5 397B.
+- OpenRouter: Ox Alpha (`stealth/ox-alpha`) and GPT-4o (`openai/gpt-4o`) through the OpenAI-compatible chat completions API.
 
 The answers were cross-compared with operational evidence: supported structured output, native session resume, sandbox controls, tool access, latency, and actual health checks. Self-assessment was treated as a heuristic prior, never as proof.
 
@@ -33,11 +34,16 @@ The answers were cross-compared with operational evidence: supported structured 
 | Claude Code | Stream JSON | Yes | Native when authenticated | Claude permission modes + workspace root; baseline failed authentication and Fable version gate |
 | Copilot | JSONL events / ACP | Yes | Native | Path verification; built-in remote MCP disabled outside yolo |
 | Antigravity | Plain text | CLI supports conversation IDs, but print output does not expose one reliably | Native | Agy sandbox; central handoff for continuity |
-| NVIDIA | OpenAI-compatible API | Copilot sessions for GLM/DeepSeek; provider-neutral handoff for direct routes | Copilot BYOK for GLM/DeepSeek; constrained ZeuZ JSON loop for MiniMax/Qwen/Kimi | Selected key redacted and stripped from child tool environments |
+| NVIDIA | OpenAI-compatible API | Copilot sessions for GLM/DeepSeek Pro; provider-neutral handoff for direct routes | Copilot BYOK for GLM/DeepSeek Pro; constrained ZeuZ JSON loop for DeepSeek V4 Flash/MiniMax/Qwen/Kimi | Selected key redacted and stripped from child tool environments |
+| OpenRouter | OpenAI-compatible chat completions | No native resume; provider-neutral handoff | Sequential OpenAI-compatible tool calls through ZeuZ's bounded local tool loop | Selected key sent only in the request; child environments remain sanitized |
 
 The Copilot BYOK route was verified against NVIDIA's GLM endpoint: the event stream identified `z-ai/glm-5.2`, returned successfully, and consumed zero Copilot premium requests.
 
+DeepSeek V4 Flash 0731 is routed through the direct NVIDIA OpenAI-compatible endpoint with `thinking: true`, `reasoning_effort: high`, `temperature: 1`, `top_p: 0.95`, and a 16,384-token ceiling. The route's live result is recorded in the private task handoff rather than inferred from the request example.
+
 MiniMax and Qwen returned real responses during direct endpoint research, but both exceeded the 45-second timeout in the hardened final deep check. They must pass a later deep check before consequential work. Direct requests now have bounded abort signals and a lightweight health path.
+
+The Ox Alpha route was smoke-tested through OpenRouter on 2026-08-26 after Cursor reauthentication. OpenRouter returned HTTP 404 and said that its stealth testing period had ended, pointing to another model. ZeuZ leaves the explicit Ox Alpha route unchanged and does not treat that response as evidence that a replacement route is equivalent.
 
 Kimi K2.6 returned an NVIDIA `404 Function ... not found for account` during both baseline research and health probing. The key name remains supported in configuration, but routing must treat Kimi as unavailable until a deep health check succeeds.
 
@@ -87,6 +93,10 @@ Models repeatedly admitted these failure modes:
 - Claude Code CLI and model configuration: https://code.claude.com/docs/en/cli-usage and https://code.claude.com/docs/en/model-config
 - NVIDIA hosted API quickstart: https://docs.api.nvidia.com/nim/re/docs/api-quickstart
 - NVIDIA API key setup: https://docs.nvidia.com/nemo/retriever/latest/extraction/api-keys/
+- NVIDIA DeepSeek V4 Flash 0731 model page: https://build.nvidia.com/deepseek-ai/deepseek-v4-flash-0731
+- NVIDIA LLM API reference: https://docs.api.nvidia.com/nim/re/reference/llm-apis
+- OpenRouter quickstart: https://openrouter.ai/docs/quickstart
+- OpenRouter Ox Alpha model page: https://openrouter.ai/stealth/ox-alpha
 - Model Context Protocol TypeScript SDK: https://github.com/modelcontextprotocol/typescript-sdk
 
 Provider marketing and model self-descriptions were not treated as performance evidence. These sources support protocol/configuration claims only.

@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [debugging, diagnosis]
+triggers:
+  - '(?:^|\s)/?diagnosing-bugs\b|\b(?:diagnos(?:e|ing|is)|debug|broken|throw(?:ing|s)?|failing|failure|slow)\b'
+allowedTools: []
+dependencies: []

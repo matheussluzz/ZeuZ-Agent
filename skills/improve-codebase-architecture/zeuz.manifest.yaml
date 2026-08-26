@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [architecture, refactoring]
+triggers:
+  - '(?:^|\s)/?improve-codebase-architecture\b|\b(?:improve|refactor).*\b(?:architecture|codebase)\b'
+allowedTools: []
+dependencies: [codebase-design]

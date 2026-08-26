@@ -7,7 +7,7 @@ import { parseSkillMarkdown } from './parser.js';
 import { resolveSkillPaths, validateSkillPaths } from './paths.js';
 
 function findByName(index: CatalogIndex, name: string): CatalogSkillRecord | undefined {
-  return index.skills.find((skill) => skill.name === name || skill.id === name || skill.id.endsWith(`/${name}@`));
+  return index.skills.find((skill) => skill.name === name || skill.id === name || skill.id.includes(`/${name}@`));
 }
 
 function matchesTask(skill: CatalogSkillRecord, task: string): boolean {
@@ -15,6 +15,20 @@ function matchesTask(skill: CatalogSkillRecord, task: string): boolean {
     if (new RegExp(pattern, 'i').test(task)) return true;
   }
   return false;
+}
+
+function explicitInvocation(skill: CatalogSkillRecord, task: string): boolean {
+  const escapedName = skill.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('(?:^|\\s)/' + escapedName + '\\b', 'i').test(task);
+}
+
+function shouldActivate(skill: CatalogSkillRecord, task: string): boolean {
+  if (skill.portable.disableModelInvocation === true) return explicitInvocation(skill, task);
+  return matchesTask(skill, task);
+}
+
+function canEvaluateTrigger(skill: CatalogSkillRecord): boolean {
+  return skill.zeuz.enablement !== 'disabled' && skill.zeuz.trust !== 'quarantined' && skill.zeuz.trust !== 'invalid';
 }
 
 function rejectReason(skill: CatalogSkillRecord, code: RoutingReason['code'], detail?: string): RoutingReason {
@@ -32,7 +46,7 @@ export function resolveActivation(index: CatalogIndex, task: string, budgetBytes
   const queue: CatalogSkillRecord[] = [];
 
   for (const skill of index.skills) {
-    if (matchesTask(skill, task)) {
+    if (canEvaluateTrigger(skill) && shouldActivate(skill, task)) {
       reasons.push({ code: 'trigger', skillId: skill.id });
       queue.push(skill);
     }
@@ -118,6 +132,7 @@ export async function loadActivationContext(index: CatalogIndex, task: string, b
       revision: skill.source.revision,
       trust: skill.zeuz.trust,
       enablement: skill.zeuz.enablement,
+      networkPolicy: skill.zeuz.networkPolicy ?? 'offline',
       reasons: reasons.filter((reason) => reason.skillId === skill.id),
       instruction,
       path: skillMdPath,
@@ -127,8 +142,14 @@ export async function loadActivationContext(index: CatalogIndex, task: string, b
 }
 
 export function formatActivationXml(result: ActivationResult, nameById: Map<string, string>): string {
+  const escapeXml = (value: string): string => value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
   return result.selected.map((skill) => {
     const name = nameById.get(skill.skillId) ?? skill.skillId.split('/').pop()?.split('@')[0] ?? skill.skillId;
-    return `<skill name="${name}" id="${skill.canonicalId}" revision="${skill.revision}" trust="${skill.trust}" path="${skill.path}">\n${skill.instruction}\n</skill>`;
+    return `<skill name="${escapeXml(name)}" id="${escapeXml(skill.canonicalId)}" revision="${escapeXml(skill.revision)}" trust="${escapeXml(skill.trust)}" network-policy="${escapeXml(skill.networkPolicy ?? 'offline')}" path="${escapeXml(skill.path)}">\n${escapeXml(skill.instruction)}\n</skill>`;
   }).join('\n\n');
 }

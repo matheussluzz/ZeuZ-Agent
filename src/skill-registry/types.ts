@@ -42,6 +42,7 @@ export interface ZeuzSkillExtension {
 export interface PortableSkillMetadata {
   name: string;
   description: string;
+  disableModelInvocation?: boolean;
   license?: string;
   compatibility?: string;
   metadata?: Record<string, string>;
@@ -128,6 +129,7 @@ export interface ActivationSelection {
   revision: string;
   trust: TrustState;
   enablement: EnablementState;
+  networkPolicy: NonNullable<ZeuzSkillExtension['networkPolicy']>;
   reasons: RoutingReason[];
   instruction: string;
   path: string;
@@ -162,4 +164,7 @@ export const DEFAULT_ACTIVATION_BUDGET_BYTES = 256 * 1024;
 export const MAX_SKILL_FILE_BYTES = 2 * 1024 * 1024;
 export const MAX_SKILL_TREE_FILES = 512;
 export const MAX_SKILL_TREE_DEPTH = 12;
-export const MAX_INDEX_BYTES = 512 * 1024;
+// The index contains compact records for the pinned BMAD/NVIDIA snapshots plus
+// the active pantheon and AIHero routes. Keep a bounded ceiling without
+// rejecting a legitimate catalog expansion.
+export const MAX_INDEX_BYTES = 768 * 1024;

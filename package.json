@@ -32,6 +32,7 @@
     "!skills/**/__pycache__/**",
     "!**/*.pyc",
     "scripts/sync-skill-bundle.mjs",
+    "third_party",
     "templates/aws-athena-mcp/.env.example",
     "templates/aws-athena-mcp/README.md",
     "templates/aws-athena-mcp/iam-policy.example.json",

@@ -92,10 +92,17 @@ See `docs/model-routing-research.md`. Model self-reports are weak evidence; runt
 
 - **GLM 5.2** — structured transformations, boilerplate, data parsing, utility modules.
 - **DeepSeek V4 Pro** — long-context analysis, architecture, thorough first drafts; constrain scope.
+- **DeepSeek V4 Flash** — reasoning, long-context, and agentic coding through NVIDIA Integrate; use ZeuZ's constrained direct JSON tool loop and verify route health first.
 - **Kimi K2.6** — use only after `zeuz health --deep` succeeds. It returned an NVIDIA 404 in the baseline.
 - **MiniMax M3** — scoped backend work, Node/Python/Go, SQL, stack traces, technical drafts.
 - **Qwen 3.5 397B** — documentation synthesis, tests, boilerplate, explanations, brainstorming.
-- GLM and DeepSeek use the Copilot BYOK harness. MiniMax, Qwen, and Kimi use ZeuZ's constrained direct JSON tool loop. Never state that every NVIDIA endpoint uses Copilot.
+- GLM 5.2 and DeepSeek V4 Pro use the Copilot BYOK harness. DeepSeek V4 Flash, MiniMax, Qwen, and Kimi use ZeuZ's constrained direct JSON tool loop. Never state that every NVIDIA endpoint uses Copilot.
+
+### OpenRouter
+
+- **Ox Alpha** — explicit `stealth/ox-alpha` route for reasoning, coding, sustained agentic work, and long-horizon engineering; verify current route health before consequential work and never silently substitute another model.
+- **GPT-4o** — explicit `openai/gpt-4o` control route; it may require purchased OpenRouter credits.
+- OpenRouter uses ZeuZ's OpenAI-compatible HTTP adapter and bounded local tool loop. The selected key is sent only to OpenRouter and is never exposed to child tools.
 
 ## Skill pantheon and routing
 

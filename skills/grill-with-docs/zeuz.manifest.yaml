@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [discovery, planning]
+triggers:
+  - '(?:^|\s)/?grill-with-docs\b|\bgrill\b.*\b(?:plan|design|idea|docs?)\b'
+allowedTools: []
+dependencies: [grilling, domain-modeling]

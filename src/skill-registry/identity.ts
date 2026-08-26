@@ -23,14 +23,26 @@ export function parseZeuzManifest(content: string, defaults: Partial<ZeuzSkillEx
   const namespace = typeof parsed.namespace === 'string' ? parsed.namespace : defaults.namespace;
   const version = typeof parsed.version === 'string' ? parsed.version : defaults.version ?? '0.1.0';
   if (!namespace) throw new SkillRegistryError('ZEUZ_MANIFEST_INVALID', 'namespace is required.');
-  const trust = (typeof parsed.trust === 'string' ? parsed.trust : defaults.trust ?? 'quarantined') as TrustState;
-  const enablement = (typeof parsed.enablement === 'string' ? parsed.enablement : defaults.enablement ?? 'disabled') as EnablementState;
+  const trustValue = typeof parsed.trust === 'string' ? parsed.trust : defaults.trust ?? 'quarantined';
+  if (!['quarantined', 'invalid', 'validated', 'disabled', 'enabled'].includes(trustValue)) {
+    throw new SkillRegistryError('ZEUZ_MANIFEST_INVALID', `Invalid trust state: ${trustValue}`);
+  }
+  const trust = trustValue as TrustState;
+  const enablementValue = typeof parsed.enablement === 'string' ? parsed.enablement : defaults.enablement ?? 'disabled';
+  if (!['disabled', 'enabled'].includes(enablementValue)) {
+    throw new SkillRegistryError('ZEUZ_MANIFEST_INVALID', `Invalid enablement state: ${enablementValue}`);
+  }
+  const enablement = enablementValue as EnablementState;
   const triggers = Array.isArray(parsed.triggers) ? parsed.triggers.map(String) : defaults.triggers ?? [];
   const dependencies = Array.isArray(parsed.dependencies) ? parsed.dependencies.map(String) : defaults.dependencies ?? [];
   const conflicts = Array.isArray(parsed.conflicts) ? parsed.conflicts.map(String) : defaults.conflicts ?? [];
   const capabilityTags = Array.isArray(parsed.capabilityTags) ? parsed.capabilityTags.map(String) : defaults.capabilityTags ?? [];
   const allowedTools = Array.isArray(parsed.allowedTools) ? parsed.allowedTools.map(String) : defaults.allowedTools ?? [];
-  const networkPolicy = (typeof parsed.networkPolicy === 'string' ? parsed.networkPolicy : defaults.networkPolicy ?? 'offline') as ZeuzSkillExtension['networkPolicy'];
+  const networkPolicyValue = typeof parsed.networkPolicy === 'string' ? parsed.networkPolicy : defaults.networkPolicy ?? 'offline';
+  if (!['offline', 'explicit-sync-only', 'declared'].includes(networkPolicyValue)) {
+    throw new SkillRegistryError('ZEUZ_MANIFEST_INVALID', `Invalid network policy: ${networkPolicyValue}`);
+  }
+  const networkPolicy = networkPolicyValue as NonNullable<ZeuzSkillExtension['networkPolicy']>;
   const contextBudgetBytes = typeof parsed.contextBudgetBytes === 'number' ? parsed.contextBudgetBytes : defaults.contextBudgetBytes;
   const extension: ZeuzSkillExtension = {
     namespace,
@@ -39,7 +51,7 @@ export function parseZeuzManifest(content: string, defaults: Partial<ZeuzSkillEx
     dependencies,
     conflicts,
     allowedTools,
-    networkPolicy: networkPolicy ?? 'offline',
+    networkPolicy,
     trust,
     enablement,
     capabilityTags,

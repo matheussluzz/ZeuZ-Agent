@@ -17,6 +17,16 @@ const LOCK_ROOT = 'catalog/locks';
 const INDEX_ROOT = 'catalog/index';
 const MAX_BUNDLE_INVENTORY_FILES = 10_000;
 const MAX_BUNDLE_INVENTORY_DEPTH = 32;
+const AIHERO_SOURCE: SkillSourceRef = {
+  kind: 'pantheon',
+  namespace: 'zeuz/aihero',
+  canonicalUrl: 'https://github.com/mattpocock/skills',
+  revision: '6654f6b60cd9d5be8b54c6fafe44346dabeb3b76',
+};
+
+function objectRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
 
 export function catalogPaths(root = installRoot()): {
   pantheonRoot: string;
@@ -121,6 +131,50 @@ async function loadSkillRecord(root: string, skillRoot: string, source: SkillSou
   return serializeSkillRecord(root, record);
 }
 
+async function sourceForPantheonSkill(skillRoot: string): Promise<SkillSourceRef> {
+  try {
+    const manifest = await readZeuzManifest(join(skillRoot, 'zeuz.manifest.yaml'));
+    if (manifest.namespace === AIHERO_SOURCE.namespace) return AIHERO_SOURCE;
+  } catch {
+    // loadSkillRecord reports malformed or missing manifests as invalid records.
+  }
+  return {
+    kind: 'pantheon',
+    namespace: 'zeuz/pantheon',
+    canonicalUrl: 'local:pantheon',
+    revision: 'reviewed-local',
+  };
+}
+
+async function readAiHeroDigests(root: string, skillNames: string[]): Promise<Map<string, string>> {
+  const sourcePath = resolve(root, 'third_party', 'aihero', 'SOURCE.json');
+  try {
+    await assertPathComponentsNotSymlinks(root, sourcePath);
+    const parsed = objectRecord(JSON.parse(await readFile(sourcePath, 'utf8')));
+    const digestsValue = objectRecord(parsed?.skillDigests);
+    if (parsed?.source !== AIHERO_SOURCE.canonicalUrl || parsed.revision !== AIHERO_SOURCE.revision || !digestsValue) {
+      throw new Error('SOURCE.json does not match the pinned AIHero source.');
+    }
+    const expectedNames = [...skillNames].sort();
+    const recordedNames = Object.keys(digestsValue).sort();
+    if (JSON.stringify(expectedNames) !== JSON.stringify(recordedNames)) {
+      throw new Error('SOURCE.json skill scope does not match discovered AIHero skills.');
+    }
+    const digests = new Map<string, string>();
+    for (const name of expectedNames) {
+      const digest = digestsValue[name];
+      if (typeof digest !== 'string' || !/^[a-f0-9]{64}$/i.test(digest)) {
+        throw new Error(`SOURCE.json has an invalid inventory digest for ${name}.`);
+      }
+      digests.set(name, digest);
+    }
+    return digests;
+  } catch (error) {
+    if (error instanceof SkillRegistryError) throw error;
+    throw new SkillRegistryError('AIHERO_INTEGRITY_MISMATCH', error instanceof Error ? error.message : String(error));
+  }
+}
+
 function readBundleDefaults(source: SkillSourceRef): import('./types.js').ZeuzSkillExtension {
   return {
     namespace: source.namespace,
@@ -164,13 +218,23 @@ export async function buildCatalogIndex(root = installRoot(), generatedAt?: stri
   const skills: CatalogSkillRecord[] = [];
   const bundles: BundleLockSummary[] = [];
 
-  for (const skillRoot of await discoverSkillRoots(paths.pantheonRoot)) {
-    skills.push(await loadSkillRecord(root, skillRoot, {
-      kind: 'pantheon',
-      namespace: 'zeuz/pantheon',
-      canonicalUrl: 'local:pantheon',
-      revision: 'reviewed-local',
-    }));
+  const pantheonRoots = await discoverSkillRoots(paths.pantheonRoot);
+  const pantheonSources = new Map<string, SkillSourceRef>();
+  for (const skillRoot of pantheonRoots) pantheonSources.set(skillRoot, await sourceForPantheonSkill(skillRoot));
+  const aiheroRoots = pantheonRoots.filter((skillRoot) => pantheonSources.get(skillRoot)?.namespace === AIHERO_SOURCE.namespace);
+  const aiheroDigests = aiheroRoots.length > 0
+    ? await readAiHeroDigests(root, aiheroRoots.map((skillRoot) => skillDirectoryName(skillRoot)))
+    : undefined;
+  for (const skillRoot of pantheonRoots) {
+    const source = pantheonSources.get(skillRoot)!;
+    const record = await loadSkillRecord(root, skillRoot, source);
+    if (source.namespace === AIHERO_SOURCE.namespace) {
+      const expectedDigest = aiheroDigests?.get(record.name);
+      if (!expectedDigest || expectedDigest !== record.inventoryDigest) {
+        throw new SkillRegistryError('AIHERO_INTEGRITY_MISMATCH', `Inventory digest mismatch for ${record.name}.`);
+      }
+    }
+    skills.push(record);
   }
 
   for (const bundleId of ['bmad', 'nvidia']) {

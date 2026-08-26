@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [continuity, planning]
+triggers:
+  - '(?:^|\s)/?handoff\b|\bhandoff\b'
+allowedTools: []
+dependencies: []

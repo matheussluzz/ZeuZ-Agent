@@ -18,21 +18,21 @@ interface DirectMessage {
   content: string;
 }
 
-interface DirectAction {
+export interface DirectAction {
   action: 'tool' | 'final';
   tool?: string;
   input?: Record<string, unknown>;
   content?: string;
 }
 
-const DIRECT_HARNESS = /(?:minimax|qwen|kimi)/i;
+const DIRECT_HARNESS = /(?:minimax|qwen|kimi|deepseek-v4-flash)/i;
 const MAX_TOOL_STEPS = 16;
 const MAX_TOOL_OUTPUT = 60_000;
 
 const SYSTEM_PROMPT = `You are a coding agent inside ZeuZ-Agent. You have local tools through a strict JSON action protocol.
 
 At every step, return exactly one JSON object and no Markdown fences:
-- Tool call: {"action":"tool","tool":"read_file|list_files|search|write_file|replace_in_file|run_command|git_diff|delegate","input":{...}}
+- Tool call: {"action":"tool","tool":"read_file|list_files|search|write_file|replace_in_file|run_command|git_diff|delegate","input":{...}}; delegate is unavailable in plan mode
 - Final answer: {"action":"final","content":"your answer to the user"}
 
 Tool inputs:
@@ -49,6 +49,7 @@ Rules:
 - Read before editing. Keep changes minimal and inside the active workspace.
 - Never access, print, or persist secrets. Never read .env or auth files.
 - In plan mode, write tools and mutating commands will fail.
+- Only the root ZeuZ orchestrator may spawn specialists; a delegated model must not create nested delegates.
 - Verify changes with proportional commands/tests before returning final.
 - Be brutally honest about failures and uncertainty.
 - If a tool fails, adapt or report the failure; never pretend it succeeded.`;
@@ -151,7 +152,10 @@ export function runSandboxedCommand(cwd: string, command: string, mode: Permissi
   return bounded(output || '(command succeeded with no output)');
 }
 
-function executeTool(request: RunRequest, action: DirectAction): string {
+export function executeTool(request: RunRequest, action: DirectAction): string {
+  if (action.action !== 'tool' || !isAllowedDirectTool(request.mode, action.tool)) {
+    throw new Error(`Tool is not allowed in ${request.mode} mode: ${action.tool ?? '(missing)'}`);
+  }
   const input = action.input ?? {};
   switch (action.tool) {
     case 'read_file': {
@@ -206,7 +210,8 @@ function executeTool(request: RunRequest, action: DirectAction): string {
       return bounded(gitDiff(request.cwd));
     case 'delegate': {
       if (typeof input.model !== 'string' || typeof input.task !== 'string') throw new Error('delegate requires model and task.');
-      const mode = input.mode === 'agent' ? 'agent' : 'plan';
+      const requestedMode = input.mode === 'agent' ? 'agent' : 'plan';
+      const mode = request.mode === 'plan' ? 'plan' : requestedMode;
       const bin = resolve(installRoot(), 'bin', 'agents');
       const result = spawnSync(process.execPath, [bin, 'delegate', '--model', input.model, '--task', input.task, '--mode', mode, '--cwd', request.cwd], {
         cwd: request.cwd,
@@ -221,6 +226,14 @@ function executeTool(request: RunRequest, action: DirectAction): string {
     default:
       throw new Error(`Unknown tool: ${action.tool ?? '(missing)'}`);
   }
+}
+
+const READ_ONLY_DIRECT_TOOLS = new Set(['read_file', 'list_files', 'search', 'run_command', 'git_diff']);
+const WRITABLE_DIRECT_TOOLS = new Set([...READ_ONLY_DIRECT_TOOLS, 'write_file', 'replace_in_file', 'delegate']);
+
+export function isAllowedDirectTool(mode: PermissionMode, toolName: unknown): toolName is string {
+  if (typeof toolName !== 'string') return false;
+  return (mode === 'plan' ? READ_ONLY_DIRECT_TOOLS : WRITABLE_DIRECT_TOOLS).has(toolName);
 }
 
 export interface NvidiaAdapterOptions {
@@ -262,6 +275,7 @@ export class NvidiaAdapter implements AgentAdapter {
           { role: 'user', content: 'Reply with exactly: ok' },
         ],
         maxTokens: 64,
+        ...(request.model.reasoningEffort ? { temperature: 1, reasoningEffort: request.model.reasoningEffort } : {}),
         ...(request.signal ? { signal: request.signal } : {}),
       });
       request.onEvent?.({ type: 'delta', text });
@@ -275,7 +289,13 @@ export class NvidiaAdapter implements AgentAdapter {
 
     for (let step = 0; step < MAX_TOOL_STEPS; step += 1) {
       if (request.signal?.aborted) throw new Error('NVIDIA turn aborted.');
-      const content = await this.complete({ apiKey, model, messages, ...(request.signal ? { signal: request.signal } : {}) });
+      const content = await this.complete({
+        apiKey,
+        model,
+        messages,
+        ...(request.model.reasoningEffort ? { maxTokens: 16_384, temperature: 1, reasoningEffort: request.model.reasoningEffort } : {}),
+        ...(request.signal ? { signal: request.signal } : {}),
+      });
       const action = parseAction(content);
       if (!action) {
         invalidActions += 1;
@@ -311,14 +331,38 @@ export class NvidiaAdapter implements AgentAdapter {
     throw new Error(`NVIDIA direct agent exceeded ${MAX_TOOL_STEPS} tool steps.`);
   }
 
-  private async complete(input: { apiKey: string; model: string; messages: DirectMessage[]; maxTokens?: number; signal?: AbortSignal }): Promise<string> {
+  private async complete(input: {
+    apiKey: string;
+    model: string;
+    messages: DirectMessage[];
+    maxTokens?: number;
+    temperature?: number;
+    topP?: number;
+    reasoningEffort?: string;
+    signal?: AbortSignal;
+  }): Promise<string> {
     const timeout = AbortSignal.timeout(90_000);
     const signal = input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
     const response = await this.runtime.httpRequest({
       url: `${(this.runtime.envGet('NVIDIA_API_BASE_URL') ?? 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')}/chat/completions`,
       method: 'POST',
       headers: { Authorization: `Bearer ${input.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: input.model, messages: input.messages, stream: false, max_tokens: input.maxTokens ?? 4096, temperature: 0.2, top_p: 0.95 }),
+      body: JSON.stringify({
+        model: input.model,
+        messages: input.messages,
+        stream: false,
+        max_tokens: input.maxTokens ?? 4096,
+        temperature: input.temperature ?? 0.2,
+        top_p: input.topP ?? 0.95,
+        ...(input.reasoningEffort ? {
+          extra_body: {
+            chat_template_kwargs: {
+              thinking: true,
+              reasoning_effort: input.reasoningEffort,
+            },
+          },
+        } : {}),
+      }),
       signal,
     });
     const body = await readBoundedHttpBody(response);
