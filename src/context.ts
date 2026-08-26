@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { userInfo } from 'node:os';
-import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, realpath, rename, unlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 
 import { redactSecrets } from './redact.js';
@@ -9,30 +9,22 @@ import type { OnboardingAnswers, WorkspaceBootstrap } from './types.js';
 const MAX_FILE_CHARACTERS = 24_000;
 export const MAX_HANDOFF_CHARACTERS = 12_000;
 const MAX_CONTEXT_CHARACTERS = 72_000;
+const PROGRESS_HEADER_PATTERN = /^## \d{17} - \d{5} - [0-9a-f]{7,40}$/gm;
 
 const HANDOFF_TEMPLATE = `# ZeuZ handoff
 
-> Private local continuity record. Keep this file Git-ignored, free of secrets, and below 4,096 tokens.
+> Private minimum resume capsule. Keep this file Git-ignored, free of secrets, and short.
 
-## Latest demand
+<!-- zeuz:latest-turn:start -->
+## Latest ZeuZ turn
 
-No substantive task has been recorded yet.
-
-## Durable requirements and decisions
-
-- Read this file during every workspace bootstrap.
-
-## Verified workspace state
-
-- No verification has been recorded yet.
-
-## Open risks or blockers
-
-- None recorded.
-
-## Next actions
-
-- Replace this starter content after the first substantive writable task.
+- Updated: not recorded
+- Status: not_started
+- Model: none
+- Latest demand: No substantive task has been recorded yet.
+- Public progress: PROGRESS.md
+- Next action: Start the next task from PROGRESS.md.
+<!-- zeuz:latest-turn:end -->
 `;
 
 function slugify(value: string): string {
@@ -82,6 +74,40 @@ async function safeRead(root: string, relativePath: string, maxCharacters = MAX_
 async function handoffIsIgnored(root: string): Promise<boolean> {
   const ignore = await safeRead(root, '.gitignore');
   return Boolean(ignore && /^\/?handoff\.md\s*$/m.test(ignore.content));
+}
+
+async function latestProgressUtid(root: string): Promise<string> {
+  const candidate = resolve(root, 'PROGRESS.md');
+  try {
+    const metadata = await lstat(candidate);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) return 'not recorded';
+    const actual = await realpath(candidate);
+    const actualRelation = relative(await realpath(root), actual);
+    if (actualRelation.startsWith('..') || isAbsolute(actualRelation)) return 'not recorded';
+
+    const handle = await open(actual, 'r');
+    try {
+      const chunkSize = 16 * 1024;
+      const boundary = 128;
+      let position = metadata.size;
+      let suffix = '';
+      while (position > 0) {
+        const length = Math.min(chunkSize, position);
+        position -= length;
+        const buffer = Buffer.alloc(length);
+        await handle.read(buffer, 0, length, position);
+        const chunk = buffer.toString('utf8');
+        const matches = `${chunk}${suffix}`.match(PROGRESS_HEADER_PATTERN);
+        if (matches?.length) return matches.at(-1)?.slice(3) ?? 'not recorded';
+        suffix = `${chunk}${suffix}`.slice(0, boundary);
+      }
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return 'not recorded';
+  }
+  return 'not recorded';
 }
 
 async function ensureIgnoredHandoff(root: string, warnings: string[]): Promise<void> {
@@ -210,6 +236,7 @@ export class WorkspaceContextManager {
     if (!current) return 'handoff.md was not updated because it is missing, symlinked, or not private. Run chmod 600 handoff.md.';
 
     const compact = (value: string, limit: number): string => redactSecrets(value).replace(/\s+/g, ' ').trim().slice(0, limit);
+    const progressUtid = await latestProgressUtid(cwd);
     const managed = `<!-- zeuz:latest-turn:start -->
 ## Latest ZeuZ turn
 
@@ -217,12 +244,10 @@ export class WorkspaceContextManager {
 - Status: ${update.status}
 - Model: ${compact(update.modelId, 160)}
 - Latest demand: ${compact(update.latestDemand, 1_500)}
+- Latest progress: ${progressUtid}
 ${update.changedWorkspace === undefined ? '' : `- Workspace changed: ${update.changedWorkspace ? 'yes' : 'no'}\n`}${update.reviewVerdict ? `- Adversarial review: ${update.reviewVerdict}\n` : ''}<!-- zeuz:latest-turn:end -->`;
-    const withoutManaged = current.content.replace(/<!-- zeuz:latest-turn:start -->[\s\S]*?<!-- zeuz:latest-turn:end -->\s*/g, '').trim();
-    const retained = withoutManaged.startsWith('# ZeuZ handoff') ? withoutManaged.slice('# ZeuZ handoff'.length).trim() : withoutManaged;
-    const fixed = `# ZeuZ handoff\n\n${managed}\n\n`;
-    const room = Math.max(0, MAX_HANDOFF_CHARACTERS - fixed.length - 1);
-    const content = redactSecrets(`${fixed}${retained.slice(0, room)}\n`);
+    const fixed = `# ZeuZ handoff\n\n${managed}\n\n- Public progress: PROGRESS.md\n`;
+    const content = redactSecrets(fixed);
     const target = resolve(cwd, 'handoff.md');
     const temporary = resolve(cwd, `.handoff.${process.pid}.${randomUUID()}.tmp`);
 
@@ -233,7 +258,7 @@ ${update.changedWorkspace === undefined ? '' : `- Workspace changed: ${update.ch
       await unlink(temporary).catch(() => undefined);
       throw error;
     }
-    return current.truncated ? 'handoff.md exceeded the bootstrap ceiling; retained content was compacted to fit.' : undefined;
+    return current.truncated ? 'handoff.md exceeded the bootstrap ceiling; it was replaced by the minimum resume capsule.' : undefined;
   }
 
   async initialize(cwd: string, userSlug: string, answers: OnboardingAnswers): Promise<WorkspaceBootstrap> {

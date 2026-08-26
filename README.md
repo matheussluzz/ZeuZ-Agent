@@ -20,7 +20,7 @@
 
 ## Why ZeuZ exists
 
-Powerful agents usually live in separate terminals, context windows, permission systems, and session formats. ZeuZ puts them behind one consistent interface, keeps a provider-neutral handoff, and requires an independent model family to challenge any artifact before it is considered ready.
+Powerful agents usually live in separate terminals, context windows, permission systems, and session formats. ZeuZ puts them behind one consistent interface, keeps a minimal private resume capsule plus a tracked progress ledger, and requires an independent model family to challenge any artifact before it is considered ready.
 
 - one executable: `zeuz` (`agents` is an alias);
 - searchable `/model` switching with automatic compaction;
@@ -45,7 +45,7 @@ flowchart LR
     O --> A["Antigravity"]
     O --> N["NVIDIA API"]
     O --> OR["OpenRouter API"]
-    O --> H["Compacted shared handoff"]
+    O --> H["Minimal private resume capsule"]
     C & R & L & P & A & N & OR --> W["Selected workspace only"]
     W --> M["Medusa cross-family review"]
     M -->|"PASS"| U
@@ -204,15 +204,20 @@ On first use in a repository, ZeuZ asks six short questions: development/data/pr
 
 ```text
 users/<os-username>.md   # private local instructions
-handoff.md               # private latest-demand/session continuity
+handoff.md               # private minimum resume capsule
+PROGRESS.md              # tracked progress and verification ledger
 vault/Home.md           # visible Obsidian-compatible index
 vault/Glossary/Index.md # durable vocabulary
 vault/{Schemas,Rules,Sources,Decisions}/Index.md
 ```
 
-Actual `handoff.md`, `users/*.md`, and `vault/**` content is ignored by Git. The public repository contains only neutral templates. Before every model turn, ZeuZ bootstraps `AGENTS.md`, the active user profile, the private handoff, `vault/Home.md`, and the glossary. Vault text is treated as data, never as executable instruction.
+Actual `handoff.md`, `users/*.md`, and `vault/**` content is ignored by Git. The public repository contains only neutral templates. Before every model turn, ZeuZ bootstraps `AGENTS.md`, the active user profile, the private handoff, `vault/Home.md`, and the glossary. `PROGRESS.md` is intentionally consulted on demand rather than loaded into every bootstrap. Vault text is treated as data, never as executable instruction.
 
-During writable turns, the ZeuZ host deterministically records a bounded `Latest ZeuZ turn` block at start and completion; the operating contract also requires the active agent to curate the durable sections after substantive work. A fresh session can therefore recover the latest demand, verified state, open risks, and next actions without replaying the full transcript. The file must remain below 4,096 tokens for the active model; because providers tokenize differently, ZeuZ also enforces a conservative 12,000-character bootstrap/write ceiling and warns when it has to compact the loaded copy. Plan mode never creates or updates it.
+During writable turns, the ZeuZ host deterministically records a bounded `Latest ZeuZ turn` block at start and completion. A fresh session can recover the latest demand, current status, latest UTID, blocker/review state, and immediate next action without replaying the full transcript. Task history, completion, and verification belong in the tracked ledger, whose entries use `YYYYMMDDHHMMSSsss - NNNNN - commit-id`; use `rg` or `grep` for historical consultation. The private capsule must remain below 4,096 tokens and 12,000 characters. Plan mode never creates or updates it.
+
+### Progress ledger
+
+`PROGRESS.md` is the append-only public history for substantive tasks and checkpoints. `NNNNN` is a zero-padded task ID beginning at `00001`; later checkpoints for the same task reuse its ID, while each new task increments it by one. Every entry has a `Status:` line and a 7–40 character Git SHA. Since a commit cannot contain its own final SHA, a progress-only follow-up commit records the preceding implementation commit. Run `pnpm progress:check` after editing it and before committing. The ledger must never contain credentials, private paths, raw provider payloads, or confidential material.
 
 The adaptive protocol teaches while delivering when the user is unfamiliar and stays compact for an advanced user. ZeuZ never exposes or pretends to know a hidden proficiency score.
 
@@ -407,6 +412,7 @@ Real smokes recheck provider health, run in `plan` mode, may consume quota, and 
 src/adapters/          provider-specific CLI/API bridges
 src/controller.ts      sessions, fallback, handoff, review, remediation
 src/context.ts         onboarding, user profile, and vault bootstrap
+PROGRESS.md            tracked task/progress/verification ledger
 src/skills.ts          SkillRegistry adapter over portable catalog index
 src/skill-registry/    metadata index, provenance, resolver, loader, CLI
 src/ui.tsx             Ink terminal and slash commands

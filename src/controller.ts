@@ -269,7 +269,7 @@ export class ZeuzController {
     const summarizer = requireModel('codex:gpt-5.6-sol@low');
     const transcript = this.session.messages.map((message) => `${message.role.toUpperCase()}${message.modelId ? ` [${message.modelId}]` : ''}:\n${message.content}`).join('\n\n');
     const bounded = transcript.length > 90_000 ? transcript.slice(-90_000) : transcript;
-    const prompt = `Compact this multi-model coding session into a durable handoff in Brazilian Portuguese. Preserve: user goal, hard requirements, decisions, workspace state, files changed, commands/tests and their outcomes, unresolved risks, next actions, and model-specific claims that still need verification. Remove repetition and conversational filler. Never include secrets. Stay under 1,800 words.\n\n${bounded}`;
+    const prompt = `Compact this multi-model coding session into a minimum private resume capsule in Brazilian Portuguese. Preserve only: the latest user demand, current workspace status, the immediate next action, and unresolved blocker or review state. Do not reproduce task history, completed work, detailed verification, or model claims here; record those in the tracked PROGRESS.md ledger. Remove repetition and conversational filler. Never include secrets. Stay under 600 words.\n\n${bounded}`;
 
     try {
       const result = await this.run('codex', {

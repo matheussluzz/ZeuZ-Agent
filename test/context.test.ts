@@ -56,10 +56,12 @@ test('handoff is loaded in bootstrap order and bounded conservatively', async ()
   await writeFile(join(root, '.gitignore'), '/handoff.md\n');
   await writeFile(join(root, 'AGENTS.md'), '# Contract marker\n');
   await writeFile(join(root, 'handoff.md'), `# Latest demand marker\n\n${'x'.repeat(MAX_HANDOFF_CHARACTERS + 500)}`, { mode: 0o600 });
+  await writeFile(join(root, 'PROGRESS.md'), '# ZeuZ progress ledger\n');
 
   const loaded = await new WorkspaceContextManager().load(root, 'tester');
 
   assert.ok(loaded.files.includes('handoff.md'));
+  assert.equal(loaded.files.includes('PROGRESS.md'), false);
   assert.ok(loaded.context.indexOf('## AGENTS.md') < loaded.context.indexOf('## handoff.md'));
   assert.match(loaded.context, /Latest demand marker/);
   assert.match(loaded.context, /context truncated/);
@@ -90,10 +92,11 @@ test('read-only bootstrap never creates handoff state', async () => {
   assert.equal(loaded.files.includes('handoff.md'), false);
 });
 
-test('writable host updates keep one bounded redacted latest-turn block', async () => {
+test('writable host updates keep one bounded redacted minimum resume capsule', async () => {
   const root = await mkdtemp(join(tmpdir(), 'zeuz-handoff-update-'));
   roots.push(root);
   await writeFile(join(root, '.gitignore'), '/handoff.md\n/.handoff.*.tmp\n');
+  await writeFile(join(root, 'PROGRESS.md'), '# ZeuZ progress ledger\n\n## 20260826182754678 - 00001 - fc4f2c7\n\n- Status: started\n');
   const manager = new WorkspaceContextManager();
   await manager.load(root, 'tester', { initializeHandoff: true });
 
@@ -115,7 +118,9 @@ test('writable host updates keep one bounded redacted latest-turn block', async 
   assert.equal(content.match(/zeuz:latest-turn:start/g)?.length, 1);
   assert.match(content, /Status: completed/);
   assert.match(content, /Adversarial review: PASS/);
-  assert.match(content, /Durable requirements and decisions/);
+  assert.match(content, /Latest progress: 20260826182754678 - 00001 - fc4f2c7/);
+  assert.match(content, /Public progress: PROGRESS\.md/);
+  assert.doesNotMatch(content, /Durable requirements and decisions/);
   assert.doesNotMatch(content, /nvapi-/);
   assert.ok(content.length <= MAX_HANDOFF_CHARACTERS);
   assert.equal((await stat(join(root, 'handoff.md'))).mode & 0o077, 0);
