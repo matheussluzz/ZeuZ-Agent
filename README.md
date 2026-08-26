@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-public%20alpha-0969da)](https://github.com/matheussluzz/ZeuZ-Agent)
 
-**A local-first Node.js CLI that orchestrates the coding agents you already subscribe to and the NVIDIA models you access by API.**
+**A local-first Node.js CLI that orchestrates the coding agents you already subscribe to and API models from NVIDIA and OpenRouter.**
 
 </div>
 
@@ -25,11 +25,11 @@ Powerful agents usually live in separate terminals, context windows, permission 
 - one executable: `zeuz` (`agents` is an alias);
 - searchable `/model` switching with automatic compaction;
 - GPT-5.6 Sol as primary, with an explicit Fable 5 fallback;
-- direct and delegated work across Codex, Cursor, Claude Code, Copilot, Antigravity, and NVIDIA;
+- direct and delegated work across Codex, Cursor, Claude Code, Copilot, Antigravity, NVIDIA, and OpenRouter;
 - `plan`, `agent`, and intentionally named `yolo` permission modes;
 - Markdown, streaming activity, tool events, and colored Git diffs;
 - onboarding, per-repository user profiles, and an Obsidian-compatible knowledge vault;
-- eight reusable specialist skills and a guarded AWS Athena MCP template;
+- 33 routed specialist skills (including the 25 AIHero engineering/productivity skills) and a guarded AWS Athena MCP template;
 - mandatory cross-family adversarial review with evidence, not model agreement.
 
 ## Architecture
@@ -44,14 +44,15 @@ flowchart LR
     O --> P["Copilot"]
     O --> A["Antigravity"]
     O --> N["NVIDIA API"]
+    O --> OR["OpenRouter API"]
     O --> H["Compacted shared handoff"]
-    C & R & L & P & A & N --> W["Selected workspace only"]
+    C & R & L & P & A & N & OR --> W["Selected workspace only"]
     W --> M["Medusa cross-family review"]
     M -->|"PASS"| U
     M -->|"CHANGES_REQUIRED"| O
 ```
 
-Subscription models run through their authenticated local CLIs. NVIDIA uses two local tool harnesses: Copilot BYOK for compatible streaming endpoints and ZeuZ's constrained JSON tool loop for MiniMax, Qwen, and Kimi. Selected keys are removed from child tool environments and output is redacted.
+Subscription models run through their authenticated local CLIs. NVIDIA uses two local tool harnesses: Copilot BYOK for compatible streaming endpoints and ZeuZ's constrained JSON tool loop for DeepSeek V4 Flash, MiniMax, Qwen, and Kimi. OpenRouter uses its OpenAI-compatible chat completions API with sequential, bounded tool calls. Selected keys are removed from child tool environments and output is redacted.
 
 ## Model routes
 
@@ -62,7 +63,8 @@ Subscription models run through their authenticated local CLIs. NVIDIA uses two 
 | **Claude Code** | Fable 5, Opus 4.8, Sonnet 5, and Haiku 4.5 |
 | **GitHub Copilot CLI** | Claude Sonnet 5, Sonnet 4.6, Sonnet 4.5, and Haiku 4.5 |
 | **Antigravity (`agy`)** | Gemini 3.5 Flash Low, Medium, and High |
-| **NVIDIA Integrate** | GLM 5.2, DeepSeek V4 Pro, Kimi K2.6, MiniMax M3, and Qwen 3.5 397B |
+| **NVIDIA Integrate** | GLM 5.2, DeepSeek V4 Pro, DeepSeek V4 Flash, Kimi K2.6, MiniMax M3, and Qwen 3.5 397B |
+| **OpenRouter API** | Ox Alpha (`stealth/ox-alpha`) and GPT-4o (`openai/gpt-4o`) |
 
 GPT-5.6 Sol Medium is the default. If Sol fails before changing the workspace because it is unavailable, unauthenticated, rate-limited, or missing, ZeuZ reports the degradation and falls back to Claude Code Fable 5 when installed, otherwise Cursor Fable 5 Thinking High. It never hides this fallback.
 
@@ -78,7 +80,8 @@ The route choices and their limitations are recorded in the [model-routing resea
   - `claude` (optional)
   - `copilot`
   - `agy`
-- optional NVIDIA Integrate API keys.
+  - optional NVIDIA Integrate API keys;
+  - optional OpenRouter API key for the direct API routes.
 
 You can use any subset. `zeuz health` reports what is actually available.
 
@@ -147,11 +150,13 @@ nvidia:
   api_keys:
     glm_5_2: "nvapi-your-real-key"
     deepseek_v4: ""
+    deepseek_v4_flash: ""
     kimi_2_6: ""
     minimax_m3: ""
     qwen: ""
   models:
     glm_5_2: z-ai/glm-5.2
+    deepseek_v4_flash: deepseek-ai/deepseek-v4-flash-0731
 ```
 
 ZeuZ refuses to load either configuration from a symlink, an unexpectedly large file, or group/world-readable POSIX permissions. `.env` remains supported for backward compatibility, but `lamine.yaml` is the recommended NVIDIA setup. If you keep a legacy `.env`, run `chmod 600 .env`.
@@ -164,6 +169,34 @@ pnpm secrets:check
 ```
 
 `--deep` performs a small real request and may consume provider quota. Rotate a key immediately if it is ever exposed.
+
+## OpenRouter setup
+
+OpenRouter is a direct HTTP route and does not require a separate CLI or SDK. ZeuZ calls the OpenAI-compatible `POST /api/v1/chat/completions` endpoint with the selected model and bounded local tools. The official [OpenRouter quickstart](https://openrouter.ai/docs/quickstart) and [chat completion reference](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request) document the same wire format.
+
+Configure the ignored local `.env` file with a real key and keep its permissions private:
+
+```dotenv
+OPENROUTER_API_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_HTTP_REFERER=https://github.com/matheussluzz/ZeuZ-Agent
+OPENROUTER_X_TITLE=ZeuZ-Agent
+OPENROUTER_API_KEY=replace-with-your-openrouter-key
+OPENROUTER_MODEL_OX_ALPHA=stealth/ox-alpha
+OPENROUTER_MODEL_GPT_4O=openai/gpt-4o
+```
+
+For a new multi-provider setup, the same OpenRouter fields can be stored in the private `lamine.yaml` under `openrouter`; `.env` remains supported for compatibility and is the configuration used by the existing local setup.
+
+```bash
+chmod 600 .env
+zeuz models | rg openrouter
+zeuz health --deep
+zeuz delegate --model openrouter:stealth/ox-alpha --task "Inspect the provider adapter architecture and report the three highest-risk integration points. Do not modify files." --mode plan --cwd "$PWD" --wait
+```
+
+Ox Alpha is a stealth model operated by a third-party provider. Its OpenRouter page states that prompts and completions are retained by the provider and are not used for training; review the [model page and stealth terms](https://openrouter.ai/stealth/ox-alpha) before sending sensitive workspace content. ZeuZ blocks credential-bearing files from its local tools, but any non-secret prompt or source text deliberately provided to the route still leaves the machine.
+
+The last live Ox Alpha smoke on 2026-08-26 returned OpenRouter HTTP 404 with a provider message directing callers to a different model. ZeuZ keeps the requested `stealth/ox-alpha` route explicit and does not silently substitute another model; rerun the smoke after the provider restores or documents the route.
 
 ## First run and durable context
 
@@ -183,7 +216,7 @@ During writable turns, the ZeuZ host deterministically records a bounded `Latest
 
 The adaptive protocol teaches while delivering when the user is unfamiliar and stays compact for an advanced user. ZeuZ never exposes or pretends to know a hidden proficiency score.
 
-## The skill pantheon
+## The skill pantheon and AIHero routes
 
 | Skill | Responsibility |
 | --- | --- |
@@ -196,7 +229,24 @@ The adaptive protocol teaches while delivering when the user is unfamiliar and s
 | **Argos** | Designs and evaluates forecasting/ML work with temporal leakage defenses and honest baselines |
 | **Metis** | Deep research, source hierarchy, claim ledger, and unsupported-claim control; always paired with Medusa |
 
-Skills are selected just in time from the request. Atena also activates Prometeu and Clio; Metis always activates Medusa. Their instructions, references, validators, and generators live in [`skills/`](skills/).
+Skills are selected just in time from the request. Atena also activates Prometeu and Clio; Metis always activates Medusa. Their instructions, references, validators, and generators live in [`skills/`](skills/). Third-party BMAD and NVIDIA catalogs are imported into [`catalog/bundles/`](catalog/bundles/) as quarantined, disabled snapshots with pinned locks under [`catalog/locks/`](catalog/locks/); they are discoverable offline but never auto-enabled.
+
+The stable 25 engineering and productivity skills from [Matt Pocock's skills repository](https://github.com/mattpocock/skills), promoted by [AIHero](https://www.aihero.dev/), are also installed under [`skills/`](skills/). Each has a ZeuZ manifest with explicit `/skill-name` and, where upstream permits model invocation, semantic triggers, so the controller injects the matching skill body into the next model turn. Upstream `disable-model-invocation` declarations are preserved and enforced. The upstream bodies are preserved; ZeuZ-specific routing, trust, integrity, and network metadata are adjacent and documented in [`third_party/aihero/`](third_party/aihero/). The import is pinned to a reviewed upstream commit and excludes the repository's in-progress/misc material.
+
+### Skill catalog CLI
+
+```bash
+zeuz skill list                 # metadata index (no SKILL.md bodies)
+zeuz skill status               # pantheon + bundle revisions/trust
+zeuz skill validate             # rebuild/validate the local catalog index
+zeuz skill install <id> [--enable]   # record install state; --enable requires trust=enabled
+zeuz skill update <id>          # refresh installed revision from catalog
+zeuz skill remove <id> [--force]     # drop install record (bundle files remain restorable)
+zeuz skill sync bmad|nvidia     # explicit network sync to pinned upstream revision
+zeuz skill check bmad|nvidia    # read-only sync diff against pinned revision
+```
+
+Imported bundles remain `quarantined`/`disabled` until provenance, license, integrity, and explicit reviewed enablement pass. The AIHero snapshot is a locally validated, explicitly enabled skill set because it is part of the agent's active routing contract; its upstream instructions still do not receive extra tool permissions. `zeuz skill sync` is the only normal path that touches the network for catalog refresh.
 
 The workflow design adopts selected public ideas from [BMAD Method](https://github.com/bmad-code-org/bmad-method): lean project context, progressive step loading, consequential-action checkpoints, layered adversarial lenses, and verification-gap tracing. ZeuZ does not vendor BMAD code or branding, and deliberately rejects mandatory finding quotas. See the [adaptation record](docs/research/bmad-adaptation.md).
 
@@ -268,6 +318,7 @@ Task and session records are versioned under the private ZeuZ state root (`ZEUZ_
 | `/cd [path]` | Change the sole active workspace |
 | `/user [name]`, `/onboard`, `/bootstrap` | Manage local user context |
 | `/skills` | List the skill pantheon |
+| `zeuz skill …` | Inspect, validate, sync, install, update, or remove catalog skills (see below) |
 | `/help`, `/exit` | Show help or exit |
 
 ### Permission modes
@@ -280,7 +331,7 @@ Task and session records are versioned under the private ZeuZ state root (`ZEUZ_
 
 `yolo` never disables redaction and never authorizes credential disclosure or writes outside the selected scope.
 
-One capability matrix supplies the provider-native flags for all six adapters. The requested mode is reapplied to resumed sessions; a provider that cannot prove a requested mode or resume capability fails with `UnsupportedCapabilityError` instead of silently emulating it.
+One capability matrix supplies the provider-native flags for all seven adapters. OpenRouter supports the requested local tool permission mode but has no native session resume; it relies on ZeuZ's provider-neutral transcript. A provider that cannot prove a requested mode or resume capability fails with `UnsupportedCapabilityError` instead of silently emulating it.
 
 ## Adversarial review
 
@@ -312,7 +363,7 @@ Hefesto's offline-basic mode produces a dependency-free SVG/HTML dashboard. High
 
 - versioned sessions, tasks, scheduler/lease state, migrations, backups, quarantine diagnostics, full results, and managed worktrees live below owner-only `~/.agents` roots;
 - credentials, auth databases, raw provider logs, and real profiles/vaults are Git-ignored;
-- child environments are secret-sanitized; `lamine.yaml`, `.env`, credential filenames, shell composition in `plan`, escaping paths, and unsafe symlinks are explicitly denied to the direct NVIDIA tool loop;
+- child environments are secret-sanitized; `lamine.yaml`, `.env`, credential filenames, shell composition in `plan`, escaping paths, and unsafe symlinks are explicitly denied to the direct NVIDIA/OpenRouter tool loops;
 - durable delegation depth is one and scheduler concurrency is three; `ZEUZ_DELEGATION_DEPTH` remains defense in depth rather than the ownership authority;
 - every publish path runs a tracked-file secret scan.
 
@@ -356,9 +407,12 @@ Real smokes recheck provider health, run in `plan` mode, may consume quota, and 
 src/adapters/          provider-specific CLI/API bridges
 src/controller.ts      sessions, fallback, handoff, review, remediation
 src/context.ts         onboarding, user profile, and vault bootstrap
-src/skills.ts          just-in-time skill selection
+src/skills.ts          SkillRegistry adapter over portable catalog index
+src/skill-registry/    metadata index, provenance, resolver, loader, CLI
 src/ui.tsx             Ink terminal and slash commands
 skills/                pantheon instructions, references, scripts, assets
+catalog/bundles/       quarantined BMAD/NVIDIA snapshots (excluded from npm core)
+catalog/locks/         pinned upstream revisions and inventory digests
 templates/aws-athena-mcp/ narrow MCP server template
 ```
 

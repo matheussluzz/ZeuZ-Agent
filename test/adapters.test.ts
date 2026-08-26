@@ -291,7 +291,7 @@ test('AgyAdapter replays sanitized plain-text fixture', async () => {
   assert.ok(events.some((event) => event.type === 'delta'));
 });
 
-test('all six adapters parse fixtures fragmented at every byte boundary', async () => {
+test('all fixture-backed adapters parse their streams fragmented at every byte boundary', async () => {
   const cases: Array<{
     provider: ProviderId;
     fixture: string;
@@ -410,7 +410,7 @@ test('CursorAdapter rejects fixture without final response', async () => {
 
 test('AdapterRegistry preserves default construction', () => {
   const registry = new AdapterRegistry();
-  assert.equal(registry.all().length, 6);
+  assert.equal(registry.all().length, 7);
   assert.equal(registry.get('codex').provider, 'codex');
 });
 
@@ -425,5 +425,5 @@ test('AdapterRegistry accepts injected adapters and factory', () => {
 
   assert.equal(registry.get('codex'), injected);
   assert.equal(registry.get('cursor').provider, 'cursor');
-  assert.equal(registry.all().length, 6);
+  assert.equal(registry.all().length, 7);
 });

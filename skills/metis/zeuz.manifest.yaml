@@ -1,0 +1,10 @@
+namespace: zeuz/pantheon
+version: "0.1.0"
+trust: enabled
+enablement: enabled
+networkPolicy: offline
+contextBudgetBytes: 65536
+triggers:
+  - (?:\bmetis\b|deep research|pesquisa profunda|checagem de fontes|verificar fontes|source ledger)
+dependencies:
+  - medusa

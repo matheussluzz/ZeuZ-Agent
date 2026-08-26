@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [documentation, agent-design]
+triggers:
+  - '(?:^|\s)/?writing-for-agents\b|\b(?:write|writing).*\b(?:agent|AGENTS\.md|CLAUDE\.md|skill)\b'
+allowedTools: []
+dependencies: []

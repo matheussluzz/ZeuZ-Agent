@@ -28,11 +28,19 @@ interface LamineConfiguration {
     api_keys?: Record<string, string>;
     models?: Record<string, string>;
   };
+  openrouter?: {
+    api_key?: string;
+    base_url?: string;
+    http_referer?: string;
+    x_title?: string;
+    models?: Record<string, string>;
+  };
 }
 
 const LAMINE_KEYS: Record<string, string> = {
   glm_5_2: 'NVIDIA_API_KEY_GLM_52',
   deepseek_v4: 'NVIDIA_API_KEY_DEEPSEEK_V4',
+  deepseek_v4_flash: 'NVIDIA_API_KEY_DEEPSEEK_V4_FLASH',
   kimi_2_6: 'NVIDIA_API_KEY_KIMI_26',
   minimax_m3: 'NVIDIA_API_KEY_MINIMAX_M3',
   qwen: 'NVIDIA_API_KEY_QWEN',
@@ -41,23 +49,47 @@ const LAMINE_KEYS: Record<string, string> = {
 const LAMINE_MODELS: Record<string, string> = {
   glm_5_2: 'NVIDIA_MODEL_GLM_52',
   deepseek_v4: 'NVIDIA_MODEL_DEEPSEEK_V4',
+  deepseek_v4_flash: 'NVIDIA_MODEL_DEEPSEEK_V4_FLASH',
   kimi_2_6: 'NVIDIA_MODEL_KIMI_26',
   minimax_m3: 'NVIDIA_MODEL_MINIMAX_M3',
   qwen: 'NVIDIA_MODEL_QWEN',
+};
+
+const LAMINE_OPENROUTER_VALUES: Record<string, string> = {
+  api_key: 'OPENROUTER_API_KEY',
+  base_url: 'OPENROUTER_API_BASE_URL',
+  http_referer: 'OPENROUTER_HTTP_REFERER',
+  x_title: 'OPENROUTER_X_TITLE',
+};
+
+const LAMINE_OPENROUTER_MODELS: Record<string, string> = {
+  ox_alpha: 'OPENROUTER_MODEL_OX_ALPHA',
+  gpt_4o: 'OPENROUTER_MODEL_GPT_4O',
 };
 
 function loadLamineConfiguration(): void {
   const path = resolve(installRoot(), 'lamine.yaml');
   if (!assertPrivateConfigurationFile(path, 'lamine.yaml')) return;
   const parsed = YAML.parse(readFileSync(path, 'utf8')) as LamineConfiguration | null;
-  if (!parsed?.nvidia) return;
-  if (typeof parsed.nvidia.base_url === 'string' && parsed.nvidia.base_url.trim()) process.env.NVIDIA_API_BASE_URL = parsed.nvidia.base_url.trim();
-  for (const [name, envName] of Object.entries(LAMINE_KEYS)) {
-    const value = parsed.nvidia.api_keys?.[name]?.trim();
-    if (value && !value.includes('your-key')) process.env[envName] = value;
+  if (parsed?.nvidia) {
+    if (typeof parsed.nvidia.base_url === 'string' && parsed.nvidia.base_url.trim()) process.env.NVIDIA_API_BASE_URL = parsed.nvidia.base_url.trim();
+    for (const [name, envName] of Object.entries(LAMINE_KEYS)) {
+      const value = parsed.nvidia.api_keys?.[name]?.trim();
+      if (value && !value.includes('your-key')) process.env[envName] = value;
+    }
+    for (const [name, envName] of Object.entries(LAMINE_MODELS)) {
+      const value = parsed.nvidia.models?.[name]?.trim();
+      if (value) process.env[envName] = value;
+    }
   }
-  for (const [name, envName] of Object.entries(LAMINE_MODELS)) {
-    const value = parsed.nvidia.models?.[name]?.trim();
+  const openrouter = parsed?.openrouter;
+  if (!openrouter) return;
+  for (const [name, envName] of Object.entries(LAMINE_OPENROUTER_VALUES)) {
+    const value = openrouter[name as keyof typeof openrouter];
+    if (typeof value === 'string' && value.trim() && (name !== 'api_key' || !value.includes('your-key'))) process.env[envName] = value.trim();
+  }
+  for (const [name, envName] of Object.entries(LAMINE_OPENROUTER_MODELS)) {
+    const value = openrouter.models?.[name]?.trim();
     if (value) process.env[envName] = value;
   }
 }

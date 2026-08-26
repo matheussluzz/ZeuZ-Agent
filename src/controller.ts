@@ -391,12 +391,12 @@ export class ZeuzController {
     });
 
     if (deep) {
-      const nvidiaModels = MODEL_CATALOG.filter((model) => model.provider === 'nvidia');
-      const checks = await Promise.all(nvidiaModels.map(async (model) => {
+      const apiModels = MODEL_CATALOG.filter((model) => model.provider === 'nvidia' || model.provider === 'openrouter');
+      const checks = await Promise.all(apiModels.map(async (model) => {
         if (!isConfigured(model)) return `${'SKIP'.padEnd(5)} ${model.id} — missing ${model.apiKeyEnv}`;
         const started = this.runtime.nowMs();
         try {
-          await this.run('nvidia', {
+          await this.run(model.provider, {
             model,
             prompt: 'Reply with exactly: ok',
             cwd: this.session.cwd,
@@ -409,7 +409,7 @@ export class ZeuzController {
           return `${'FAIL'.padEnd(5)} ${model.id} — ${error instanceof Error ? error.message : String(error)}`;
         }
       }));
-      lines.push('', 'NVIDIA deep checks:', ...checks);
+      lines.push('', 'API deep checks:', ...checks);
     }
     return lines.join('\n');
   }

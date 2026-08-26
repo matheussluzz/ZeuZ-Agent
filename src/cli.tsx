@@ -14,6 +14,7 @@ import { TaskResultStore } from './task-result-store.js';
 import { stateDirectory } from './state-root.js';
 import { TaskStore } from './task-store.js';
 import type { PermissionMode } from './types.js';
+import { runSkillCommand } from './skill-registry/cli.js';
 import { App } from './ui.js';
 
 const require = createRequire(import.meta.url);
@@ -52,6 +53,7 @@ function printCliHelp(): void {
   process.stdout.write('  zeuz run --model ID --prompt TEXT Run one non-interactive turn\n');
   process.stdout.write('  zeuz delegate --model ID --task TEXT [--mode plan|agent|yolo] [--wait]\n');
   process.stdout.write('  zeuz task list|status|result|cancel|wait|recover [ID]\n');
+  process.stdout.write('  zeuz skill list|status|validate|install|update|remove|sync|check [args]\n');
   process.stdout.write('  zeuz version                      Print version\n');
 }
 
@@ -161,6 +163,12 @@ async function main(): Promise<void> {
   }
   if (command === 'run' || command === 'delegate') return await runNonInteractive(command, args);
   if (command === 'task') return await runTaskCommand(args);
+  if (command === 'skill') {
+    const result = await runSkillCommand(args, root);
+    process.stdout.write(`${result.output}\n`);
+    if (result.exitCode !== 0) process.exitCode = result.exitCode;
+    return;
+  }
   if (command === 'health') {
     const controller = await ZeuzController.create(root);
     process.stdout.write(`${await controller.health(args.includes('--deep'))}\n`);

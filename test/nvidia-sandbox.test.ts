@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { afterEach } from 'node:test';
 
-import { NvidiaAdapter, runSandboxedCommand, safeWorkspacePath } from '../src/adapters/nvidia.js';
+import { executeTool, NvidiaAdapter, runSandboxedCommand, safeWorkspacePath } from '../src/adapters/nvidia.js';
 import { createDefaultAdapterRuntime } from '../src/adapters/runtime.js';
 import { requireModel } from '../src/catalog.js';
 import { findExecutable } from '../src/process.js';
@@ -86,6 +86,59 @@ test('direct NVIDIA route uses injected fragmented HTTP transport', async () => 
   });
   assert.equal(result.text, 'ok');
   assert.match(observedUrl, /\/chat\/completions$/);
+});
+
+test('DeepSeek V4 Flash uses the NVIDIA reasoning request contract', async () => {
+  const base = createDefaultAdapterRuntime();
+  const observed: import('../src/http-transport.js').HttpRequestInput[] = [];
+  const runtime = {
+    ...base,
+    envGet: (name: string) => name === 'NVIDIA_API_KEY_DEEPSEEK_V4_FLASH' ? 'fixture-flash-route-key' : undefined,
+    httpRequest: async (input: import('../src/http-transport.js').HttpRequestInput) => {
+      observed.push(input);
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        chunks: chunks([JSON.stringify({
+          choices: [{ message: { reasoning_content: 'private reasoning fixture', content: JSON.stringify({ action: 'final', content: 'ok' }) } }],
+        })]),
+      };
+    },
+  };
+
+  const result = await new NvidiaAdapter({ runtime }).run({
+    model: requireModel('nvidia:deepseek-v4-flash'),
+    prompt: 'Return exactly ok.',
+    cwd: process.cwd(),
+    mode: 'plan',
+  });
+
+  assert.equal(result.text, 'ok');
+  assert.equal(observed.length, 1);
+  assert.equal(observed[0]?.headers.Authorization, 'Bearer fixture-flash-route-key');
+  const body = JSON.parse(observed[0]?.body ?? '{}') as Record<string, unknown>;
+  assert.equal(body.model, 'deepseek-ai/deepseek-v4-flash-0731');
+  assert.equal(body.stream, false);
+  assert.equal(body.max_tokens, 16_384);
+  assert.equal(body.temperature, 1);
+  assert.equal(body.top_p, 0.95);
+  assert.deepEqual(body.extra_body, {
+    chat_template_kwargs: { thinking: true, reasoning_effort: 'high' },
+  });
+});
+
+test('direct NVIDIA plan mode cannot escalate a delegate into workspace write', () => {
+  assert.throws(() => executeTool({
+    model: requireModel('nvidia:deepseek-v4-flash'),
+    prompt: 'fixture',
+    cwd: process.cwd(),
+    mode: 'plan',
+  }, {
+    action: 'tool',
+    tool: 'delegate',
+    input: { model: 'cursor:composer-2.5', task: 'write a file', mode: 'agent' },
+  }), /Tool is not allowed in plan mode/);
 });
 
 test('direct NVIDIA malformed and oversized HTTP bodies fail without exposing payload', async () => {

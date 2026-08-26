@@ -1,0 +1,2144 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "bmad",
+  "sourceUrl": "https://github.com/bmad-code-org/BMAD-METHOD",
+  "revision": "717479bc3f50f38119fd958b9e577a8bde2e0184",
+  "resolvedAt": "2026-07-17T00:23:00.989Z",
+  "license": {
+    "spdx": "MIT",
+    "files": [
+      "LICENSE"
+    ],
+    "noticeFiles": [],
+    "trademarkFiles": [
+      "TRADEMARK.md"
+    ]
+  },
+  "inventoryDigest": "a85e1b9a76cb095328aaf234bd88fc5b9af1101c880e7167cc33d88eb6f90467",
+  "upstreamSkillTotal": 53,
+  "importedSkillTotal": 53,
+  "excluded": [],
+  "files": [
+    {
+      "path": "bmad-advanced-elicitation/methods.csv",
+      "size": 14854,
+      "sha256": "d110ff5f076fb9421552b83692fde2c2d367734049169c7a55f7267a3dc7ef89",
+      "upstreamPath": "src/core-skills/bmad-advanced-elicitation/methods.csv"
+    },
+    {
+      "path": "bmad-advanced-elicitation/SKILL.md",
+      "size": 6352,
+      "sha256": "705cc827cab892855d07dcc926f5c9f749c3abab33e915d6ac1574aec174896b",
+      "upstreamPath": "src/core-skills/bmad-advanced-elicitation/SKILL.md"
+    },
+    {
+      "path": "bmad-advanced-elicitation/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-advanced-elicitation/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-analyst/customize.toml",
+      "size": 3357,
+      "sha256": "7191f4a60ada7dbabe083699b2461f35778af7688924dc6ce05911cf1ffc9054",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-analyst/customize.toml"
+    },
+    {
+      "path": "bmad-agent-analyst/SKILL.md",
+      "size": 4525,
+      "sha256": "fca38a404e79508ebc39235d0162bcb475b02407a913e3e5bd8c5526b2b261a6",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-analyst/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-analyst/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-analyst/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-architect/customize.toml",
+      "size": 2723,
+      "sha256": "d9763009d7c20246119c24bcea5eacebd21ad60c22ab191b74c9a5fb6e5f57ad",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-agent-architect/customize.toml"
+    },
+    {
+      "path": "bmad-agent-architect/SKILL.md",
+      "size": 4499,
+      "sha256": "82bbf22ff3a4571741c9339ae6b7c35676a6e26a3237ceca487abe85369e91a0",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-agent-architect/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-architect/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-agent-architect/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-dev/customize.toml",
+      "size": 3341,
+      "sha256": "01a45ac2420f920cfc934de7b1a884b04017c85641085c93d9aada45d2dccf17",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-agent-dev/customize.toml"
+    },
+    {
+      "path": "bmad-agent-dev/SKILL.md",
+      "size": 4565,
+      "sha256": "54ab6d9d60d7ed7e84d6510cf325734b66feb1b419131436672559584b4bf508",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-agent-dev/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-dev/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-agent-dev/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-pm/customize.toml",
+      "size": 3040,
+      "sha256": "afc2250de25241ac3577c9827e1ee62d8c7a1913de8eb23aadfffb0aadbadc37",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-pm/customize.toml"
+    },
+    {
+      "path": "bmad-agent-pm/SKILL.md",
+      "size": 4497,
+      "sha256": "e2ebea0bf6ee158fcb9e62731a185983f2ac59f664940f4f4320cf10e1bbdf92",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-pm/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-pm/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-pm/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-tech-writer/customize.toml",
+      "size": 3315,
+      "sha256": "bb828f2d26a136870099226f07c61297ce88ddd335823b7549592932bbe14a2e",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/customize.toml"
+    },
+    {
+      "path": "bmad-agent-tech-writer/explain-concept.md",
+      "size": 687,
+      "sha256": "6ea82dbe4e41d4bb8880cbaa62d936e40cef18f8c038be73ae6e09c462abafc9",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/explain-concept.md"
+    },
+    {
+      "path": "bmad-agent-tech-writer/mermaid-gen.md",
+      "size": 684,
+      "sha256": "1d83fcc5fa842bc31ecd9fd7e45fbf013fabcadf0022d3391fff5b53b48e4b5d",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/mermaid-gen.md"
+    },
+    {
+      "path": "bmad-agent-tech-writer/SKILL.md",
+      "size": 4582,
+      "sha256": "7544242ff68d0ddfd466274f40ae9f3b0ea06ee5f5f938f68f953e19b3598cd7",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-tech-writer/validate-doc.md",
+      "size": 659,
+      "sha256": "3b8d25f60be191716266726393f2d44b77262301b785a801631083b610d6acc5",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/validate-doc.md"
+    },
+    {
+      "path": "bmad-agent-tech-writer/write-document.md",
+      "size": 931,
+      "sha256": "c0ddfd981f765b82cba0921dad331cd1fa32bacdeea1f02320edfd60a0ae7e6f",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/write-document.md"
+    },
+    {
+      "path": "bmad-agent-tech-writer/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-agent-tech-writer/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-agent-ux-designer/customize.toml",
+      "size": 2536,
+      "sha256": "3df7da44945f9df34dbb3a64de086c756e6c298e73078e388e8f9a4f57cbf7ab",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-ux-designer/customize.toml"
+    },
+    {
+      "path": "bmad-agent-ux-designer/SKILL.md",
+      "size": 4518,
+      "sha256": "d780ae59b9fb7e3a94c5ffe4ec75f90942d4a9a3944af4b36c2d279fdd7801db",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-ux-designer/SKILL.md"
+    },
+    {
+      "path": "bmad-agent-ux-designer/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-agent-ux-designer/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-architecture/assets/spine-template.md",
+      "size": 4357,
+      "sha256": "ef4ff795624eb5439fae54a06edb389feb5a0cf79cb01ae007af51109335d198",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/assets/spine-template.md"
+    },
+    {
+      "path": "bmad-architecture/customize.toml",
+      "size": 6093,
+      "sha256": "137b418e1bb940411a6e77460a7c74af66a6ad732edcc7c7363746995b89e65d",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/customize.toml"
+    },
+    {
+      "path": "bmad-architecture/references/headless.md",
+      "size": 2660,
+      "sha256": "4db2708f335c94cb024b5eba022b1e3d88b1ec61c94c4716626d9b89684f5833",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/references/headless.md"
+    },
+    {
+      "path": "bmad-architecture/references/reviewer-gate.md",
+      "size": 3245,
+      "sha256": "d32e32a3c1d59b5612b947004f3f6fef1117a13ce9f1ffa428d616e0b5d4db69",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/references/reviewer-gate.md"
+    },
+    {
+      "path": "bmad-architecture/scripts/lint_spine.py",
+      "size": 10472,
+      "sha256": "040e0f1c13d31e6a21c518df943d1d7de7b75d8d98a07603b0983f3f3fb500db",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/scripts/lint_spine.py"
+    },
+    {
+      "path": "bmad-architecture/scripts/tests/test_lint_spine.py",
+      "size": 9932,
+      "sha256": "e86bb9a62c5cca74ddc89c843386f2b992610fcc1792d40e03bc9cd445b77681",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/scripts/tests/test_lint_spine.py"
+    },
+    {
+      "path": "bmad-architecture/SKILL.md",
+      "size": 13888,
+      "sha256": "a56c7a0abc45e1dba719ae5e66b7169a1098b403e7fd69b30c19f16c12cddc6a",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/SKILL.md"
+    },
+    {
+      "path": "bmad-architecture/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-architecture/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-brainstorming/analysis/catalog-analysis.md",
+      "size": 23567,
+      "sha256": "d4e742da964674549c7f0c64db82c4e1938f8521e5cf0034c103fd08022e515c",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/analysis/catalog-analysis.md"
+    },
+    {
+      "path": "bmad-brainstorming/analysis/method-matrix.csv",
+      "size": 8831,
+      "sha256": "d6c47ab85b9a134d34c35f9c715c553d6c410015f6cf4d107e6870fff6220c64",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/analysis/method-matrix.csv"
+    },
+    {
+      "path": "bmad-brainstorming/assets/brain-icons.json",
+      "size": 41231,
+      "sha256": "a101c56e89f1d0f9e4131dfdfc19e10c746e3a61c3f92537d04a6f4897b7d331",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/assets/brain-icons.json"
+    },
+    {
+      "path": "bmad-brainstorming/assets/brain-methods.csv",
+      "size": 19519,
+      "sha256": "fff112eabca1a9cb8b190f8314bc47678becc5782a2372e11c83daa0e33b6dfd",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/assets/brain-methods.csv"
+    },
+    {
+      "path": "bmad-brainstorming/assets/brain-selector.html",
+      "size": 244467,
+      "sha256": "798f27c743b853424aa00d4e41af5c3b515b7a329d6806b5d0a5ebe15e0fbf4e",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/assets/brain-selector.html"
+    },
+    {
+      "path": "bmad-brainstorming/customize.toml",
+      "size": 4313,
+      "sha256": "21fcbc60c78db99ca0424da192ba0942dce2189f350f77838e4d3ecd501edd1c",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/customize.toml"
+    },
+    {
+      "path": "bmad-brainstorming/references/converge.md",
+      "size": 2961,
+      "sha256": "1528c32ddc64f8061fec663306f7208d2fd4d4a90e660552b8138bda7e452dc0",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/converge.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/finalize.md",
+      "size": 4898,
+      "sha256": "b6074e7fb4d86ffcf899abc50b9049b4a1f6fe550917f4be7a1c7a888477e07e",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/finalize.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/headless.md",
+      "size": 4989,
+      "sha256": "b8ea5951199cff7e4813e06aef35683ca0658230fa015e358cacc466b1138a42",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/headless.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/in-chat-techniques.md",
+      "size": 2200,
+      "sha256": "18239464e3e4f00ea9063d015d26d6b0a696b72e7e3c5be92352da6db9a3f244",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/in-chat-techniques.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/mode-autonomous.md",
+      "size": 1780,
+      "sha256": "79fba5391ef293cebdbbdc765c7edeb3ccf60c04317fef964a4ea64d6b13f260",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/mode-autonomous.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/mode-facilitator.md",
+      "size": 970,
+      "sha256": "1b908498d285d190859aed00c3ba5b399d7f6aa8e94d54e95456d15cd6fe6073",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/mode-facilitator.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/mode-partner.md",
+      "size": 1606,
+      "sha256": "caa0ed378c116def4de382f4e5a95173c6ae6cc5464f1792e7d8196360f79c8a",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/mode-partner.md"
+    },
+    {
+      "path": "bmad-brainstorming/references/resume.md",
+      "size": 737,
+      "sha256": "0f79535d72eefe6c55bd5ae47fe4753de8d27235cf129f10b2c596a124c26526",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/references/resume.md"
+    },
+    {
+      "path": "bmad-brainstorming/scripts/brain.py",
+      "size": 36430,
+      "sha256": "b84770d5d55fa17bd99a2ab9076130874dfb7f8cd9b4283cd6413df097bc72b6",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/scripts/brain.py"
+    },
+    {
+      "path": "bmad-brainstorming/scripts/tests/test_brain.py",
+      "size": 8232,
+      "sha256": "5f150395d5aa95526eb1ded5b7a8bd624a577dd25ff060ac082db3cbb5cc0f77",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/scripts/tests/test_brain.py"
+    },
+    {
+      "path": "bmad-brainstorming/SKILL.md",
+      "size": 9413,
+      "sha256": "399ddc752fc786b501ba07fb4b4b038b3d2bb076d36496b6384ef85cf922dd59",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/SKILL.md"
+    },
+    {
+      "path": "bmad-brainstorming/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-brainstorming/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/customize.toml",
+      "size": 1631,
+      "sha256": "571d81087b7a6d914cf7c2f21aa26354eac385bb2f5cfeabc591892cbb98d036",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/customize.toml"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/SKILL.md",
+      "size": 4890,
+      "sha256": "a7e12eae2bdb5a95cc0534e6d5bf58e7ce4b947327a494d475ef98e67f03718a",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/SKILL.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-01-document-discovery.md",
+      "size": 4939,
+      "sha256": "c763b512d55906122433cb65c1bcd5b5b283e45eacdc07281c8ec7596b6b3980",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-01-document-discovery.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-02-prd-analysis.md",
+      "size": 4444,
+      "sha256": "38be2bf4b924c0b5b395b57d68f685d790ade7b1a6c10993d3c550675f87d954",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-02-prd-analysis.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-03-epic-coverage-validation.md",
+      "size": 4058,
+      "sha256": "7b187f03a47cba0325fcfd10240410db9c59d93768342fc2dd3de2a01ec23356",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-03-epic-coverage-validation.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-04-ux-alignment.md",
+      "size": 3306,
+      "sha256": "f71e5f0d77615e885ae40fdee6b04c1dd6e472c871f87b515fe869cb5f6966fb",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-04-ux-alignment.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-05-epic-quality-review.md",
+      "size": 6716,
+      "sha256": "d8a84e57f4e3a321734b5b5d093458ceb1e338744f18954c5a204f5ce3576185",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-05-epic-quality-review.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/steps/step-06-final-assessment.md",
+      "size": 3552,
+      "sha256": "1b9c8c2a21950f85e052e05309bfcb3bfe38157ba6fca402ccf37444e7f1cee3",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/steps/step-06-final-assessment.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/templates/readiness-report-template.md",
+      "size": 95,
+      "sha256": "0da97ab1e38818e642f36dc0ef24d2dae69fc6e0be59924dc2dbf44329738ff6",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/templates/readiness-report-template.md"
+    },
+    {
+      "path": "bmad-check-implementation-readiness/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-check-implementation-readiness/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-checkpoint-preview/customize.toml",
+      "size": 1616,
+      "sha256": "1a1e0c3a8914adda3cec925eed51287e067c7f84120de64a8df53348e7b77de5",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/customize.toml"
+    },
+    {
+      "path": "bmad-checkpoint-preview/generate-trail.md",
+      "size": 1992,
+      "sha256": "4a5936d86fbe5a85285b4535097b1e2edda8849da35586f4b588a982d7224459",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/generate-trail.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/SKILL.md",
+      "size": 3161,
+      "sha256": "34613078dbea9c55e45df016399328d8360579fd381301a5de78bb52c3597591",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/SKILL.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/step-01-orientation.md",
+      "size": 5004,
+      "sha256": "d9e3b949c36d49a025f3535773af2b51888fe4ce616b6d6d69683a122716b1d2",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/step-01-orientation.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/step-02-walkthrough.md",
+      "size": 4172,
+      "sha256": "66cf893f8f968ee81034e9ccd8c20415692c3a8c23a9a143c2245fe6c800acdc",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/step-02-walkthrough.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/step-03-detail-pass.md",
+      "size": 4990,
+      "sha256": "d48163b9f305f15af57729a8443142e47beb6c3e977554afe12b39ee49cb9fc0",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/step-03-detail-pass.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/step-04-testing.md",
+      "size": 2698,
+      "sha256": "28a56e868968ea2d18add0df8c4bccced0f94b698e218df3d45ddac072ce369c",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/step-04-testing.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/step-05-wrapup.md",
+      "size": 1525,
+      "sha256": "c2d4dbc17fed4f8ecbfcb09a2f9c77f0d4562bd27397270e2c27ba37cf4fe073",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/step-05-wrapup.md"
+    },
+    {
+      "path": "bmad-checkpoint-preview/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-checkpoint-preview/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-code-review/customize.toml",
+      "size": 3363,
+      "sha256": "0289d4e42524eafcd465d4adfc86fb5bcf28903e6b42d41bdafc5e31b163afa3",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/customize.toml"
+    },
+    {
+      "path": "bmad-code-review/SKILL.md",
+      "size": 4019,
+      "sha256": "c303ef6d8cc507ef268e95978052250289bd0c76941441a023baebfd807c1efd",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/SKILL.md"
+    },
+    {
+      "path": "bmad-code-review/steps/step-01-gather-context.md",
+      "size": 6480,
+      "sha256": "fd06fc9b5946a1cc1f5fa9cd21c33af5a65befd4cd2ce4abaf6a91d1b30ba701",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/steps/step-01-gather-context.md"
+    },
+    {
+      "path": "bmad-code-review/steps/step-02-review.md",
+      "size": 1944,
+      "sha256": "2d261827b78c673ace9b81919de1bea6bbf70b4c9b5d6dcbb6910b431c601501",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/steps/step-02-review.md"
+    },
+    {
+      "path": "bmad-code-review/steps/step-03-triage.md",
+      "size": 3224,
+      "sha256": "46a9e661e8aed6a7347cd7bc0b3f7edd8e4bffcfc96b2e15895f7a8ce2517d70",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/steps/step-03-triage.md"
+    },
+    {
+      "path": "bmad-code-review/steps/step-04-present.md",
+      "size": 6328,
+      "sha256": "1bded625413479aae5bb2e46a36d4e4156c31dc19f97b98812ecb8734870687c",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/steps/step-04-present.md"
+    },
+    {
+      "path": "bmad-code-review/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-code-review/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-correct-course/checklist.md",
+      "size": 11634,
+      "sha256": "3e082b95def90ccb876e3101ce0bbaf797a0f03a9471e1347361897f27977327",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-correct-course/checklist.md"
+    },
+    {
+      "path": "bmad-correct-course/customize.toml",
+      "size": 1640,
+      "sha256": "78095d25afb5b2d4844956f61e9ac640a62d0245174fab9406e9c289f33fd84b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-correct-course/customize.toml"
+    },
+    {
+      "path": "bmad-correct-course/SKILL.md",
+      "size": 13551,
+      "sha256": "5064ef2e7aedfb094bef912d5e4d6680318a1904d9bcdc7875d3dc16bb253ea4",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-correct-course/SKILL.md"
+    },
+    {
+      "path": "bmad-correct-course/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-correct-course/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-create-architecture/customize.toml",
+      "size": 1671,
+      "sha256": "618be49b0286f18dfb4b6bac3d96bf1cf062994fa5278cd327be9898e651b43c",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-architecture/customize.toml"
+    },
+    {
+      "path": "bmad-create-architecture/SKILL.md",
+      "size": 3050,
+      "sha256": "4b1673582dc8e0957b559cece14f048c0c995874b79ad255f033b36b2b789eb0",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-architecture/SKILL.md"
+    },
+    {
+      "path": "bmad-create-architecture/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-architecture/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/customize.toml",
+      "size": 1665,
+      "sha256": "da9e43605bc6aec83173050b5d37ede6aebfa9a17c5959a5029681d73e744ba3",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/customize.toml"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/SKILL.md",
+      "size": 5087,
+      "sha256": "4ec9ec255c2c0e97ae912342ae1445318e672aa1c2a9e412806b7d7ef7d5a6a7",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/SKILL.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/steps/step-01-validate-prerequisites.md",
+      "size": 10960,
+      "sha256": "7181608c1ee4e55c084c6627d68fc55a8a0b6917e489f8ac77531a0530428a30",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/steps/step-01-validate-prerequisites.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/steps/step-02-design-epics.md",
+      "size": 8809,
+      "sha256": "7c66987808c1f84e853fe54b7aff26d209196d450b5644704110f124a15179bc",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/steps/step-02-design-epics.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/steps/step-03-create-stories.md",
+      "size": 8351,
+      "sha256": "c5b787a82e4e49ed9cd9c028321ee1689f32b8cd69d89eea609b37cd3d481afc",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/steps/step-03-create-stories.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/steps/step-04-final-validation.md",
+      "size": 5325,
+      "sha256": "6b83fcf177c24c6b43c2eb0df2efc1430cb0f357b3ab20ee8a5c5483c3fee079",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/steps/step-04-final-validation.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/templates/epics-template.md",
+      "size": 1105,
+      "sha256": "a804f740155156d89661fa04e7a4264a8f712c4dc227c44fd8ae804a9b0f6b72",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/templates/epics-template.md"
+    },
+    {
+      "path": "bmad-create-epics-and-stories/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-create-epics-and-stories/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-create-prd/customize.toml",
+      "size": 1616,
+      "sha256": "0c990af4c0a755402abbef893850bd542744a8b6f36c0587c9f3fb6dab6bf5e7",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-create-prd/customize.toml"
+    },
+    {
+      "path": "bmad-create-prd/SKILL.md",
+      "size": 2877,
+      "sha256": "143c5c2d85734021db343ff3dbf143e804eddbf9fb519fb824b70f1a9154767d",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-create-prd/SKILL.md"
+    },
+    {
+      "path": "bmad-create-prd/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-create-prd/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-create-story/checklist.md",
+      "size": 14349,
+      "sha256": "b94e28e774c3be0288f04ea163424bece4ddead5cd3f3680d1603ed07383323a",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/checklist.md"
+    },
+    {
+      "path": "bmad-create-story/customize.toml",
+      "size": 1643,
+      "sha256": "1204f6de064436922f2813069778eb4eaa5f1f945aa8ea5a5ffb87897a2ba8fe",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/customize.toml"
+    },
+    {
+      "path": "bmad-create-story/discover-inputs.md",
+      "size": 3911,
+      "sha256": "dfedba6a8ea05c9a91c6d202c4b29ee3ea793d8ef77575034787ae0fef280507",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/discover-inputs.md"
+    },
+    {
+      "path": "bmad-create-story/SKILL.md",
+      "size": 23519,
+      "sha256": "692ab872ebaa197931d849a8d01fa28e86a9b3ee2f4acf79318bb3797a91e9aa",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/SKILL.md"
+    },
+    {
+      "path": "bmad-create-story/template.md",
+      "size": 948,
+      "sha256": "29ba697368d77e88e88d0e7ac78caf7a78785a7dcfc291082aa96a62948afb67",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/template.md"
+    },
+    {
+      "path": "bmad-create-story/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-create-story/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-customize/scripts/list_customizable_skills.py",
+      "size": 8061,
+      "sha256": "8787f542930b927789e7fdf12bc5a67ff08e19865903a5ad05ff2cc8fc426b66",
+      "upstreamPath": "src/core-skills/bmad-customize/scripts/list_customizable_skills.py"
+    },
+    {
+      "path": "bmad-customize/scripts/tests/test_list_customizable_skills.py",
+      "size": 9244,
+      "sha256": "24c3d384b3b5d490b7335c17866bfe0425af253ce669c32382fa88feb705934d",
+      "upstreamPath": "src/core-skills/bmad-customize/scripts/tests/test_list_customizable_skills.py"
+    },
+    {
+      "path": "bmad-customize/SKILL.md",
+      "size": 6703,
+      "sha256": "6461073f9322f5f2ec64477d6ae5e79c601e36e3160e492fef4bc2d928d4a9a8",
+      "upstreamPath": "src/core-skills/bmad-customize/SKILL.md"
+    },
+    {
+      "path": "bmad-customize/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-customize/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-dev-auto/compile-epic-context.md",
+      "size": 2990,
+      "sha256": "fa300a04e9b1f494314ddde443678affb2ac1965e2ac07dc4d6bb64316998466",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/compile-epic-context.md"
+    },
+    {
+      "path": "bmad-dev-auto/customize.toml",
+      "size": 3819,
+      "sha256": "238947560659b373d2e3b3d5a852e42f091534bff49acc9a06323bcd5d9b4253",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/customize.toml"
+    },
+    {
+      "path": "bmad-dev-auto/SKILL.md",
+      "size": 6858,
+      "sha256": "468d40aae3cf0bd606b986566a92b36706f45d5f8ce021328acba20d677195d0",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/SKILL.md"
+    },
+    {
+      "path": "bmad-dev-auto/spec-template.md",
+      "size": 4076,
+      "sha256": "6a7cce1006794485258ce2e6ed494a209071c56be650961013489858947f1bc3",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/spec-template.md"
+    },
+    {
+      "path": "bmad-dev-auto/step-01-clarify-and-route.md",
+      "size": 10372,
+      "sha256": "cfbf58ac4ba39b3d6a00dd122606a535341e60c77fd841b7aa5e1dad2fada887",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/step-01-clarify-and-route.md"
+    },
+    {
+      "path": "bmad-dev-auto/step-02-plan.md",
+      "size": 2724,
+      "sha256": "9897dcc8675754e24b8f71fe69e33a44dbe086f30a765db23ca807496d8413b3",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/step-02-plan.md"
+    },
+    {
+      "path": "bmad-dev-auto/step-03-implement.md",
+      "size": 3292,
+      "sha256": "5ecd54fbb9ba892ba3a5e85e6fcba0c4fd26ef3b80e1cf10c3a0565c64cace3f",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/step-03-implement.md"
+    },
+    {
+      "path": "bmad-dev-auto/step-04-review.md",
+      "size": 8839,
+      "sha256": "dcd7f28c9f026c0e183e06e4ba6c36101e343abeeea342bb12a927f10fa8b39a",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/step-04-review.md"
+    },
+    {
+      "path": "bmad-dev-auto/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-auto/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-dev-story/checklist.md",
+      "size": 4389,
+      "sha256": "630b68c6824a8785003a65553c1f335222b17be93b1bd80524c23b38bde1d8af",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-story/checklist.md"
+    },
+    {
+      "path": "bmad-dev-story/customize.toml",
+      "size": 1613,
+      "sha256": "592fa7948c4614609a59b152518f518d35e0178d6aa7c22e169d78157fd9f5aa",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-story/customize.toml"
+    },
+    {
+      "path": "bmad-dev-story/SKILL.md",
+      "size": 26709,
+      "sha256": "f12801307b157f04d2bde7da104e1ebde3f2898bd3a60326da928d5b9fc793ac",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-story/SKILL.md"
+    },
+    {
+      "path": "bmad-dev-story/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-dev-story/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-document-project/checklist.md",
+      "size": 10101,
+      "sha256": "581b0b034c25de17ac3678db2dbafedaeb113de37ddf15a4df6584cf2324a7d7",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/checklist.md"
+    },
+    {
+      "path": "bmad-document-project/customize.toml",
+      "size": 1596,
+      "sha256": "3bbb5044fafdd865a5fe0863df116a479f30de7fb95c9cf4213f0b87ba1ba924",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/customize.toml"
+    },
+    {
+      "path": "bmad-document-project/documentation-requirements.csv",
+      "size": 8076,
+      "sha256": "d1253b99e88250f2130516b56027ed706e643bfec3d99316727a4c6ec65c6c1d",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/documentation-requirements.csv"
+    },
+    {
+      "path": "bmad-document-project/instructions.md",
+      "size": 5164,
+      "sha256": "9f4bc3a46559ffd44289b0d61a0f8f26f829783aa1c0e2a09dfa807fa93eb12f",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/instructions.md"
+    },
+    {
+      "path": "bmad-document-project/SKILL.md",
+      "size": 2671,
+      "sha256": "806d73f66a8f3f3e7b3cbd3b9a87ad4d8b9aabd3ff91f37c96edef36a17aa2b3",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/SKILL.md"
+    },
+    {
+      "path": "bmad-document-project/templates/deep-dive-template.md",
+      "size": 5854,
+      "sha256": "6198aa731d87d6a318b5b8d180fc29b9aa53ff0966e02391c17333818e94ffe9",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/templates/deep-dive-template.md"
+    },
+    {
+      "path": "bmad-document-project/templates/index-template.md",
+      "size": 4510,
+      "sha256": "42c8a14f53088e4fda82f26a3fe41dc8a89d4bcb7a9659dd696136378b64ee90",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/templates/index-template.md"
+    },
+    {
+      "path": "bmad-document-project/templates/project-overview-template.md",
+      "size": 1951,
+      "sha256": "a7c7325b75a5a678dca391b9b69b1e3409cfbe6da95e70443ed3ace164e287b2",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/templates/project-overview-template.md"
+    },
+    {
+      "path": "bmad-document-project/templates/project-scan-report-schema.json",
+      "size": 4836,
+      "sha256": "8466965321f1db22f5013869636199f67e0113706283c285a7ffbbf5efeea321",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/templates/project-scan-report-schema.json"
+    },
+    {
+      "path": "bmad-document-project/templates/source-tree-template.md",
+      "size": 2160,
+      "sha256": "109bc335ebb22f932b37c24cdc777a351264191825444a4d147c9b82a1e2ad7a",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/templates/source-tree-template.md"
+    },
+    {
+      "path": "bmad-document-project/workflows/deep-dive-instructions.md",
+      "size": 12143,
+      "sha256": "a79e24b93a25ab456062916a9dad7b6a16dc43ac0b4b555700d3c3751cff0d25",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/workflows/deep-dive-instructions.md"
+    },
+    {
+      "path": "bmad-document-project/workflows/deep-dive-workflow.md",
+      "size": 979,
+      "sha256": "a64d98dfa3b771df2853c4fa19a4e9c90d131e409e13b4c6f5e494d6ac715125",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/workflows/deep-dive-workflow.md"
+    },
+    {
+      "path": "bmad-document-project/workflows/full-scan-instructions.md",
+      "size": 43434,
+      "sha256": "2235945df2ae261265187447ce593238e132a026a9b88d3507a1f1d6808a0263",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/workflows/full-scan-instructions.md"
+    },
+    {
+      "path": "bmad-document-project/workflows/full-scan-workflow.md",
+      "size": 970,
+      "sha256": "3bff88a392c16602bd44730f32483505e73e65e46e82768809c13a0a5f55608b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/workflows/full-scan-workflow.md"
+    },
+    {
+      "path": "bmad-document-project/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-document-project/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-domain-research/customize.toml",
+      "size": 1667,
+      "sha256": "462ef14dc1e1f6d145fdfe25e315168fd1fa278ea5f87fe0fa86689234daec2f",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/customize.toml"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-01-init.md",
+      "size": 5394,
+      "sha256": "efee243f13ef54401ded88f501967b8bc767460cec5561b2107fc03fe7b7eab1",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-01-init.md"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-02-domain-analysis.md",
+      "size": 8640,
+      "sha256": "385a288d9bbb0adf050bcce4da4dad198a9151822f9766900404636f2b0c7f9d",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-02-domain-analysis.md"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-03-competitive-landscape.md",
+      "size": 9525,
+      "sha256": "f10aa088ba00c59491507f6519fb314139f8be6807958bb5fd1b66bff2267749",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-03-competitive-landscape.md"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-04-regulatory-focus.md",
+      "size": 6967,
+      "sha256": "d22035529efe91993e698b4ebf297bf2e7593eb41d185a661c357a8afc08977b",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-04-regulatory-focus.md"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-05-technical-trends.md",
+      "size": 7506,
+      "sha256": "fd6c577010171679f630805eb76e09daf823c2b9770eb716986d01f351ce1fb4",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-05-technical-trends.md"
+    },
+    {
+      "path": "bmad-domain-research/domain-steps/step-06-research-synthesis.md",
+      "size": 17221,
+      "sha256": "805f2cb7005a4fb0c4da52ea38d45de863f3e840e0f2de1456c414831cdbdf59",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/domain-steps/step-06-research-synthesis.md"
+    },
+    {
+      "path": "bmad-domain-research/research.template.md",
+      "size": 581,
+      "sha256": "507bb6729476246b1ca2fca4693986d286a33af5529b6cd5cb1b0bb5ea9926ce",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/research.template.md"
+    },
+    {
+      "path": "bmad-domain-research/SKILL.md",
+      "size": 4771,
+      "sha256": "2308f7e21f78d7f2ed43d560dbcdbfa2af236d6a81988495f28baf0e81a03206",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/SKILL.md"
+    },
+    {
+      "path": "bmad-domain-research/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-domain-research/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-edit-prd/customize.toml",
+      "size": 1701,
+      "sha256": "35cc2dfb3eda73a0ae4dc987cac58867b25c43ce5c5a1bf552e215826ede6c22",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-edit-prd/customize.toml"
+    },
+    {
+      "path": "bmad-edit-prd/SKILL.md",
+      "size": 2912,
+      "sha256": "31ecfe3c16513d994e44e648a7f2d4f4a6ccf297ca6c1826aa68ef7b053e7ff2",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-edit-prd/SKILL.md"
+    },
+    {
+      "path": "bmad-edit-prd/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-edit-prd/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-editorial-review-prose/SKILL.md",
+      "size": 5100,
+      "sha256": "b3687fe80567378627bc2a0c5034ae8d65dfeedcf2b6c90da077f4feca462d0c",
+      "upstreamPath": "src/core-skills/bmad-editorial-review-prose/SKILL.md"
+    },
+    {
+      "path": "bmad-editorial-review-prose/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-editorial-review-prose/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-editorial-review-structure/SKILL.md",
+      "size": 10818,
+      "sha256": "164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538",
+      "upstreamPath": "src/core-skills/bmad-editorial-review-structure/SKILL.md"
+    },
+    {
+      "path": "bmad-editorial-review-structure/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-editorial-review-structure/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-forge-idea/customize.toml",
+      "size": 1760,
+      "sha256": "ef5fadd1df3550cae00b1b442606bf84d187bfd55397563f143e1057430df45c",
+      "upstreamPath": "src/core-skills/bmad-forge-idea/customize.toml"
+    },
+    {
+      "path": "bmad-forge-idea/scripts/resolve_personas.py",
+      "size": 9917,
+      "sha256": "3da694c23e5fb29fe25963e2ea0509e1dd6d8c9f70ac54b00d98044052fd1c6e",
+      "upstreamPath": "src/core-skills/bmad-forge-idea/scripts/resolve_personas.py"
+    },
+    {
+      "path": "bmad-forge-idea/scripts/tests/test_resolve_personas.py",
+      "size": 6343,
+      "sha256": "1c4fa4b1d68bfbd10e4b38cad3c8286dad62345cebd08fe94a6862351b02855e",
+      "upstreamPath": "src/core-skills/bmad-forge-idea/scripts/tests/test_resolve_personas.py"
+    },
+    {
+      "path": "bmad-forge-idea/SKILL.md",
+      "size": 10134,
+      "sha256": "c62ac3a30a4c7a32e3ffd28881d0e9128fc22de1570884d6572c8bfbb7d7db0e",
+      "upstreamPath": "src/core-skills/bmad-forge-idea/SKILL.md"
+    },
+    {
+      "path": "bmad-forge-idea/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-forge-idea/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-generate-project-context/customize.toml",
+      "size": 1643,
+      "sha256": "00b6e893b93a1be7c04408f1824dad72c2c43ee02ba29210725e34394bf8225e",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/customize.toml"
+    },
+    {
+      "path": "bmad-generate-project-context/project-context-template.md",
+      "size": 543,
+      "sha256": "54e351394ceceb0ac4b5b8135bb6295cf2c37f739c7fd11bb895ca16d79824a5",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/project-context-template.md"
+    },
+    {
+      "path": "bmad-generate-project-context/SKILL.md",
+      "size": 3839,
+      "sha256": "f25e05d8c3923f331f96a73e6ba8bb8b055b5ca2aa548402a3b633141b8dea21",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/SKILL.md"
+    },
+    {
+      "path": "bmad-generate-project-context/steps/step-01-discover.md",
+      "size": 6016,
+      "sha256": "8b2c8c7375f8a3c28411250675a28c0d0a9174e6c4e67b3d53619888439c4613",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/steps/step-01-discover.md"
+    },
+    {
+      "path": "bmad-generate-project-context/steps/step-02-generate.md",
+      "size": 9135,
+      "sha256": "b1f063edae66a74026b67a79a245cec7ee85438bafcacfc70dcf6006b495e060",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/steps/step-02-generate.md"
+    },
+    {
+      "path": "bmad-generate-project-context/steps/step-03-complete.md",
+      "size": 8370,
+      "sha256": "e61463db76a8fa060411aa24127aee936d646b97564e9e2a883494ea50e68464",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/steps/step-03-complete.md"
+    },
+    {
+      "path": "bmad-generate-project-context/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/3-solutioning/bmad-generate-project-context/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-help/SKILL.md",
+      "size": 4617,
+      "sha256": "718077d741e20d9c94f3c2b7827047f2d18a90b85c3cc2eecd449e28b7b0d642",
+      "upstreamPath": "src/core-skills/bmad-help/SKILL.md"
+    },
+    {
+      "path": "bmad-help/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-help/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-index-docs/SKILL.md",
+      "size": 1641,
+      "sha256": "a855d7060414e73ca4fe8e1a3e1cc4d0f2ce394846e52340bdf5a1317e0d234a",
+      "upstreamPath": "src/core-skills/bmad-index-docs/SKILL.md"
+    },
+    {
+      "path": "bmad-index-docs/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-index-docs/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-market-research/customize.toml",
+      "size": 1668,
+      "sha256": "f47af9158893dd3f7ab81ac03cb07d8c76342eead61ec7c9a8a463066b7db9af",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/customize.toml"
+    },
+    {
+      "path": "bmad-market-research/research.template.md",
+      "size": 581,
+      "sha256": "507bb6729476246b1ca2fca4693986d286a33af5529b6cd5cb1b0bb5ea9926ce",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/research.template.md"
+    },
+    {
+      "path": "bmad-market-research/SKILL.md",
+      "size": 4711,
+      "sha256": "13f2c2148061dc6688c4c9d81b5e5b98fbfe4d7294eba0daa0cac5b17f7a0593",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/SKILL.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-01-init.md",
+      "size": 6422,
+      "sha256": "64d5501aea0c0005db23a0a4d9ee84cf4e9239f553c994ecc6b1356917967ccc",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-01-init.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-02-customer-behavior.md",
+      "size": 9265,
+      "sha256": "bac4de244049f90d1f2eb95e2cc9389cc84966d9538077fef1ec9c35e4533849",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-02-customer-behavior.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-03-customer-pain-points.md",
+      "size": 9581,
+      "sha256": "5b2418ccaaa89291c593efed0311b3895faad1e9181800d382da823a8eb1312a",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-03-customer-pain-points.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-04-customer-decisions.md",
+      "size": 10020,
+      "sha256": "f0bc25f2179b7490e7a6704159a32fc9e83ab616022355ed53acfe8e2f7059d5",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-04-customer-decisions.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-05-competitive-analysis.md",
+      "size": 5756,
+      "sha256": "17532051ad232cfc859f09ac3b44f9f4d542eb24cff8d07317126ccdff0d225a",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-05-competitive-analysis.md"
+    },
+    {
+      "path": "bmad-market-research/steps/step-06-research-completion.md",
+      "size": 19394,
+      "sha256": "4f5d3158a8462656d6959d29544ed5c92cb925641e2205e47af05c124fcd7666",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/steps/step-06-research-completion.md"
+    },
+    {
+      "path": "bmad-market-research/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-market-research/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-party-mode/customize.toml",
+      "size": 12380,
+      "sha256": "fee7fe153c853f949dca6ad20a7c78270fc91e3e88486aefbc9956cfb4c14a84",
+      "upstreamPath": "src/core-skills/bmad-party-mode/customize.toml"
+    },
+    {
+      "path": "bmad-party-mode/references/create-party.md",
+      "size": 9007,
+      "sha256": "2f810332c36c17d14eb55717aed48f3020acf0713bb9f932479be9fbc3856e9e",
+      "upstreamPath": "src/core-skills/bmad-party-mode/references/create-party.md"
+    },
+    {
+      "path": "bmad-party-mode/references/mode-agent-team.md",
+      "size": 2052,
+      "sha256": "def759a17f4bb45463b68fb74c2b828b0a4241720b2b6cc1c9c611a1016ae9d7",
+      "upstreamPath": "src/core-skills/bmad-party-mode/references/mode-agent-team.md"
+    },
+    {
+      "path": "bmad-party-mode/references/mode-auto.md",
+      "size": 1095,
+      "sha256": "a37fd24f76dfcde385890d5c5947bb6f40ca44bea86c805d267b6ae3aab39f70",
+      "upstreamPath": "src/core-skills/bmad-party-mode/references/mode-auto.md"
+    },
+    {
+      "path": "bmad-party-mode/references/mode-subagent.md",
+      "size": 4191,
+      "sha256": "86161b24a0b13b8f9cb9309042e4249d8caefff8cc33728b084cd2ec22f9d2e1",
+      "upstreamPath": "src/core-skills/bmad-party-mode/references/mode-subagent.md"
+    },
+    {
+      "path": "bmad-party-mode/references/party-memory.md",
+      "size": 3903,
+      "sha256": "800b4b4b920bb881a7b32aaabca8559a98273799b2476d83a23e290e301fb315",
+      "upstreamPath": "src/core-skills/bmad-party-mode/references/party-memory.md"
+    },
+    {
+      "path": "bmad-party-mode/scripts/resolve_party.py",
+      "size": 10560,
+      "sha256": "663a1ffa8406564c2a08f210f144b08d323596b105b755ae795ca725384e32ac",
+      "upstreamPath": "src/core-skills/bmad-party-mode/scripts/resolve_party.py"
+    },
+    {
+      "path": "bmad-party-mode/scripts/tests/test-resolve_party.py",
+      "size": 6695,
+      "sha256": "bb53fe03ec3013ed96c0fb399c1948f28bcf55cb2d7727fe0189343fcaa667d5",
+      "upstreamPath": "src/core-skills/bmad-party-mode/scripts/tests/test-resolve_party.py"
+    },
+    {
+      "path": "bmad-party-mode/SKILL.md",
+      "size": 9385,
+      "sha256": "783fef00cf5a889c80d7bb4ca78ca2a6e4c4390cde290d2e253855cf723cb10a",
+      "upstreamPath": "src/core-skills/bmad-party-mode/SKILL.md"
+    },
+    {
+      "path": "bmad-party-mode/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-party-mode/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-prd/assets/headless-schemas.md",
+      "size": 2038,
+      "sha256": "8d3621333a72400512bd62511bc4c73fc745711505e1f852c697ff8c5fa2de93",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/assets/headless-schemas.md"
+    },
+    {
+      "path": "bmad-prd/assets/prd-template.md",
+      "size": 10034,
+      "sha256": "41e77bd5c4ee81c3f383b55d6f515147afc9c4bd1a3317ddf55a9282deae495c",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/assets/prd-template.md"
+    },
+    {
+      "path": "bmad-prd/assets/prd-validation-checklist.md",
+      "size": 7432,
+      "sha256": "41d9f09064772a92ec908d970618e47ba63dc86b5c5a1a21d5a2c676d3ba8e3f",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/assets/prd-validation-checklist.md"
+    },
+    {
+      "path": "bmad-prd/assets/validation-report-template.html",
+      "size": 10893,
+      "sha256": "a80becdd8205d2d7c18738855830b096172a496b96b5ca8a0820ec55c9bb8bf9",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/assets/validation-report-template.html"
+    },
+    {
+      "path": "bmad-prd/customize.toml",
+      "size": 7922,
+      "sha256": "5da1c87df2022c3e31f2c8e343dbead23356fbc5f5e9169eccd3102577ba295f",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/customize.toml"
+    },
+    {
+      "path": "bmad-prd/references/headless.md",
+      "size": 3314,
+      "sha256": "4dad58ebee63933a53179016513ff94d143ce9f68e226489d390e2c36bf1d848",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/references/headless.md"
+    },
+    {
+      "path": "bmad-prd/references/validate.md",
+      "size": 5503,
+      "sha256": "71f28774e85c673a5c48af607af541e6a08e10076a2d46d0763885fafc74f201",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/references/validate.md"
+    },
+    {
+      "path": "bmad-prd/SKILL.md",
+      "size": 13728,
+      "sha256": "85f0a3ea5fee06fcaef5ff34d6b194b265fe0d31ffd7610a9c9a0134bf0b21ce",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/SKILL.md"
+    },
+    {
+      "path": "bmad-prd/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-prd/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-prfaq/agents/artifact-analyzer.md",
+      "size": 2646,
+      "sha256": "7bdc44830f8d593346ec0ee15e36e1e431432fcc6c38b70bb861999315c9cfa4",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/agents/artifact-analyzer.md"
+    },
+    {
+      "path": "bmad-prfaq/agents/web-researcher.md",
+      "size": 1756,
+      "sha256": "6e9127bb9bd3e4b15c701e4ced9eef328769262cd34eadc221bebe954c1f3aef",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/agents/web-researcher.md"
+    },
+    {
+      "path": "bmad-prfaq/assets/prfaq-template.md",
+      "size": 1434,
+      "sha256": "b27e6964f0437ab4e78c8c0ffbe5052c28e3b3ef2fc811726cbb394d5a5c7559",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/assets/prfaq-template.md"
+    },
+    {
+      "path": "bmad-prfaq/bmad-manifest.json",
+      "size": 469,
+      "sha256": "7908cab6f0cd66f1f3427b4cc659975b4737bdc44f789b23c6a895fcd084c4bc",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/bmad-manifest.json"
+    },
+    {
+      "path": "bmad-prfaq/customize.toml",
+      "size": 1618,
+      "sha256": "8994f925bab65bd310e5ab38781286b6137f3e0c9e89f3ab8a2f480eb05e0de5",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/customize.toml"
+    },
+    {
+      "path": "bmad-prfaq/references/customer-faq.md",
+      "size": 3697,
+      "sha256": "96f8565197649c58908a1d61b6cd805fd01f57da7945ba889c18d087ad597aeb",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/references/customer-faq.md"
+    },
+    {
+      "path": "bmad-prfaq/references/internal-faq.md",
+      "size": 3928,
+      "sha256": "26eb83f844cda1ed8efb50f4703d61713ada8a64bd27eb387f759f858b5748de",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/references/internal-faq.md"
+    },
+    {
+      "path": "bmad-prfaq/references/press-release.md",
+      "size": 4308,
+      "sha256": "c406adb0e2d2cc326cbc45d0174f89d014523448ad82bc272293999d22aec596",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/references/press-release.md"
+    },
+    {
+      "path": "bmad-prfaq/references/verdict.md",
+      "size": 4494,
+      "sha256": "1a1cbc34090114d3a2b928456edec1563b73d84fea66c58e98780bf680f172ec",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/references/verdict.md"
+    },
+    {
+      "path": "bmad-prfaq/SKILL.md",
+      "size": 10802,
+      "sha256": "353da1cc8837e880c7f41b636a1bd38086c56a91d59798b13f5d6168f0021de4",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/SKILL.md"
+    },
+    {
+      "path": "bmad-prfaq/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-prfaq/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-product-brief/assets/brief-template.md",
+      "size": 1606,
+      "sha256": "bb28edf75d023067551c8d417b19b8803324e7acfb2ad0c80f882e9134f4c1f1",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-product-brief/assets/brief-template.md"
+    },
+    {
+      "path": "bmad-product-brief/customize.toml",
+      "size": 5242,
+      "sha256": "cdd7b417de5b280ab5bd3af65f69654b05980b5efb48077563827c16391f42d6",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-product-brief/customize.toml"
+    },
+    {
+      "path": "bmad-product-brief/SKILL.md",
+      "size": 11632,
+      "sha256": "0d569d109cd61a8056374d1f3f3980188407983772544ab81f4ff6b18e798508",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-product-brief/SKILL.md"
+    },
+    {
+      "path": "bmad-product-brief/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/bmad-product-brief/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-qa-generate-e2e-tests/checklist.md",
+      "size": 891,
+      "sha256": "b58f810aeb1040c2f6758c88aa133afce72f8cc178d3d97ff0fbaa3d943057dc",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-qa-generate-e2e-tests/checklist.md"
+    },
+    {
+      "path": "bmad-qa-generate-e2e-tests/customize.toml",
+      "size": 1639,
+      "sha256": "04a99926b2d79318b927434c7344dc666f143026ed99c7fcc0d6e3d68263ae66",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-qa-generate-e2e-tests/customize.toml"
+    },
+    {
+      "path": "bmad-qa-generate-e2e-tests/SKILL.md",
+      "size": 5652,
+      "sha256": "9e78729569b2dc8e24e5f8eb016a851c4efd5c1920e2c91e0e3175fc6899d98d",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-qa-generate-e2e-tests/SKILL.md"
+    },
+    {
+      "path": "bmad-qa-generate-e2e-tests/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-qa-generate-e2e-tests/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-quick-dev/compile-epic-context.md",
+      "size": 2922,
+      "sha256": "5cfda02f252941e415b80c57b4528f46226b3cbf456ad45d78fcb5a7ef4816e2",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/compile-epic-context.md"
+    },
+    {
+      "path": "bmad-quick-dev/customize.toml",
+      "size": 2325,
+      "sha256": "ae6e5249ef9ef97009a8e65e76a20677fc99a2a5e9f6b775794e0d4942ddb0f8",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/customize.toml"
+    },
+    {
+      "path": "bmad-quick-dev/render.py",
+      "size": 15226,
+      "sha256": "a906773660eee06999e18b561cbeb1f8c523c5827a55392438fa1e4d87a071db",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/render.py"
+    },
+    {
+      "path": "bmad-quick-dev/SKILL.md",
+      "size": 671,
+      "sha256": "b16f55bff0181e12edb1b5f0e2cec012507efe86c1013f926e50026a8df9e48f",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/SKILL.md"
+    },
+    {
+      "path": "bmad-quick-dev/spec-template.md",
+      "size": 3481,
+      "sha256": "68d0e3b9acaa0c22ab3b0dd1dbce9d8ef9b4d16637ed5e6fbd5244528732943e",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/spec-template.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-01-clarify-and-route.md",
+      "size": 9981,
+      "sha256": "ae7e90b8286971d1e54500892be2e39d1e6160e9948591c72f7b7b379b1c6bef",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-01-clarify-and-route.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-02-plan.md",
+      "size": 3252,
+      "sha256": "e3ef2b68887188b698f3e63451a447e99ae778882abce942485cedf022843b13",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-02-plan.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-03-implement.md",
+      "size": 2669,
+      "sha256": "83100146e2126ec45016ded0764679b884a4deee48af45468b7b5cd0d8d0e16d",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-03-implement.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-04-review.md",
+      "size": 5306,
+      "sha256": "1d93e499b6c394bcdfa5c3cf924d084adcd29a00a23b4389b83095c79ba2079c",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-04-review.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-05-present.md",
+      "size": 4275,
+      "sha256": "adf8cc4c2f555d19bb49f8e89771d44755c0e850505746c69bae088be1f71b6c",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-05-present.md"
+    },
+    {
+      "path": "bmad-quick-dev/step-oneshot.md",
+      "size": 4229,
+      "sha256": "8a4c190870832a6f43f30886c2646b407f8007a21f2a7d367a2cefea25b57deb",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/step-oneshot.md"
+    },
+    {
+      "path": "bmad-quick-dev/sync-sprint-status.md",
+      "size": 1397,
+      "sha256": "92b3eced6146a640f0b5a1755959241387aa7d80284feba2306cb8986a6341e8",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/sync-sprint-status.md"
+    },
+    {
+      "path": "bmad-quick-dev/workflow.md",
+      "size": 3847,
+      "sha256": "4c7d0a0f7e2aa2277a3298ebc6803bf81186e0a2b9b3895e8451fb969e32dd18",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/workflow.md"
+    },
+    {
+      "path": "bmad-quick-dev/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-quick-dev/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-retrospective/customize.toml",
+      "size": 1659,
+      "sha256": "4ad7e7e7154b480eac7592d0ecc18680b9567471812e9687550be10d547fa7ff",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-retrospective/customize.toml"
+    },
+    {
+      "path": "bmad-retrospective/SKILL.md",
+      "size": 65521,
+      "sha256": "af09b92e4928bbc9e01382497e733ecc9312bf8c1ad680e4f4cc0c4a0ea34253",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-retrospective/SKILL.md"
+    },
+    {
+      "path": "bmad-retrospective/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-retrospective/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-review-adversarial-general/SKILL.md",
+      "size": 1447,
+      "sha256": "3b70b004b662c3a094328a8666e0084a94cb6de2e2a7336f23d31c65bca084e7",
+      "upstreamPath": "src/core-skills/bmad-review-adversarial-general/SKILL.md"
+    },
+    {
+      "path": "bmad-review-adversarial-general/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-review-adversarial-general/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-review-edge-case-hunter/references/deletion-check.md",
+      "size": 1009,
+      "sha256": "0f1f124e4e957147e89164a272b10bedc694ad0d9ad2618c8610ac74ee9cb0da",
+      "upstreamPath": "src/core-skills/bmad-review-edge-case-hunter/references/deletion-check.md"
+    },
+    {
+      "path": "bmad-review-edge-case-hunter/SKILL.md",
+      "size": 4775,
+      "sha256": "03087a3f1e935f7a111bc2c8e1b44c2cf2cc05d9843e5af3c913a148c70d8c96",
+      "upstreamPath": "src/core-skills/bmad-review-edge-case-hunter/SKILL.md"
+    },
+    {
+      "path": "bmad-review-edge-case-hunter/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-review-edge-case-hunter/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-review-verification-gap/SKILL.md",
+      "size": 8793,
+      "sha256": "c18391f0f736312175a9e528d33b23ea3acaf0bd3bb4c05a4966d934075b1b28",
+      "upstreamPath": "src/core-skills/bmad-review-verification-gap/SKILL.md"
+    },
+    {
+      "path": "bmad-review-verification-gap/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-review-verification-gap/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-shard-doc/SKILL.md",
+      "size": 4142,
+      "sha256": "3a1538536514725fd4f31aded280ee56b9645fc61d114fd94aacb3ac52304e52",
+      "upstreamPath": "src/core-skills/bmad-shard-doc/SKILL.md"
+    },
+    {
+      "path": "bmad-shard-doc/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-shard-doc/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-spec/assets/headless-schemas.md",
+      "size": 1187,
+      "sha256": "83afb3614716db2347d83586a67b9c524492dd50db5282436ccb35c99fb5f08a",
+      "upstreamPath": "src/core-skills/bmad-spec/assets/headless-schemas.md"
+    },
+    {
+      "path": "bmad-spec/assets/spec-template.md",
+      "size": 2366,
+      "sha256": "94ef029b842dfa7f296dab4ccf830f0b813af9995bf8bbdcdfc0783a60ee5ffe",
+      "upstreamPath": "src/core-skills/bmad-spec/assets/spec-template.md"
+    },
+    {
+      "path": "bmad-spec/assets/stories-schema.md",
+      "size": 3489,
+      "sha256": "4f8137c00e2710288354a4466d1cfb90704f4b2a04bd3b63924218fd589cc6a9",
+      "upstreamPath": "src/core-skills/bmad-spec/assets/stories-schema.md"
+    },
+    {
+      "path": "bmad-spec/customize.toml",
+      "size": 2166,
+      "sha256": "b0181ba5d4038feb779a7a082a265df753220f868b66b5adb0fb2ed18401c763",
+      "upstreamPath": "src/core-skills/bmad-spec/customize.toml"
+    },
+    {
+      "path": "bmad-spec/SKILL.md",
+      "size": 17069,
+      "sha256": "b77ca3e5674592957853ff01e226c490e504952fa938c4ac5d748f351f38eabf",
+      "upstreamPath": "src/core-skills/bmad-spec/SKILL.md"
+    },
+    {
+      "path": "bmad-spec/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/core-skills/bmad-spec/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-sprint-planning/checklist.md",
+      "size": 1383,
+      "sha256": "11b0b1ff20657b8e7d1f3377a88f102446112f617f5d0e91ab1595a977714a97",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-planning/checklist.md"
+    },
+    {
+      "path": "bmad-sprint-planning/customize.toml",
+      "size": 1606,
+      "sha256": "f7bde2f792e8604f26122ee792c5493e270710296044b07680db7d90e886caf3",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-planning/customize.toml"
+    },
+    {
+      "path": "bmad-sprint-planning/SKILL.md",
+      "size": 11960,
+      "sha256": "aa828c5ceeb2aa875da324e358844700802c6ad8cb11a97cfb955f37209231de",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-planning/SKILL.md"
+    },
+    {
+      "path": "bmad-sprint-planning/sprint-status-template.yaml",
+      "size": 2266,
+      "sha256": "317b65e5fc0844a96b99ea923a1672e8b1f354269a8fd305691be32976a86614",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-planning/sprint-status-template.yaml"
+    },
+    {
+      "path": "bmad-sprint-planning/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-planning/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-sprint-status/customize.toml",
+      "size": 1609,
+      "sha256": "96261fd227befaa4685b0a5091d3e85299d4ae8e4404176b42f5ef2e2fb501bd",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-status/customize.toml"
+    },
+    {
+      "path": "bmad-sprint-status/SKILL.md",
+      "size": 12992,
+      "sha256": "a0dcb85d89cbbc6f20651412cf07ccc97f72f605915f03ee70208cc91fb705e9",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-status/SKILL.md"
+    },
+    {
+      "path": "bmad-sprint-status/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/4-implementation/bmad-sprint-status/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-technical-research/customize.toml",
+      "size": 1674,
+      "sha256": "7f567fddb04674f817398addbc06e6d1620883d89dcc7ac643c5a56eef5ac337",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/customize.toml"
+    },
+    {
+      "path": "bmad-technical-research/research.template.md",
+      "size": 581,
+      "sha256": "507bb6729476246b1ca2fca4693986d286a33af5529b6cd5cb1b0bb5ea9926ce",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/research.template.md"
+    },
+    {
+      "path": "bmad-technical-research/SKILL.md",
+      "size": 4839,
+      "sha256": "290c5aec88886a623f620e59e43090d11791b0fade357bae2b9de9ae510d3159",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/SKILL.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-01-init.md",
+      "size": 5581,
+      "sha256": "c9a1627ecd26227e944375eb691e7ee6bc9f5db29a428a5d53e5d6aef8bb9697",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-01-init.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-02-technical-overview.md",
+      "size": 9447,
+      "sha256": "9c7582241038b16280cddce86f2943216541275daf0a935dcab78f362904b305",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-02-technical-overview.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-03-integration-patterns.md",
+      "size": 9995,
+      "sha256": "005d517a2f962e2172e26b23d10d5e6684c7736c0d3982e27b2e72d905814ad9",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-03-integration-patterns.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-04-architectural-patterns.md",
+      "size": 7212,
+      "sha256": "4636f23e9c585a7a0c90437a660609d913f16362c3557fc2e71d408d6b9f46ce",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-04-architectural-patterns.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-05-implementation-research.md",
+      "size": 7774,
+      "sha256": "e2b8a2c79bcebadc85f3823145980fa47d7e7be8d1c112f686c6223c8c138608",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-05-implementation-research.md"
+    },
+    {
+      "path": "bmad-technical-research/technical-steps/step-06-research-synthesis.md",
+      "size": 21304,
+      "sha256": "64d9303ef0c9ce839dc3b2d72e94e3e5b4673e82dc7fc9f1571bd0b03b3a43a7",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/technical-steps/step-06-research-synthesis.md"
+    },
+    {
+      "path": "bmad-technical-research/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/1-analysis/research/bmad-technical-research/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-ux/assets/color-themes.md",
+      "size": 1022,
+      "sha256": "48fac7943e8584ccf7dd1bcdfdfd4513366a086a3a84965b6b302ccf6607c171",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/color-themes.md"
+    },
+    {
+      "path": "bmad-ux/assets/design-directions.md",
+      "size": 1056,
+      "sha256": "eab73b948da76a27abc908e1e7d6b124e8ff0362e6dd1990f7e60b9541cbcb98",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/design-directions.md"
+    },
+    {
+      "path": "bmad-ux/assets/design-example-editorial.md",
+      "size": 7363,
+      "sha256": "a659166845b1a4ed3f9aef942c5935537a97382b10303684fbb78ed86265870e",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/design-example-editorial.md"
+    },
+    {
+      "path": "bmad-ux/assets/design-example-mobile.md",
+      "size": 4957,
+      "sha256": "a93fb9f114f2e83af0c961c0d7909b3859fc80bcd713715517cd639a53a0372a",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/design-example-mobile.md"
+    },
+    {
+      "path": "bmad-ux/assets/design-example-shadcn.md",
+      "size": 6376,
+      "sha256": "25e0dfb2bb21483973a8f0a6ed650288b3dc2ae5ed02aa0f091bb9b6b0b39fc0",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/design-example-shadcn.md"
+    },
+    {
+      "path": "bmad-ux/assets/excalidraw-wireframe.md",
+      "size": 1901,
+      "sha256": "660bbcdebff50cd044a3752eda43f3cb303aca4b0f521b55a270da93b89ddb18",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/excalidraw-wireframe.md"
+    },
+    {
+      "path": "bmad-ux/assets/experience-example-mobile.md",
+      "size": 5123,
+      "sha256": "f8cd54c92193cd8c34a472df9c212ac7330976f6a115b729721dcb60034dc4f0",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/experience-example-mobile.md"
+    },
+    {
+      "path": "bmad-ux/assets/experience-example-shadcn.md",
+      "size": 9279,
+      "sha256": "d6ca16e87b768e8b41f352c02ee08af21d7cdac04ca21e6ae1556864b4d27590",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/experience-example-shadcn.md"
+    },
+    {
+      "path": "bmad-ux/assets/headless-schemas.md",
+      "size": 2615,
+      "sha256": "e3a773dde85286f1a6f6dd8b26fc17e09ccea96f6257dfe7fb436353cd79242d",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/headless-schemas.md"
+    },
+    {
+      "path": "bmad-ux/assets/key-screens.md",
+      "size": 2186,
+      "sha256": "ff1c5060673dd595edd61e76806bae876264ec6895c2eaadf8a6190785bf5f7b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/key-screens.md"
+    },
+    {
+      "path": "bmad-ux/assets/validation-report-template.html",
+      "size": 10945,
+      "sha256": "8656945636fabe96624f8ef8fce931b073b5aecbe42d490584c1d5c7f31e1353",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/assets/validation-report-template.html"
+    },
+    {
+      "path": "bmad-ux/customize.toml",
+      "size": 4424,
+      "sha256": "c6f94676004a24eed7ff1d546d5b7e7b3889b84d9bab6bbb56bc297d6eabaeb8",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/customize.toml"
+    },
+    {
+      "path": "bmad-ux/references/creative-tools.md",
+      "size": 1825,
+      "sha256": "349b6b5e8353c2fa1efe7caa49cca50577900f55f32005ccd6f7b43e4daec558",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/references/creative-tools.md"
+    },
+    {
+      "path": "bmad-ux/references/design-md-spec.md",
+      "size": 3298,
+      "sha256": "d04d5f663607aba3f3181e818ae33856e6caf5e560dcb16fa64ed80b7cf3d590",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/references/design-md-spec.md"
+    },
+    {
+      "path": "bmad-ux/references/headless.md",
+      "size": 2310,
+      "sha256": "8da7e23d269b1644f45b5104a243a6a27fd8d075aebb95d9b7752f0d143f0f5d",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/references/headless.md"
+    },
+    {
+      "path": "bmad-ux/references/validate.md",
+      "size": 6713,
+      "sha256": "336d5be5ca860dc6948606b68b5a14fed593d41508ad83e123879bd466c984db",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/references/validate.md"
+    },
+    {
+      "path": "bmad-ux/SKILL.md",
+      "size": 10700,
+      "sha256": "250d2794f2b8e316bb1ba4666f0728970afd8a5d2707ac1cceac6c21e63730b6",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/SKILL.md"
+    },
+    {
+      "path": "bmad-ux/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-ux/zeuz.manifest.yaml"
+    },
+    {
+      "path": "bmad-validate-prd/customize.toml",
+      "size": 1731,
+      "sha256": "bfb3c8af5b81b2cdb9bb84f844f1b0dafc40d8c283effa6ad48db966b9446cef",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-validate-prd/customize.toml"
+    },
+    {
+      "path": "bmad-validate-prd/SKILL.md",
+      "size": 2925,
+      "sha256": "931439b8c84bc454d0596a1ad35d6583c1926c941f2928c54b31aea702c24b53",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-validate-prd/SKILL.md"
+    },
+    {
+      "path": "bmad-validate-prd/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "src/bmm-skills/2-plan-workflows/bmad-validate-prd/zeuz.manifest.yaml"
+    },
+    {
+      "path": "brainstorming-coach/brain-methods.csv",
+      "size": 16265,
+      "sha256": "0ab5878b1dbc9e3fa98cb72abfc3920a586b9e2b42609211bb0516eefd542039",
+      "upstreamPath": "web-bundles/brainstorming-coach/brain-methods.csv"
+    },
+    {
+      "path": "brainstorming-coach/INSTRUCTIONS.md",
+      "size": 4690,
+      "sha256": "4ab0f36d91b915e2b5cb5a6274aae98ae3e4dd542ba18d6f7c072b05143f0a19",
+      "upstreamPath": "web-bundles/brainstorming-coach/INSTRUCTIONS.md"
+    },
+    {
+      "path": "brainstorming-coach/SKILL.md",
+      "size": 6692,
+      "sha256": "0956fbfe4775af315139b8aac26ab5879b7e55a410e943caf88b22d3ff6601e1",
+      "upstreamPath": "web-bundles/brainstorming-coach/SKILL.md"
+    },
+    {
+      "path": "brainstorming-coach/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/brainstorming-coach/zeuz.manifest.yaml"
+    },
+    {
+      "path": "LICENSE",
+      "size": 1572,
+      "sha256": "0aa79baf6328b4a1e694ce10a12ffc36d7666554da128dff0e8fcda0fc536a66",
+      "upstreamPath": "LICENSE"
+    },
+    {
+      "path": "market-and-industry-research/INSTRUCTIONS.md",
+      "size": 5532,
+      "sha256": "37416b76cfed027e970bc9fe0ab4ab801f61a3854f634a36bdc5e7795ad48e64",
+      "upstreamPath": "web-bundles/market-and-industry-research/INSTRUCTIONS.md"
+    },
+    {
+      "path": "market-and-industry-research/SKILL.md",
+      "size": 5177,
+      "sha256": "e1bca6e559f1cc1f0235a1d4d768b788c91c99155266b477f2339473b5642021",
+      "upstreamPath": "web-bundles/market-and-industry-research/SKILL.md"
+    },
+    {
+      "path": "market-and-industry-research/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/market-and-industry-research/zeuz.manifest.yaml"
+    },
+    {
+      "path": "prd-coach/INSTRUCTIONS.md",
+      "size": 5582,
+      "sha256": "e35c03da28c90f186c4f2db5c02ace20b18c312309f4af1b7b9c3f31c5732215",
+      "upstreamPath": "web-bundles/prd-coach/INSTRUCTIONS.md"
+    },
+    {
+      "path": "prd-coach/prd-template.md",
+      "size": 9899,
+      "sha256": "aa9c9dc888697d24720a4d64a23330872060837fcc61212f7bf037c1ac835eff",
+      "upstreamPath": "web-bundles/prd-coach/prd-template.md"
+    },
+    {
+      "path": "prd-coach/prd-validation-checklist.md",
+      "size": 7363,
+      "sha256": "632a28e6fbfed558009cfdb3548420050dcc0c9ffa805cd837809a369bb51af4",
+      "upstreamPath": "web-bundles/prd-coach/prd-validation-checklist.md"
+    },
+    {
+      "path": "prd-coach/SKILL.md",
+      "size": 10128,
+      "sha256": "3c09d19d23ad4892b2f355e6875de62be58290c1fc568baf024867e5505893c9",
+      "upstreamPath": "web-bundles/prd-coach/SKILL.md"
+    },
+    {
+      "path": "prd-coach/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/prd-coach/zeuz.manifest.yaml"
+    },
+    {
+      "path": "prfaq-coach/INSTRUCTIONS.md",
+      "size": 5023,
+      "sha256": "390440b3ed6e5e99f1804e49f64b1886c7b15cb9e317d87fedfe9501eca7d99d",
+      "upstreamPath": "web-bundles/prfaq-coach/INSTRUCTIONS.md"
+    },
+    {
+      "path": "prfaq-coach/SKILL.md",
+      "size": 11223,
+      "sha256": "281596b6b8fc90a933e2086621a4d7ee1d71e303b6b95d8f3a8413f5e404d7e0",
+      "upstreamPath": "web-bundles/prfaq-coach/SKILL.md"
+    },
+    {
+      "path": "prfaq-coach/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/prfaq-coach/zeuz.manifest.yaml"
+    },
+    {
+      "path": "product-brief-coach/INSTRUCTIONS.md",
+      "size": 5131,
+      "sha256": "938854f8ab8d0956c64a6d0c46915aaef858c50edac17e5732054f08b74f5e13",
+      "upstreamPath": "web-bundles/product-brief-coach/INSTRUCTIONS.md"
+    },
+    {
+      "path": "product-brief-coach/SKILL.md",
+      "size": 8276,
+      "sha256": "a2ff8f4b48aad2f9923d31624ac51e95a445c982681d0e73ada21d45302e8f2c",
+      "upstreamPath": "web-bundles/product-brief-coach/SKILL.md"
+    },
+    {
+      "path": "product-brief-coach/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/product-brief-coach/zeuz.manifest.yaml"
+    },
+    {
+      "path": "TRADEMARK.md",
+      "size": 2805,
+      "sha256": "ce57ad749e43277c6021e5d5085980b33c9bf8f67a070bbbf07e041ccdddc58b",
+      "upstreamPath": "TRADEMARK.md"
+    },
+    {
+      "path": "ux-coach/INSTRUCTIONS.md",
+      "size": 5496,
+      "sha256": "c889b6b72e28456adf172c4d67a6b01b037dc222ed06d949b9f7c58cc50c53a3",
+      "upstreamPath": "web-bundles/ux-coach/INSTRUCTIONS.md"
+    },
+    {
+      "path": "ux-coach/SKILL.md",
+      "size": 13515,
+      "sha256": "5b6ff1608fc04d9afb12962497fceaf5587befb9f092b13020f1f1e9ccc89390",
+      "upstreamPath": "web-bundles/ux-coach/SKILL.md"
+    },
+    {
+      "path": "ux-coach/ux-validation.md",
+      "size": 4865,
+      "sha256": "f8ed31a2bc5ec4ab1264895238632b8093f967b3a23e47d3e6b6ee3d0009fb06",
+      "upstreamPath": "web-bundles/ux-coach/ux-validation.md"
+    },
+    {
+      "path": "ux-coach/zeuz.manifest.yaml",
+      "size": 170,
+      "sha256": "53c0db4f9dcb04815975f464fc0ae0118fd1463dceb9d2f8e7453a3c48c3d28b",
+      "upstreamPath": "web-bundles/ux-coach/zeuz.manifest.yaml"
+    }
+  ],
+  "skills": [
+    {
+      "id": "import/bmad/bmad-advanced-elicitation@0.0.0",
+      "rootPath": "bmad-advanced-elicitation",
+      "inventoryDigest": "c204733255ec8cc7af13d2727a035d38254c30f270191403e7b733d2bd97cf02"
+    },
+    {
+      "id": "import/bmad/bmad-agent-analyst@0.0.0",
+      "rootPath": "bmad-agent-analyst",
+      "inventoryDigest": "bef77c0d507bc96f76f8e0ed08f3030ff43e6407edb755409b76ff9b4fbf31b2"
+    },
+    {
+      "id": "import/bmad/bmad-agent-architect@0.0.0",
+      "rootPath": "bmad-agent-architect",
+      "inventoryDigest": "ed847e509b3a4fa1000c36b33869c40d694ac81eb524d3b79b86b53953baaa6d"
+    },
+    {
+      "id": "import/bmad/bmad-agent-dev@0.0.0",
+      "rootPath": "bmad-agent-dev",
+      "inventoryDigest": "1dbbbef35cef87dcd6a9425109f92fa9ac723fd6749ba6100733b6f4ccf8f2c8"
+    },
+    {
+      "id": "import/bmad/bmad-agent-pm@0.0.0",
+      "rootPath": "bmad-agent-pm",
+      "inventoryDigest": "49bd3ee7545ab0f80d951ad7b44215d257fce6a6e8d9dd7c6cea123d2f620eb8"
+    },
+    {
+      "id": "import/bmad/bmad-agent-tech-writer@0.0.0",
+      "rootPath": "bmad-agent-tech-writer",
+      "inventoryDigest": "70e330b4179eb6b79546dd9483ad2fbfceff5fe17fb6658cf1309350af23f36c"
+    },
+    {
+      "id": "import/bmad/bmad-agent-ux-designer@0.0.0",
+      "rootPath": "bmad-agent-ux-designer",
+      "inventoryDigest": "1e61d2c3a406c9d5aad386af5934dcfa168967674a01d3d046af4a4e41773db8"
+    },
+    {
+      "id": "import/bmad/bmad-architecture@0.0.0",
+      "rootPath": "bmad-architecture",
+      "inventoryDigest": "683bcdab85a3426785d40dbe23036f300de4631ec9067c38f6e9d04d0524aab9"
+    },
+    {
+      "id": "import/bmad/bmad-brainstorming@0.0.0",
+      "rootPath": "bmad-brainstorming",
+      "inventoryDigest": "6d765e8c08d2a3051c95a79d342146b8433337854c73fa25525a41ffe57c9dbb"
+    },
+    {
+      "id": "import/bmad/bmad-check-implementation-readiness@0.0.0",
+      "rootPath": "bmad-check-implementation-readiness",
+      "inventoryDigest": "76c12437196514d1fa963367841b9692dfda89fe5437eb293808a6002e69bddb"
+    },
+    {
+      "id": "import/bmad/bmad-checkpoint-preview@0.0.0",
+      "rootPath": "bmad-checkpoint-preview",
+      "inventoryDigest": "5e6bc5b5a8da9f79bf16dc86da1af2b657e394a188708aa7c270e451875964a1"
+    },
+    {
+      "id": "import/bmad/bmad-code-review@0.0.0",
+      "rootPath": "bmad-code-review",
+      "inventoryDigest": "37034f2d75b852711ac0227d8b40fee268b6e03ebaeb8e32f9f7e93ecadd8077"
+    },
+    {
+      "id": "import/bmad/bmad-correct-course@0.0.0",
+      "rootPath": "bmad-correct-course",
+      "inventoryDigest": "7887847080bc33853936466b97f5414b8a11396dde2cf8d6da7061588a1f604d"
+    },
+    {
+      "id": "import/bmad/bmad-create-architecture@0.0.0",
+      "rootPath": "bmad-create-architecture",
+      "inventoryDigest": "f84169608ead55170e2217817018b8d8c3cfeac5b1388f0ff090514e76be0ea8"
+    },
+    {
+      "id": "import/bmad/bmad-create-epics-and-stories@0.0.0",
+      "rootPath": "bmad-create-epics-and-stories",
+      "inventoryDigest": "780189387be5e5c3b989a7e5924a503ddfb583201753a401ec3d119004a4cbfc"
+    },
+    {
+      "id": "import/bmad/bmad-create-prd@0.0.0",
+      "rootPath": "bmad-create-prd",
+      "inventoryDigest": "c7fd7f56968ae5163ebf5a10cae47536067b561d51fb9e25b9af8f733115ed66"
+    },
+    {
+      "id": "import/bmad/bmad-create-story@0.0.0",
+      "rootPath": "bmad-create-story",
+      "inventoryDigest": "a61ef65cdf2601d9dc174f0780b358c8933df1a8aa860a093dd97e22b3f0f8f2"
+    },
+    {
+      "id": "import/bmad/bmad-customize@0.0.0",
+      "rootPath": "bmad-customize",
+      "inventoryDigest": "12f6769544d382a6476de995d241b51101b1e4e129669d62571753971dee5aeb"
+    },
+    {
+      "id": "import/bmad/bmad-dev-auto@0.0.0",
+      "rootPath": "bmad-dev-auto",
+      "inventoryDigest": "0cb61aa40693c074cd57ba6c3b55bed7a3bec1308be8f812fc6e4b07dfaa875a"
+    },
+    {
+      "id": "import/bmad/bmad-dev-story@0.0.0",
+      "rootPath": "bmad-dev-story",
+      "inventoryDigest": "411e21254bf440367db0f9f07c18a67f24e95cd6f01ac156cfa98738c7fe0a90"
+    },
+    {
+      "id": "import/bmad/bmad-document-project@0.0.0",
+      "rootPath": "bmad-document-project",
+      "inventoryDigest": "b769268f21d715b2429ca81018121c155f5b3539d2759f4aef0abe02cd22ac03"
+    },
+    {
+      "id": "import/bmad/bmad-domain-research@0.0.0",
+      "rootPath": "bmad-domain-research",
+      "inventoryDigest": "348478b1a6e519e4310bcee672c1280ed9ffb305d36799e70375c8c56d704382"
+    },
+    {
+      "id": "import/bmad/bmad-edit-prd@0.0.0",
+      "rootPath": "bmad-edit-prd",
+      "inventoryDigest": "5430e34020d858d91e1d5fd67aad189fcef8055b6ca84740e2ddf9d7b52b53c8"
+    },
+    {
+      "id": "import/bmad/bmad-editorial-review-prose@0.0.0",
+      "rootPath": "bmad-editorial-review-prose",
+      "inventoryDigest": "42686d758c82d9a9ac1544b980af142e71d31a3363daf71053908e8e9012fe65"
+    },
+    {
+      "id": "import/bmad/bmad-editorial-review-structure@0.0.0",
+      "rootPath": "bmad-editorial-review-structure",
+      "inventoryDigest": "2ab3ccf4d959262a7eab791b444b2b21a7e41fed93f2972dfc75cb26c7007582"
+    },
+    {
+      "id": "import/bmad/bmad-forge-idea@0.0.0",
+      "rootPath": "bmad-forge-idea",
+      "inventoryDigest": "db53ea33df6f4ba0faedbd2283e728bfead74e52b518ca533887d855ba37fd41"
+    },
+    {
+      "id": "import/bmad/bmad-generate-project-context@0.0.0",
+      "rootPath": "bmad-generate-project-context",
+      "inventoryDigest": "4a43fa72ae7ddb8c7b7cde9fd152c3799d44066162a6cd6aa3daf277a7991f8a"
+    },
+    {
+      "id": "import/bmad/bmad-help@0.0.0",
+      "rootPath": "bmad-help",
+      "inventoryDigest": "cfbbed870c60d6fe2a93334d2f5609fde44906d77f483612939b6a0062a0fba3"
+    },
+    {
+      "id": "import/bmad/bmad-index-docs@0.0.0",
+      "rootPath": "bmad-index-docs",
+      "inventoryDigest": "b8c07d83937f7796fda199eff4a257d7a8d57b6cbfc2f407e27cae57b6b09c04"
+    },
+    {
+      "id": "import/bmad/bmad-market-research@0.0.0",
+      "rootPath": "bmad-market-research",
+      "inventoryDigest": "a13b74011b0fac4463bab750add9b113329cc38a2d815c5b0dc272e4e31927b8"
+    },
+    {
+      "id": "import/bmad/bmad-party-mode@0.0.0",
+      "rootPath": "bmad-party-mode",
+      "inventoryDigest": "6d3c20303b8251f8da0090f0b6b06776a6a69bd52c7258e5ac5b451e5995a869"
+    },
+    {
+      "id": "import/bmad/bmad-prd@0.0.0",
+      "rootPath": "bmad-prd",
+      "inventoryDigest": "568fa9700d9086dea0a39b1000a0cbea66c8b02cda68d0751fb3d2dca3e07a0e"
+    },
+    {
+      "id": "import/bmad/bmad-prfaq@0.0.0",
+      "rootPath": "bmad-prfaq",
+      "inventoryDigest": "f5e9306a7ec4f8b979bf992f8461c488fb333dfc4868611fef186e3de2cc3348"
+    },
+    {
+      "id": "import/bmad/bmad-product-brief@0.0.0",
+      "rootPath": "bmad-product-brief",
+      "inventoryDigest": "012f581a96a0eee3e780b51fddaf81d8713519e658c715ecd5c8eb1f70dd732c"
+    },
+    {
+      "id": "import/bmad/bmad-qa-generate-e2e-tests@0.0.0",
+      "rootPath": "bmad-qa-generate-e2e-tests",
+      "inventoryDigest": "a39c3e5a1ba7416b759837eead9ae3765ed4455532bd871f36a53d14b8af8a5c"
+    },
+    {
+      "id": "import/bmad/bmad-quick-dev@0.0.0",
+      "rootPath": "bmad-quick-dev",
+      "inventoryDigest": "6594df8e152b501a540659f1ed083aa88196a754875c2978767f6f2c1b491660"
+    },
+    {
+      "id": "import/bmad/bmad-retrospective@0.0.0",
+      "rootPath": "bmad-retrospective",
+      "inventoryDigest": "91e8c57ebf7884e4fed8b7639e56920ede36464ec5a81ea5ded25ae0f0235314"
+    },
+    {
+      "id": "import/bmad/bmad-review-adversarial-general@0.0.0",
+      "rootPath": "bmad-review-adversarial-general",
+      "inventoryDigest": "fbb97b02d00dbcbe82ab48f689f75df100952107bdb932ff35d251eddc454a78"
+    },
+    {
+      "id": "import/bmad/bmad-review-edge-case-hunter@0.0.0",
+      "rootPath": "bmad-review-edge-case-hunter",
+      "inventoryDigest": "112b7ae954ec4d9277c54023ec7cb7a81b3f1e8c1f764b4c6bf8226aa2973116"
+    },
+    {
+      "id": "import/bmad/bmad-review-verification-gap@0.0.0",
+      "rootPath": "bmad-review-verification-gap",
+      "inventoryDigest": "956ffab23bbbeb2e264d59bfc118ed9a966fb069b5b2d1b9cfafe500e7e61582"
+    },
+    {
+      "id": "import/bmad/bmad-shard-doc@0.0.0",
+      "rootPath": "bmad-shard-doc",
+      "inventoryDigest": "e013c3d5dd020c21f049477feef293b54bbb36e3821fc0feb4a8b6e1f3d048d3"
+    },
+    {
+      "id": "import/bmad/bmad-spec@0.0.0",
+      "rootPath": "bmad-spec",
+      "inventoryDigest": "4251e22822965fcbd9e96b4ea5dd4aaad4a4b1a43e8c8504e602a88a435880cd"
+    },
+    {
+      "id": "import/bmad/bmad-sprint-planning@0.0.0",
+      "rootPath": "bmad-sprint-planning",
+      "inventoryDigest": "4f39feef6e9d526df7661465343e438218bcb98286e3627e9f8d2ca4a9bdbb0d"
+    },
+    {
+      "id": "import/bmad/bmad-sprint-status@0.0.0",
+      "rootPath": "bmad-sprint-status",
+      "inventoryDigest": "56bfc743212a90547c4a2197ebb1b4731fea0c75f631ea69ae4854f05aa3c333"
+    },
+    {
+      "id": "import/bmad/bmad-technical-research@0.0.0",
+      "rootPath": "bmad-technical-research",
+      "inventoryDigest": "2ffdc62620459c06a741ce2805dc84e9bedad3e2908df894d1b5f09ad86038cd"
+    },
+    {
+      "id": "import/bmad/bmad-ux@0.0.0",
+      "rootPath": "bmad-ux",
+      "inventoryDigest": "5bd73552c724e987a842649f4c5140e15327a39d09b58c7f104c411893951971"
+    },
+    {
+      "id": "import/bmad/bmad-validate-prd@0.0.0",
+      "rootPath": "bmad-validate-prd",
+      "inventoryDigest": "1d1ee2a215682998f2c94ed0dde1845120d8271f85ed70dcb8e61a01298ea115"
+    },
+    {
+      "id": "import/bmad/brainstorming-coach@0.0.0",
+      "rootPath": "brainstorming-coach",
+      "inventoryDigest": "8593af38168bf9ede8c88b8709608e29ff5ec7603c25e36b9539fcf64cc8f4bf"
+    },
+    {
+      "id": "import/bmad/market-and-industry-research@0.0.0",
+      "rootPath": "market-and-industry-research",
+      "inventoryDigest": "a13566aa121bda343f405d90993b59e590ab4ec9c276ac4902d9e82719e55d41"
+    },
+    {
+      "id": "import/bmad/prd-coach@0.0.0",
+      "rootPath": "prd-coach",
+      "inventoryDigest": "300d1e0180f085ba17903a6250a0ca94a11d389fee95b74ff49c2ff7ee5f4dfa"
+    },
+    {
+      "id": "import/bmad/prfaq-coach@0.0.0",
+      "rootPath": "prfaq-coach",
+      "inventoryDigest": "e13e09c5425672d35e591171ceada64203f3c530bd0d485497b4e50bc49b3f81"
+    },
+    {
+      "id": "import/bmad/product-brief-coach@0.0.0",
+      "rootPath": "product-brief-coach",
+      "inventoryDigest": "16ef57f16247aef4119643b515b2c26028f1a5e1446efdf461ad5cb95a7ff954"
+    },
+    {
+      "id": "import/bmad/ux-coach@0.0.0",
+      "rootPath": "ux-coach",
+      "inventoryDigest": "278141533131471a6d07856e40066ad24378f8629eba108209cba7eb82fc386d"
+    }
+  ]
+}

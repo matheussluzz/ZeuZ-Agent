@@ -195,7 +195,7 @@ function helpText(): string {
 /plan [task]         Enter plan mode; optionally run a task
 /permissions [mode]  Show/set plan, agent, or yolo
 /status              Session, model, workspace, Git, and context state
-/health [--deep]     Check CLIs; deep also calls every NVIDIA model
+/health [--deep]     Check CLIs and API routes; deep also makes model calls
 /diff                Render staged, unstaged, and untracked changes
 /review              Run an adversarial read-only review now
 /compact             Compact shared cross-model context

@@ -4,10 +4,11 @@ import { ClaudeAdapter } from './claude.js';
 import { CopilotAdapter } from './copilot.js';
 import { CursorAdapter } from './cursor.js';
 import { NvidiaAdapter } from './nvidia.js';
+import { OpenRouterAdapter } from './openrouter.js';
 import { defaultAdapterRuntime, type AdapterRuntime } from './runtime.js';
 import type { AgentAdapter, ProviderId } from '../types.js';
 
-const PROVIDERS: ProviderId[] = ['codex', 'cursor', 'claude', 'agy', 'copilot', 'nvidia'];
+const PROVIDERS: ProviderId[] = ['codex', 'cursor', 'claude', 'agy', 'copilot', 'nvidia', 'openrouter'];
 
 export interface AdapterRegistryOptions {
   runtime?: AdapterRuntime;
@@ -29,6 +30,8 @@ function createDefaultAdapter(provider: ProviderId, runtime: AdapterRuntime): Ag
       return new CopilotAdapter({ runtime });
     case 'nvidia':
       return new NvidiaAdapter({ runtime });
+    case 'openrouter':
+      return new OpenRouterAdapter({ runtime });
   }
 }
 

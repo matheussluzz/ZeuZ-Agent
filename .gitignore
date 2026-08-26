@@ -36,6 +36,12 @@ dist/
 coverage/
 .nyc_output/
 *.tsbuildinfo
+# ZeuZ skill catalog runtime state
+catalog/index/
+catalog/state/
+catalog/.promote/
+catalog/.backup/
+catalog/.sync/
 __pycache__/
 *.py[cod]
 

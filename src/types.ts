@@ -1,4 +1,4 @@
-export type ProviderId = 'codex' | 'cursor' | 'claude' | 'copilot' | 'agy' | 'nvidia';
+export type ProviderId = 'codex' | 'cursor' | 'claude' | 'copilot' | 'agy' | 'nvidia' | 'openrouter';
 
 export type PermissionMode = 'plan' | 'agent' | 'yolo';
 

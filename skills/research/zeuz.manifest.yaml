@@ -1,0 +1,11 @@
+namespace: zeuz/aihero
+version: "0.1.0-6654f6b"
+trust: enabled
+enablement: enabled
+networkPolicy: declared
+contextBudgetBytes: 16384
+capabilityTags: [research, sources]
+triggers:
+  - '(?:^|\s)/research\b|\b(?:research|investigate|look up)\b.*\b(?:question|topic|docs?|source)\b'
+allowedTools: []
+dependencies: []

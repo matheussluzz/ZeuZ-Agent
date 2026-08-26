@@ -5,12 +5,22 @@ nvidia:
   api_keys:
     glm_5_2: ""
     deepseek_v4: ""
+    deepseek_v4_flash: ""
     kimi_2_6: ""
     minimax_m3: ""
     qwen: ""
   models:
     glm_5_2: z-ai/glm-5.2
     deepseek_v4: deepseek-ai/deepseek-v4-pro
+    deepseek_v4_flash: deepseek-ai/deepseek-v4-flash-0731
     kimi_2_6: moonshotai/kimi-k2.6
     minimax_m3: minimaxai/minimax-m3
     qwen: qwen/qwen3.5-397b-a17b
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  api_key: ""
+  http_referer: ""
+  x_title: "ZeuZ-Agent"
+  models:
+    ox_alpha: stealth/ox-alpha
+    gpt_4o: openai/gpt-4o
