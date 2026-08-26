@@ -28,6 +28,7 @@
     "AGENTS.md",
     "assets",
     "docs",
+    "!docs/waves/wave-06-tasks.md",
     "skills",
     "!skills/**/__pycache__/**",
     "!**/*.pyc",

@@ -32,3 +32,27 @@ Each entry starts with a UTC UTID in this exact form:
 - Evidence: Cursor Fable 5 hit the account usage limit; Claude Code could not refresh its expired OAuth session; Cursor Composer 2.5 produced no report after more than nine minutes and was interrupted. No reviewer PASS was inferred.
 - Workspace: review-created temporary files were removed; only the pre-existing unstaged `docs/roadmap_candidate.md` remains.
 - Next: rerun the independent review when a healthy reviewer surface is available, then append a `verified` checkpoint for task `00001` if it passes.
+
+## 20260826190022597 - 00002 - eaf6135
+
+- Status: started
+- Task: implement Wave 06 specialist-agent lifecycle and command surface from the frozen roadmap.
+- Scope: built-in Pantheon personas, deterministic automatic routing, root-owned spawn policy, non-Pantheon `/skill` discovery/invocation, durable follow-up messaging, optional live-input capability, cancellation/result retrieval integration, tests, and public docs.
+- Review target: fresh read-only Cursor Grok 4.6; Composer 2.5 is the explicit fallback if Grok is unavailable.
+- Next: write the Wave 06 PRD/checklist and implement the bounded specialist seams.
+
+## 20260826192708470 - 00002 - eaf6135
+
+- Status: completed
+- Task: implement the Wave 06 specialist-agent lifecycle and command surface.
+- Completed: added provider-neutral Pantheon personas with deterministic routing, root-only durable spawn metadata, non-Pantheon `/skill` search/activation through the Wave 05 resolver, atomic queued/live follow-up records with opt-in executor hooks, task-engine integration, CLI/UI surfaces, documentation, and focused regression tests.
+- Verification: targeted controller, task-engine, skill-registry, specialist, task-message, and command tests passed; `pnpm typecheck` and `git diff --check` passed.
+- Next: run the complete repository checks and obtain the independent Cursor Grok 4.6 review.
+
+## 20260826200625143 - 00002 - eaf6135
+
+- Status: blocked
+- Task: complete Wave 06 specialist-agent lifecycle and command surface.
+- Completed: remediated the initial Composer 2.5 findings by routing Pantheon activation through resolver gates, using activated context for in-process execution, and adding validated durable capability records with root approval and bounded sibling-task creation. Added failure coverage for ambiguity, disabled/quarantined skills, cancellation, result retrieval, and worker/root capability routing.
+- Verification: `pnpm check`, `pnpm build`, `node bin/zeuz health`, targeted tests, `pnpm secrets:check`, `pnpm progress:check`, and `git diff --check` passed. Grok 4.6 and Composer 2.5 Cursor review attempts did not return a verdict; no reviewer approval was inferred.
+- Next: preserve the `REVIEW_BLOCKED` state unless a healthy independent reviewer returns a fresh verdict.

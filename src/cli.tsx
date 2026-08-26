@@ -13,6 +13,9 @@ import { TaskEngine } from './task-engine.js';
 import { TaskResultStore } from './task-result-store.js';
 import { stateDirectory } from './state-root.js';
 import { TaskStore } from './task-store.js';
+import { requirePersona, specialistPrompt } from './specialists.js';
+import { reviewerFor } from './orchestration.js';
+import { SkillRegistry } from './skills.js';
 import type { PermissionMode } from './types.js';
 import { runSkillCommand } from './skill-registry/cli.js';
 import { App } from './ui.js';
@@ -51,8 +54,8 @@ function printCliHelp(): void {
   process.stdout.write('  zeuz models                       List configured model routes\n');
   process.stdout.write('  zeuz health [--deep]              Check provider health\n');
   process.stdout.write('  zeuz run --model ID --prompt TEXT Run one non-interactive turn\n');
-  process.stdout.write('  zeuz delegate --model ID --task TEXT [--mode plan|agent|yolo] [--wait]\n');
-  process.stdout.write('  zeuz task list|status|result|cancel|wait|recover [ID]\n');
+  process.stdout.write('  zeuz delegate --model ID --task TEXT [--persona ID] [--mode plan|agent|yolo] [--wait]\n');
+  process.stdout.write('  zeuz task list|status|result|message|messages|capabilities|approve-capability|cancel|wait|recover [ID]\n');
   process.stdout.write('  zeuz skill list|status|validate|install|update|remove|sync|check [args]\n');
   process.stdout.write('  zeuz version                      Print version\n');
 }
@@ -66,19 +69,49 @@ async function runNonInteractive(command: 'run' | 'delegate', args: string[]): P
   const json = flags.has('--json');
   if (!task) throw new Error(`${command} requires --task or --prompt.`);
   requireModel(modelId);
+  if (command === 'run' && flags.has('--persona')) throw new Error('--persona is supported with `zeuz delegate`, not the single-turn `zeuz run` command.');
 
   if (command === 'delegate') {
     const depth = Number.parseInt(process.env.ZEUZ_DELEGATION_DEPTH ?? '0', 10);
     if (depth >= 1) throw new Error('Delegation depth limit reached (maximum: 1).');
     const engine = new TaskEngine();
-    const submitted = await engine.submit({
-      ...(process.env.ZEUZ_PARENT_TASK_ID ? { parentTaskId: process.env.ZEUZ_PARENT_TASK_ID } : {}),
-      ...(process.env.ZEUZ_PARENT_SESSION_ID ? { parentSessionId: process.env.ZEUZ_PARENT_SESSION_ID } : {}),
-      modelId,
-      prompt: task,
-      cwd,
-      mode,
-    });
+    const personaId = flag(flags, '--persona');
+    const selectedModel = requireModel(modelId);
+    const skills = personaId ? new SkillRegistry() : undefined;
+    const submitted = personaId
+      ? await (async () => {
+        const persona = requirePersona(personaId);
+        const reviewer = requireModel(reviewerFor(selectedModel));
+        const primarySkill = persona.skillNames[0];
+        if (!primarySkill || !skills) throw new Error(`SPECIALIST_SKILL_ACTIVATION_BLOCKED: ${persona.id} declares no activation skill.`);
+        await skills.contextForPantheonSkill(primarySkill, task, persona.contextBudgetBytes);
+        return engine.submitSpecialist({
+          ...(process.env.ZEUZ_PARENT_TASK_ID ? { parentTaskId: process.env.ZEUZ_PARENT_TASK_ID } : {}),
+          ...(process.env.ZEUZ_PARENT_SESSION_ID ? { parentSessionId: process.env.ZEUZ_PARENT_SESSION_ID } : {}),
+          ...(!process.env.ZEUZ_PARENT_TASK_ID && process.env.ZEUZ_PARENT_SESSION_ID ? { rootCorrelationId: process.env.ZEUZ_PARENT_SESSION_ID } : {}),
+          modelId,
+          prompt: specialistPrompt(persona, task),
+          cwd,
+          mode,
+          specialist: {
+            personaId: persona.id,
+            route: 'explicit',
+            execution: 'spawn',
+            reason: `Explicit Pantheon command /${persona.id}.`,
+            matchedTriggers: [`/${persona.id}`],
+            reviewerFamily: reviewer.family,
+            dependencySkills: [...persona.skillNames],
+          },
+        });
+      })()
+      : await engine.submit({
+        ...(process.env.ZEUZ_PARENT_TASK_ID ? { parentTaskId: process.env.ZEUZ_PARENT_TASK_ID } : {}),
+        ...(process.env.ZEUZ_PARENT_SESSION_ID ? { parentSessionId: process.env.ZEUZ_PARENT_SESSION_ID } : {}),
+        modelId,
+        prompt: task,
+        cwd,
+        mode,
+      });
     if (!flags.has('--wait')) {
       const payload = { taskId: submitted.task.id, status: submitted.task.status, workerLaunched: submitted.launched };
       process.stdout.write(json ? `${JSON.stringify(payload)}\n` : `${submitted.task.id}\n`);
@@ -102,7 +135,7 @@ async function runNonInteractive(command: 'run' | 'delegate', args: string[]): P
 }
 
 async function runTaskCommand(args: string[]): Promise<void> {
-  const [subcommand, id] = args;
+  const [subcommand, id, ...tail] = args;
   const store = new TaskStore();
   const engine = new TaskEngine();
   if (subcommand === 'recover') {
@@ -112,6 +145,10 @@ async function runTaskCommand(args: string[]): Promise<void> {
   if (subcommand === 'list') {
     const result = await store.listDetailed();
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'capabilities') {
+    process.stdout.write(`${JSON.stringify(await engine.listCapabilityRequests(id), null, 2)}\n`);
     return;
   }
   if (subcommand === 'worker') {
@@ -142,7 +179,34 @@ async function runTaskCommand(args: string[]): Promise<void> {
     process.stdout.write(`${await new TaskResultStore({ root: stateDirectory(), now: () => new Date().toISOString() }).retrieve(task.result)}\n`);
     return;
   }
-  throw new Error(`Unknown task command: ${subcommand ?? ''}. Use list, status, result, cancel, wait, or recover.`);
+  if (subcommand === 'messages') {
+    process.stdout.write(`${JSON.stringify(await engine.listMessages(id), null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'approve-capability') {
+    const flags = parseFlags(tail);
+    const approvalModel = flag(flags, '--model');
+    const approvalPrompt = flag(flags, '--prompt');
+    const approvalCwd = flag(flags, '--cwd');
+    const approvalMode = flag(flags, '--mode');
+    const result = await engine.approveCapabilityRequest(id, {
+      ...(approvalModel ? { modelId: approvalModel } : {}),
+      ...(approvalPrompt ? { prompt: approvalPrompt } : {}),
+      ...(approvalCwd ? { cwd: resolve(approvalCwd) } : {}),
+      ...(approvalMode ? { mode: permission(approvalMode, 'plan') } : {}),
+    });
+    process.stdout.write(`${JSON.stringify({ capability: result.record, decision: result.decision, task: result.task, launched: result.launched }, null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'message' || subcommand === 'follow-up') {
+    const flags = parseFlags(tail);
+    const content = flag(flags, '--message') ?? tail.filter((item) => !item.startsWith('--')).join(' ').trim();
+    if (!content) throw new Error('task message requires --message TEXT.');
+    const result = await engine.queueFollowUp(id, content);
+    process.stdout.write(`${JSON.stringify({ taskId: result.taskId, messageId: result.message.id, status: result.message.status, delivery: result.delivery, ...(result.reason ? { reason: result.reason } : {}) }, null, 2)}\n`);
+    return;
+  }
+  throw new Error(`Unknown task command: ${subcommand ?? ''}. Use list, status, result, message, messages, capabilities, approve-capability, cancel, wait, or recover.`);
 }
 
 async function main(): Promise<void> {

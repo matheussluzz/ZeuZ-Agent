@@ -25,12 +25,32 @@ import { SkillRegistry } from './skills.js';
 import { runtimeWorkspaceSnapshot, systemRuntime, type RuntimeSeams } from './runtime.js';
 import { classifyWorkspaceChange, type WorkspaceChangeEvidence, type WorkspaceSnapshot } from './workspace.js';
 import { emitBoundedEvent } from './streaming.js';
+import {
+  chooseSpecialistExecution,
+  isRootOrchestrator,
+  PANTHEON_PERSONA_IDS,
+  personaForId,
+  routeCapabilityRequest,
+  routeSpecialistIntent,
+  specialistPrompt,
+  type CapabilityRoutingDecision,
+  type SpecialistCapabilityRequest,
+  type SpecialistRoute,
+  type SpecialistRoutingEvidence,
+} from './specialists.js';
+import type { CreateTaskInput } from './task-store.js';
+import type { DurableTaskRecord, TaskSpecialistMetadata } from './task-schema.js';
 import type { AgentEvent, ModelProfile, OnboardingAnswers, PermissionMode, ProviderId, ReviewResult, RunRequest, RunResult, TurnOutcome, WorkspaceBootstrap, ZeuzSession } from './types.js';
+import type { SkillListItem } from './skill-registry/types.js';
 
 type EventSink = (event: AgentEvent) => void;
 type SessionRepository = Pick<SessionStore, 'initialize' | 'create' | 'save' | 'load' | 'list' | 'fork'>;
 type ContextProvider = Pick<WorkspaceContextManager, 'load' | 'initialize' | 'updateHandoff'>;
-type SkillProvider = Pick<SkillRegistry, 'contextFor' | 'list'>;
+type SkillProvider = Pick<SkillRegistry, 'contextFor' | 'list'> & Partial<Pick<SkillRegistry, 'searchCatalog' | 'resolveCatalogSkill' | 'contextForSkill' | 'contextForPantheonSkill'>>;
+
+export interface SpecialistTaskEngine {
+  submitSpecialist(input: CreateTaskInput & { specialist: TaskSpecialistMetadata }): Promise<{ task: DurableTaskRecord; launched: boolean }>;
+}
 
 export interface ControllerDependencies {
   sessions: SessionRepository;
@@ -39,6 +59,7 @@ export interface ControllerDependencies {
   skills: SkillProvider;
   runtime: RuntimeSeams;
   deadlines: DeadlinePolicy;
+  taskEngine?: SpecialistTaskEngine;
 }
 
 export class WorkspaceMeasurementError extends Error {
@@ -68,6 +89,7 @@ export class ZeuzController {
   bootstrap: WorkspaceBootstrap;
   private readonly runtime: RuntimeSeams;
   private readonly deadlines: DeadlinePolicy;
+  private specialistEngine: SpecialistTaskEngine | undefined;
 
   private constructor(session: ZeuzSession, bootstrap: WorkspaceBootstrap, dependencies: ControllerDependencies) {
     this.session = session;
@@ -78,6 +100,7 @@ export class ZeuzController {
     this.skills = dependencies.skills;
     this.runtime = dependencies.runtime;
     this.deadlines = dependencies.deadlines;
+    this.specialistEngine = dependencies.taskEngine;
   }
 
   static async create(
@@ -95,6 +118,7 @@ export class ZeuzController {
       skills: overrides.skills ?? new SkillRegistry(),
       runtime,
       deadlines: overrides.deadlines ?? resolveDeadlinePolicy(options.deadlines ?? deadlineConfigFromEnvironment()),
+      ...(overrides.taskEngine ? { taskEngine: overrides.taskEngine } : {}),
     };
     await store.initialize();
     const session = options.sessionId
@@ -115,6 +139,12 @@ export class ZeuzController {
 
   async send(userText: string, onEvent?: EventSink, signal?: AbortSignal): Promise<TurnOutcome> {
     await this.refreshBootstrap(this.session.permissionMode);
+    const routed = routeSpecialistIntent(userText);
+    if (routed.status === 'ambiguous') {
+      emit(onEvent, { type: 'warning', text: `${routed.reason} Candidates: ${routed.candidates.join(', ')}. Continuing with the primary orchestrator; use an explicit persona command to choose one.` });
+    } else if (routed.status === 'matched') {
+      return await this.runSpecialistRoute(routed, userText, onEvent, signal);
+    }
     const primary = this.activeModel();
     const before = this.workspaceSnapshot();
     const resumeId = this.session.providerSessions[primary.id];
@@ -199,11 +229,11 @@ export class ZeuzController {
     return { response, modelId: producer.id, changedWorkspace, ...(review ? { review } : {}) };
   }
 
-  async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode, signal?: AbortSignal): Promise<TurnOutcome> {
+  async ask(modelQuery: string, task: string, onEvent?: EventSink, mode = this.session.permissionMode, signal?: AbortSignal, skillContextOverride?: string): Promise<TurnOutcome> {
     await this.refreshBootstrap(mode);
     const model = requireModel(modelQuery);
     const before = this.workspaceSnapshot();
-    const skillContext = await this.skills.contextFor(task);
+    const skillContext = skillContextOverride ?? await this.skills.contextFor(task);
     const prompt = buildTurnPrompt({ session: this.session, model, userText: task, includeHandoff: true, mode, bootstrapContext: this.bootstrap.context, ...(skillContext ? { skillContext } : {}) });
     await this.recordHandoff(task, model.id, mode, 'in_progress', onEvent);
     emit(onEvent, { type: 'status', text: `Delegating to ${model.label}` });
@@ -375,8 +405,49 @@ export class ZeuzController {
   }
 
   async skillStatus(): Promise<string> {
-    const skills = await this.skills.list();
+    const pantheon = new Set<string>(PANTHEON_PERSONA_IDS);
+    const skills = (await this.skills.list()).filter((skill) => pantheon.has(skill.name));
     return skills.length === 0 ? 'No repository skills were found.' : skills.map((skill) => `${skill.name.padEnd(10)} ${skill.path}`).join('\n');
+  }
+
+  async searchSkills(query = ''): Promise<SkillListItem[]> {
+    if (!this.skills.searchCatalog) throw new Error('Non-Pantheon skill catalog search is unavailable in this runtime.');
+    return await this.skills.searchCatalog(query);
+  }
+
+  async resolveSkill(query: string): Promise<SkillListItem> {
+    if (!this.skills.resolveCatalogSkill) throw new Error('Non-Pantheon skill catalog resolution is unavailable in this runtime.');
+    return await this.skills.resolveCatalogSkill(query);
+  }
+
+  async invokeSkill(skillQuery: string, task: string, onEvent?: EventSink, signal?: AbortSignal): Promise<TurnOutcome> {
+    if (!task.trim()) throw new Error('A task is required after the selected skill.');
+    if (!this.skills.contextForSkill) throw new Error('Non-Pantheon skill activation is unavailable in this runtime.');
+    const skill = await this.resolveSkill(skillQuery);
+    const skillContext = await this.skills.contextForSkill(skill.id, task);
+    return await this.ask(this.activeModel().id, `Use the explicitly selected catalog skill ${skill.name} (${skill.id}) for this task:\n${task}`, onEvent, this.session.permissionMode, signal, skillContext);
+  }
+
+  async invokePersona(personaId: string, task: string, onEvent?: EventSink, signal?: AbortSignal): Promise<TurnOutcome> {
+    const persona = personaForId(personaId);
+    if (!persona) throw new Error(`Unknown Pantheon persona: ${personaId}`);
+    if (!task.trim()) throw new Error(`Usage: ${persona.command} <task>`);
+    const routed = routeSpecialistIntent(`${persona.command} ${task}`);
+    if (routed.status !== 'matched') throw new Error(`Unable to route ${persona.command}.`);
+    return await this.runSpecialistRoute(routed, task, onEvent, signal);
+  }
+
+  async specialistSkillContext(personaId: string, task = ''): Promise<string> {
+    const persona = personaForId(personaId);
+    if (!persona) throw new Error(`Unknown Pantheon persona: ${personaId}`);
+    if (!this.skills.contextForPantheonSkill) throw new Error('SPECIALIST_SKILL_ACTIVATION_UNAVAILABLE: Pantheon resolver is unavailable in this runtime.');
+    const primarySkill = persona.skillNames[0];
+    if (!primarySkill) throw new Error(`SPECIALIST_SKILL_ACTIVATION_BLOCKED: ${persona.id} declares no activation skill.`);
+    return await this.skills.contextForPantheonSkill(primarySkill, task, persona.contextBudgetBytes);
+  }
+
+  routeCapability(request: SpecialistCapabilityRequest): CapabilityRoutingDecision {
+    return routeCapabilityRequest(request, isRootOrchestrator());
   }
 
   async explicitReview(onEvent?: EventSink): Promise<ReviewResult> {
@@ -449,6 +520,61 @@ export class ZeuzController {
   private recordRun(model: ModelProfile, result: RunResult): void {
     if (result.nativeSessionId) this.session.providerSessions[model.id] = result.nativeSessionId;
     this.session.lastUsedModelId = model.id;
+  }
+
+  private async runSpecialistRoute(route: SpecialistRoute, task: string, onEvent?: EventSink, signal?: AbortSignal): Promise<TurnOutcome> {
+    const model = this.activeModel();
+    const execution = chooseSpecialistExecution(route.persona, { source: route.source, mode: this.session.permissionMode, task });
+    const reviewer = requireModel(reviewerFor(model));
+    const skillContext = await this.specialistSkillContext(route.persona.id, task);
+    const evidence: SpecialistRoutingEvidence = {
+      personaId: route.persona.id,
+      source: route.source,
+      execution,
+      reason: route.reason,
+      matchedTriggers: [...route.matchedTriggers],
+      modelId: model.id,
+      reviewerFamily: reviewer.family,
+      dependencySkills: [...route.persona.skillNames],
+    };
+    const prompt = specialistPrompt(route.persona, task);
+    if (execution === 'spawn' && !isRootOrchestrator()) throw new Error('SPECIALIST_SPAWN_DENIED: only the root ZeuZ orchestrator may spawn specialist tasks.');
+    this.session.messages.push(this.message('user', task));
+    await this.sessions.save(this.session);
+    if (execution === 'in-process') {
+      const outcome = await this.ask(model.id, prompt, onEvent, this.session.permissionMode, signal, skillContext);
+      return { ...outcome, routing: evidence };
+    }
+    const engine = await this.getSpecialistEngine();
+    const submitted = await engine.submitSpecialist({
+      parentSessionId: this.session.id,
+      rootCorrelationId: this.session.id,
+      modelId: model.id,
+      prompt,
+      cwd: this.session.cwd,
+      mode: this.session.permissionMode,
+      specialist: {
+        personaId: route.persona.id,
+        route: route.source,
+        execution: 'spawn',
+        reason: route.reason,
+        matchedTriggers: [...route.matchedTriggers],
+        reviewerFamily: reviewer.family,
+        dependencySkills: [...route.persona.skillNames],
+      },
+    });
+    const response = `Queued ${route.persona.displayName} specialist task ${submitted.task.id}. Worker launch: ${submitted.launched ? 'requested' : 'not available; task remains queued'}. Use /tasks or task result ${submitted.task.id} to observe it.`;
+    this.session.messages.push(this.message('system', response, model.id));
+    await this.sessions.save(this.session);
+    await this.recordHandoff(task, model.id, this.session.permissionMode, 'completed', onEvent, false);
+    return { response, modelId: model.id, changedWorkspace: false, routing: evidence };
+  }
+
+  private async getSpecialistEngine(): Promise<SpecialistTaskEngine> {
+    if (this.specialistEngine) return this.specialistEngine;
+    const module = await import('./task-engine.js');
+    this.specialistEngine = new module.TaskEngine();
+    return this.specialistEngine;
   }
 
   private async runReview(primary: ModelProfile, onEvent?: EventSink): Promise<ReviewResult> {

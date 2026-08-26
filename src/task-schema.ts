@@ -10,6 +10,7 @@ export const MAX_TASK_DEPTH = 1;
 export const MAX_TASK_ATTEMPTS = 3;
 export const MAX_TRANSITION_HISTORY = 64;
 export const DEFAULT_RESULT_MAX_BYTES = 8 * 1024 * 1024;
+const BUILTIN_PERSONA_IDS = new Set(['argos', 'hefesto', 'metis', 'medusa', 'atena', 'clio', 'prometeu', 'hermes']);
 
 export type TaskStatus = 'queued' | 'running' | 'blocked' | 'completed' | 'failed' | 'cancelled';
 export type TaskBlockedReason = 'dependency' | 'review' | 'workspace' | 'ownership' | 'migration' | 'preflight';
@@ -81,6 +82,16 @@ export interface TaskRetryPolicy {
   maxDelayMs: number;
 }
 
+export interface TaskSpecialistMetadata {
+  personaId: string;
+  route: 'automatic' | 'explicit';
+  execution: 'spawn';
+  reason: string;
+  matchedTriggers: string[];
+  reviewerFamily: string;
+  dependencySkills: string[];
+}
+
 export interface DurableTaskRecord {
   schemaVersion: typeof TASK_SCHEMA_VERSION;
   revision: number;
@@ -102,6 +113,7 @@ export interface DurableTaskRecord {
   blockedCode?: string;
   attempt: number;
   retry: TaskRetryPolicy;
+  specialist?: TaskSpecialistMetadata;
   lease?: TaskLease;
   cancelRequestedAt?: string;
   cancelCause?: string;
@@ -184,7 +196,7 @@ export function assertTaskRecord(value: unknown): asserts value is DurableTaskRe
   const allowed = new Set([
     'schemaVersion', 'revision', 'id', 'parentTaskId', 'parentSessionId', 'rootCorrelationId', 'depth', 'dependencyIds', 'modelId', 'prompt',
     'requestedWorkspace', 'repositoryIdentity', 'baseCommit', 'executionWorkspace', 'mode', 'status', 'blockedReason', 'blockedCode', 'attempt', 'retry',
-    'lease', 'cancelRequestedAt', 'cancelCause', 'result', 'artifacts', 'review', 'attempts', 'transitions', 'createdAt', 'updatedAt', 'notBefore',
+    'specialist', 'lease', 'cancelRequestedAt', 'cancelCause', 'result', 'artifacts', 'review', 'attempts', 'transitions', 'createdAt', 'updatedAt', 'notBefore',
     'terminalAt', 'errorCode', 'error',
   ]);
   if (Object.keys(task).some((key) => !allowed.has(key))) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'Task contains unknown fields.');
@@ -212,6 +224,16 @@ export function assertTaskRecord(value: unknown): asserts value is DurableTaskRe
   integer(retry.baseDelayMs, 'task.retry.baseDelayMs', 0, 3_600_000);
   integer(retry.maxDelayMs, 'task.retry.maxDelayMs', 0, 3_600_000);
   if ((retry.baseDelayMs as number) > (retry.maxDelayMs as number)) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'task.retry delay bounds are inverted.');
+  if (task.specialist !== undefined) {
+    const specialist = record(task.specialist, 'task.specialist');
+    exact(specialist, ['personaId', 'route', 'execution', 'reason', 'matchedTriggers', 'reviewerFamily', 'dependencySkills'], 'task.specialist');
+    if (!BUILTIN_PERSONA_IDS.has(text(specialist.personaId, 'task.specialist.personaId', 200).toLocaleLowerCase('pt-BR'))) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'task.specialist.personaId is not a built-in Pantheon persona.');
+    if (!['automatic', 'explicit'].includes(String(specialist.route)) || specialist.execution !== 'spawn') throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'task.specialist routing is invalid.');
+    text(specialist.reason, 'task.specialist.reason', 1_000);
+    text(specialist.reviewerFamily, 'task.specialist.reviewerFamily', 500);
+    if (!Array.isArray(specialist.matchedTriggers) || specialist.matchedTriggers.length > 32 || !specialist.matchedTriggers.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 200)) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'task.specialist.matchedTriggers is invalid.');
+    if (!Array.isArray(specialist.dependencySkills) || specialist.dependencySkills.length > 32 || !specialist.dependencySkills.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 200)) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'task.specialist.dependencySkills is invalid.');
+  }
   if (!Array.isArray(task.artifacts) || !Array.isArray(task.attempts) || !Array.isArray(task.transitions)) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'Task arrays are invalid.');
   if (task.artifacts.length > 10_000 || task.attempts.length > MAX_TASK_ATTEMPTS) throw new TaskSchemaError('STATE_SCHEMA_MISMATCH', 'Task arrays exceed their budgets.');
   for (const artifactValue of task.artifacts) {

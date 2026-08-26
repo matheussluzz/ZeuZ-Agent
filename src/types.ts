@@ -1,3 +1,5 @@
+import type { SpecialistRoutingEvidence } from './specialists.js';
+
 export type ProviderId = 'codex' | 'cursor' | 'claude' | 'copilot' | 'agy' | 'nvidia' | 'openrouter';
 
 export type PermissionMode = 'plan' | 'agent' | 'yolo';
@@ -131,6 +133,7 @@ export interface TurnOutcome {
   modelId: string;
   changedWorkspace: boolean;
   review?: ReviewResult;
+  routing?: SpecialistRoutingEvidence;
 }
 
 export type { DurableTaskRecord as TaskRecord } from './task-schema.js';

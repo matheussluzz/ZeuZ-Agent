@@ -29,7 +29,7 @@ Powerful agents usually live in separate terminals, context windows, permission 
 - `plan`, `agent`, and intentionally named `yolo` permission modes;
 - Markdown, streaming activity, tool events, and colored Git diffs;
 - onboarding, per-repository user profiles, and an Obsidian-compatible knowledge vault;
-- 33 routed specialist skills (including the 25 AIHero engineering/productivity skills) and a guarded AWS Athena MCP template;
+- 33 routed specialist skills (including the 25 AIHero engineering/productivity skills), spawnable Pantheon personas, and a guarded AWS Athena MCP template;
 - mandatory cross-family adversarial review with evidence, not model agreement.
 
 ## Architecture
@@ -253,6 +253,19 @@ zeuz skill check bmad|nvidia    # read-only sync diff against pinned revision
 
 Imported bundles remain `quarantined`/`disabled` until provenance, license, integrity, and explicit reviewed enablement pass. The AIHero snapshot is a locally validated, explicitly enabled skill set because it is part of the agent's active routing contract; its upstream instructions still do not receive extra tool permissions. `zeuz skill sync` is the only normal path that touches the network for catalog refresh.
 
+### Specialist personas and catalog invocation
+
+The eight built-in Pantheon personas are the only specialist commands promoted to the top level: `/argos`, `/hefesto`, `/metis`, `/medusa`, `/atena`, `/clio`, `/prometeu`, and `/hermes`. Explicit persona commands create durable, cancellable tasks by default; short automatic intents can run in-process in plan mode. Automatic matches are deterministic and ambiguous matches are reported instead of being silently combined. Every route exposes its selected model, execution mode, reason, dependencies, and cross-family reviewer.
+
+```text
+/argos Forecast the next 30 days from the untouched test period
+/medusa Review the current diff against the acceptance criteria
+/skill                         # searchable metadata-only non-Pantheon catalog
+/skill code-review Review this parser without changing files
+```
+
+Only the root ZeuZ orchestrator may spawn a persona. A specialist that needs another capability returns a typed request to the root; it cannot spawn a persona or elevate permissions. `/skill` searches the complete non-Pantheon catalog by ID, name, description, and provenance metadata. Non-Pantheon skills never receive top-level aliases, and explicit activation still passes through trust, enablement, dependency, budget, path, and integrity gates.
+
 The workflow design adopts selected public ideas from [BMAD Method](https://github.com/bmad-code-org/bmad-method): lean project context, progressive step loading, consequential-action checkpoints, layered adversarial lenses, and verification-gap tracing. ZeuZ does not vendor BMAD code or branding, and deliberately rejects mandatory finding quotas. See the [adaptation record](docs/research/bmad-adaptation.md).
 
 ## AWS Athena MCP template
@@ -290,17 +303,26 @@ Switching `/model` compacts the provider-neutral transcript before the handoff. 
 
 ```bash
 zeuz delegate --model codex:gpt-5.6-luna@high --task "Inspect the parser" --mode plan --cwd "$PWD"
+zeuz delegate --model codex:gpt-5.6-terra@high --persona medusa --task "Review the parser diff" --mode plan --cwd "$PWD"
 zeuz delegate --model codex:gpt-5.6-terra@high --task "Refactor the parser" --mode agent --cwd "$PWD" --wait
 
 zeuz task list
 zeuz task status <id-or-unique-prefix>
 zeuz task result <id-or-unique-prefix>
+zeuz task message <id-or-unique-prefix> --message "Use the new constraint in the next turn"
+zeuz task messages <id-or-unique-prefix>
+zeuz task capabilities [root-correlation-id]
+zeuz task approve-capability <request-id> --model <id> --prompt "Run the approved sibling capability"
 zeuz task cancel <id-or-unique-prefix>
 zeuz task wait <id-or-unique-prefix>
 zeuz task recover
 ```
 
 Tasks use six states: `queued`, `running`, `blocked`, `completed`, `failed`, and `cancelled`. Results are stored separately with a byte count and SHA-256 check. Three read-only tasks may run concurrently. Git editing tasks receive task-specific branches/worktrees after a fail-closed preflight; non-Git editing is serialized by canonical workspace identity. ZeuZ never merges, rebases, pushes, commits, stashes, resets, or deletes a dirty/ambiguous worktree automatically.
+
+Task follow-ups are redacted and durably queued. A worker claims them atomically for one execution attempt and acknowledges them only after the provider returns; duplicate claims therefore do not deliver the same record twice. If the executor does not explicitly advertise native live input, the command reports `queued` and the message is delivered on the next task turn. Native live delivery is an opt-in executor capability, never inferred from a provider name.
+
+Specialist workers can emit a typed `<zeuz_capability_request>...</zeuz_capability_request>` record when a missing capability is needed. The record is persisted privately and routed to the root with `ROOT_REQUIRED`; the root can inspect it with `task capabilities` and explicitly approve a bounded sibling with `task approve-capability`. Invalid payloads are recorded as `INVALID_CAPABILITY_REQUEST` and never become provider commands.
 
 Task and session records are versioned under the private ZeuZ state root (`ZEUZ_STATE_DIR`, otherwise `~/.agents`). `zeuz task recover` performs startup recovery and v0 migration behind a root maintenance fence: valid legacy records receive content-addressed backups and manifests, corrupt records move to owner-only quarantine with safe reason metadata, and future versions remain untouched. Migration is fail-closed and idempotent. For rollback, stop ZeuZ workers, verify the manifest SHA-256 against its `.v0.json` backup, restore only that matching record, and restart with a runtime that understands v0; never reinterpret quarantine, incomplete migration, stale ownership, review failure, or ambiguous workspace evidence as success.
 
@@ -323,6 +345,8 @@ Task and session records are versioned under the private ZeuZ state root (`ZEUZ_
 | `/cd [path]` | Change the sole active workspace |
 | `/user [name]`, `/onboard`, `/bootstrap` | Manage local user context |
 | `/skills` | List the skill pantheon |
+| `/argos`, `/hefesto`, `/metis`, `/medusa`, `/atena`, `/clio`, `/prometeu`, `/hermes` | Invoke a built-in Pantheon specialist |
+| `/skill [id] [task]` | Search or explicitly activate a non-Pantheon catalog skill |
 | `zeuz skill …` | Inspect, validate, sync, install, update, or remove catalog skills (see below) |
 | `/help`, `/exit` | Show help or exit |
 
@@ -411,6 +435,9 @@ Real smokes recheck provider health, run in `plan` mode, may consume quota, and 
 ```text
 src/adapters/          provider-specific CLI/API bridges
 src/controller.ts      sessions, fallback, handoff, review, remediation
+src/specialists.ts      Pantheon personas, deterministic routing, and root policy
+src/task-engine.ts      durable worker lifecycle and review/workspace gates
+src/task-messages.ts    atomic follow-ups, live input, capability requests
 src/context.ts         onboarding, user profile, and vault bootstrap
 PROGRESS.md            tracked task/progress/verification ledger
 src/skills.ts          SkillRegistry adapter over portable catalog index

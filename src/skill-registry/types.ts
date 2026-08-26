@@ -154,10 +154,14 @@ export interface ActivationError extends Error {
 export interface SkillListItem {
   id: string;
   name: string;
+  description: string;
+  namespace: string;
   path: string;
   trust: TrustState;
   enablement: EnablementState;
   source: string;
+  sourceKind: SkillSourceKind;
+  revision: string;
 }
 
 export const DEFAULT_ACTIVATION_BUDGET_BYTES = 256 * 1024;

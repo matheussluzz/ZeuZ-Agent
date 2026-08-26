@@ -13,7 +13,7 @@ type LegacySkillProvider = {
 export function createSkillRegistryAdapter(registry = new PortableSkillRegistry()): LegacySkillProvider {
   return {
     async list(): Promise<SkillInfo[]> {
-      const skills = await registry.list();
+      const skills = await registry.list('all');
       return skills
         .filter((skill) => skill.path.includes('/skills/'))
         .map((skill) => ({ name: skill.name, path: skill.path }));
