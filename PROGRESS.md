@@ -16,3 +16,11 @@ Each entry starts with a UTC UTID in this exact form:
 - Status: started
 - Task: synchronize local `main` after the Wave 05 merge and establish the Wave 06 branch for the progress-ledger transition.
 - Base: `origin/main` at the Wave 05 merge commit.
+
+## 20260826183300144 - 00001 - 7933fff
+
+- Status: completed
+- Task: establish the Wave 06 progress-ledger workflow and minimum private resume capsule.
+- Completed: synchronized `main` at `fc4f2c7`, created `agent/wave-06-specialist-agent-lifecycle`, added `PROGRESS.md` validation and runtime handoff behavior, and removed all seven stale merged local branches.
+- Verification: `pnpm check`, `pnpm build`, `node bin/zeuz health`, `pnpm progress:check`, and `git diff --check` passed.
+- Next: resume Wave 06 specialist-agent lifecycle work from this branch; consult this ledger on demand.
